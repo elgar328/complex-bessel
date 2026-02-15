@@ -20,7 +20,7 @@ ZBSUBS_FIXED = zbsubs_fixed.f
 
 .PHONY: all clean
 
-all: $(OUTDIR)/besk_f64.json $(OUTDIR)/besh_f64.json
+all: $(OUTDIR)/besk_f64.json $(OUTDIR)/besh_f64.json $(OUTDIR)/besi_f64.json $(OUTDIR)/besj_f64.json $(OUTDIR)/besy_f64.json
 
 # Fix separator lines in zbsubs.f
 $(ZBSUBS_FIXED): $(ZBSUBS)
@@ -46,5 +46,35 @@ $(OUTDIR)/besh_f64.json: gen_besh_refs txt_to_json.py
 	./gen_besh_refs | python3 txt_to_json.py > $@
 	@echo "Generated $@"
 
+# ── Phase 4: I function ──
+
+gen_besi_refs: gen_besi_refs.f $(ZBSUBS_FIXED) $(MACHCON)
+	$(FC) $(FFLAGS) -o $@ gen_besi_refs.f $(ZBSUBS_FIXED) $(MACHCON)
+
+$(OUTDIR)/besi_f64.json: gen_besi_refs txt_to_json.py
+	@mkdir -p $(OUTDIR)
+	./gen_besi_refs | python3 txt_to_json.py > $@
+	@echo "Generated $@"
+
+# ── Phase 4: J function ──
+
+gen_besj_refs: gen_besj_refs.f $(ZBSUBS_FIXED) $(MACHCON)
+	$(FC) $(FFLAGS) -o $@ gen_besj_refs.f $(ZBSUBS_FIXED) $(MACHCON)
+
+$(OUTDIR)/besj_f64.json: gen_besj_refs txt_to_json.py
+	@mkdir -p $(OUTDIR)
+	./gen_besj_refs | python3 txt_to_json.py > $@
+	@echo "Generated $@"
+
+# ── Phase 4: Y function ──
+
+gen_besy_refs: gen_besy_refs.f $(ZBSUBS_FIXED) $(MACHCON)
+	$(FC) $(FFLAGS) -o $@ gen_besy_refs.f $(ZBSUBS_FIXED) $(MACHCON)
+
+$(OUTDIR)/besy_f64.json: gen_besy_refs txt_to_json.py
+	@mkdir -p $(OUTDIR)
+	./gen_besy_refs | python3 txt_to_json.py > $@
+	@echo "Generated $@"
+
 clean:
-	rm -f gen_besk_refs gen_besh_refs $(ZBSUBS_FIXED) gen_*.txt
+	rm -f gen_besk_refs gen_besh_refs gen_besi_refs gen_besj_refs gen_besy_refs $(ZBSUBS_FIXED) gen_*.txt

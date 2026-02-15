@@ -7,7 +7,9 @@
 use num_complex::Complex;
 use num_traits::Float;
 
+use crate::algo::acon::zacon;
 use crate::algo::bknu::zbknu;
+use crate::algo::uoik::zuoik;
 use crate::machine::BesselFloat;
 use crate::types::{BesselError, BesselResult, Scaling};
 use crate::utils::zabs;
@@ -114,12 +116,24 @@ pub(crate) fn zbesk<T: BesselFloat>(
 
     // ── Small-to-moderate order path ──
     // Fortran: check for overflow when FN > 1 and |z| is tiny
+    let rl = T::rl();
+    let fnul = T::fnul();
+
     if fn_val > T::one() {
         if fn_val > T::from(2.0).unwrap() {
-            // FN > 2: would call ZUOIK for overflow/underflow pre-check
-            // TODO: Phase 4 — ZUOIK not yet implemented
-            // Skip pre-check; proceed directly to computation.
-            // This may miss some underflow detection for extreme arguments.
+            // FN > 2: ZUOIK overflow/underflow pre-check (Fortran lines 89-95)
+            let (_uoik_y, nuf) = zuoik(z, fnu, scaling, 2, nn, tol, elim, alim);
+            if nuf < 0 {
+                return Err(BesselError::Overflow);
+            }
+            nz += nuf as usize;
+            nn -= nuf as usize;
+            if nn == 0 {
+                return Ok(BesselResult {
+                    values: vec![Complex::new(T::zero(), T::zero()); n],
+                    underflow_count: nz,
+                });
+            }
         }
 
         // Check for overflow: -FN * ln(0.5 * |z|) > ELIM
@@ -140,8 +154,10 @@ pub(crate) fn zbesk<T: BesselFloat>(
         y
     } else {
         // Left half-plane: analytic continuation (ZACON)
-        // TODO: Phase 4 — ZACON not yet implemented
-        return Err(BesselError::ConvergenceFailure);
+        let mr = if z.im < T::zero() { -1i32 } else { 1i32 };
+        let (y_acon, nw) = zacon(z, fnu, scaling, mr, nn, rl, fnul, tol, elim, alim)?;
+        nz += nw;
+        y_acon
     };
 
     if precision_warning {
@@ -195,10 +211,11 @@ mod tests {
     }
 
     #[test]
-    fn besk_left_half_returns_error_for_now() {
-        // Re(z) < 0 not yet supported (needs ZACON)
+    fn besk_left_half_plane() {
+        // K_0(-1+i) via ZACON analytic continuation
         let z = Complex64::new(-1.0, 1.0);
-        assert!(zbesk(z, 0.0, Scaling::Unscaled, 1).is_err());
+        let result = zbesk(z, 0.0, Scaling::Unscaled, 1);
+        assert!(result.is_ok(), "K_0(-1+i) should succeed with ZACON");
     }
 
     // ── Smoke tests (basic correctness) ──

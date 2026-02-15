@@ -14,3 +14,11 @@ pub(crate) mod uchk;
 // Phase 3: H function + Wronskian
 pub(crate) mod rati;
 pub(crate) mod wrsk;
+
+// Phase 4: I, J, Y + analytic continuation
+pub(crate) mod acon;
+pub(crate) mod asyi;
+pub(crate) mod binu;
+pub(crate) mod mlri;
+pub(crate) mod seri;
+pub(crate) mod uoik;

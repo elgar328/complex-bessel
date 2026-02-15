@@ -15,7 +15,9 @@
 use num_complex::Complex;
 use num_traits::Float;
 
+use crate::algo::acon::zacon;
 use crate::algo::bknu::zbknu;
+use crate::algo::uoik::zuoik;
 use crate::machine::BesselFloat;
 use crate::types::{BesselError, BesselResult, HankelKind, Scaling};
 use crate::utils::zabs;
@@ -125,8 +127,22 @@ pub(crate) fn zbesh<T: BesselFloat>(
         // ── Small-to-moderate order overflow checks (Fortran lines 232-249) ──
         if fn_val > one {
             if fn_val > two {
-                // fn > 2: would call ZUOIK for overflow/underflow pre-check
-                // TODO: Phase 5a — ZUOIK not yet implemented. Skip pre-check.
+                // fn > 2: ZUOIK overflow/underflow pre-check (Fortran lines 238-248)
+                let (_uoik_y, nuf) = zuoik(zn, fnu, scaling, 2, nn_eff, tol, elim, alim);
+                if nuf < 0 {
+                    return Err(BesselError::Overflow);
+                }
+                nz += nuf as usize;
+                nn_eff -= nuf as usize;
+                if nn_eff == 0 {
+                    // All underflowed — still need phase post-processing
+                    // Return zero values; the phase code below is a no-op
+                    let cy_zero = vec![Complex::new(zero, zero); nn];
+                    return Ok(BesselResult {
+                        values: cy_zero,
+                        underflow_count: nz,
+                    });
+                }
             }
 
             // Check for overflow when az is very small (Fortran lines 234-237)
@@ -142,15 +158,18 @@ pub(crate) fn zbesh<T: BesselFloat>(
 
         // ── Main dispatch (Fortran label 70, lines 251-268) ──
         if znr < zero || (znr == zero && zni < zero && m == 2) {
-            // Left half-plane of rotated argument: ZACON needed
-            // TODO: Phase 4 — ZACON not yet implemented
-            return Err(BesselError::ConvergenceFailure);
+            // Left half-plane of rotated argument: analytic continuation (ZACON)
+            let mr = if zni < zero { -1i32 } else { 1i32 };
+            let rl = T::rl();
+            let (y_acon, nw) = zacon(zn, fnu, scaling, mr, nn_eff, rl, fnul, tol, elim, alim)?;
+            nz += nw;
+            y_acon
+        } else {
+            // Right half-plane: direct zbknu on rotated argument
+            let (y, nw) = zbknu(zn, fnu, scaling, nn_eff, tol, elim, alim)?;
+            nz += nw;
+            y
         }
-
-        // Right half-plane: direct zbknu on rotated argument
-        let (y, nw) = zbknu(zn, fnu, scaling, nn_eff, tol, elim, alim)?;
-        nz += nw;
-        y
     };
 
     // ── Phase post-processing (Fortran label 110, lines 285-336) ──
@@ -284,10 +303,10 @@ mod tests {
     }
 
     #[test]
-    fn besh_h1_lower_half_returns_error() {
-        // H^(1)(0, 1-i) needs ZACON (Im(z) < 0, m=1)
+    fn besh_h1_lower_half_plane() {
+        // H^(1)(0, 1-i) via ZACON (Im(z) < 0, m=1)
         let z = Complex64::new(1.0, -1.0);
         let result = zbesh(z, 0.0, HankelKind::First, Scaling::Unscaled, 1);
-        assert!(result.is_err(), "H^(1) with Im(z)<0 should fail (no ZACON)");
+        assert!(result.is_ok(), "H^(1)(0, 1-i) should succeed with ZACON");
     }
 }

@@ -18,7 +18,10 @@ extern crate alloc;
 
 pub(crate) mod algo;
 pub(crate) mod besh;
+pub(crate) mod besi;
+pub(crate) mod besj;
 pub(crate) mod besk;
+pub(crate) mod besy;
 pub mod machine;
 pub mod types;
 pub(crate) mod utils;
@@ -32,17 +35,20 @@ use num_complex::Complex;
 
 /// Bessel function of the first kind, J_ν(z).
 pub fn besselj<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, BesselError> {
-    todo!()
+    let result = besj::zbesj(z, nu, Scaling::Unscaled, 1)?;
+    Ok(result.values[0])
 }
 
 /// Bessel function of the second kind, Y_ν(z).
 pub fn bessely<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, BesselError> {
-    todo!()
+    let result = besy::zbesy(z, nu, Scaling::Unscaled, 1)?;
+    Ok(result.values[0])
 }
 
 /// Modified Bessel function of the first kind, I_ν(z).
 pub fn besseli<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, BesselError> {
-    todo!()
+    let result = besi::zbesi(z, nu, Scaling::Unscaled, 1)?;
+    Ok(result.values[0])
 }
 
 /// Modified Bessel function of the second kind, K_ν(z).
@@ -86,7 +92,7 @@ pub fn besselj_seq<T: BesselFloat>(
     n: usize,
     scaling: Scaling,
 ) -> Result<BesselResult<T>, BesselError> {
-    todo!()
+    besj::zbesj(z, nu, scaling, n)
 }
 
 /// Compute Y_{ν+j}(z) for j = 0, 1, ..., n-1.
@@ -96,7 +102,7 @@ pub fn bessely_seq<T: BesselFloat>(
     n: usize,
     scaling: Scaling,
 ) -> Result<BesselResult<T>, BesselError> {
-    todo!()
+    besy::zbesy(z, nu, scaling, n)
 }
 
 /// Compute I_{ν+j}(z) for j = 0, 1, ..., n-1.
@@ -106,7 +112,7 @@ pub fn besseli_seq<T: BesselFloat>(
     n: usize,
     scaling: Scaling,
 ) -> Result<BesselResult<T>, BesselError> {
-    todo!()
+    besi::zbesi(z, nu, scaling, n)
 }
 
 /// Compute K_{ν+j}(z) for j = 0, 1, ..., n-1.
