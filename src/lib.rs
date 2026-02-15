@@ -16,8 +16,11 @@
 #[cfg(not(feature = "std"))]
 extern crate alloc;
 
+pub(crate) mod algo;
+pub(crate) mod besk;
 pub mod machine;
 pub mod types;
+pub(crate) mod utils;
 
 pub use machine::BesselFloat;
 pub use types::{AiryDerivative, BesselError, BesselResult, HankelKind, Scaling};
@@ -43,7 +46,8 @@ pub fn besseli<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Besse
 
 /// Modified Bessel function of the second kind, K_ν(z).
 pub fn besselk<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, BesselError> {
-    todo!()
+    let result = besk::zbesk(z, nu, Scaling::Unscaled, 1)?;
+    Ok(result.values[0])
 }
 
 /// Hankel function, H_ν^(m)(z).
@@ -110,7 +114,7 @@ pub fn besselk_seq<T: BesselFloat>(
     n: usize,
     scaling: Scaling,
 ) -> Result<BesselResult<T>, BesselError> {
-    todo!()
+    besk::zbesk(z, nu, scaling, n)
 }
 
 /// Compute H_{ν+j}^(m)(z) for j = 0, 1, ..., n-1.

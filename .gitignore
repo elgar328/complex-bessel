@@ -9,6 +9,11 @@ refs/cpp/
 refs/papers/
 
 
+# Compiled Fortran test binaries and intermediate files
+tests/fortran/gen_*_refs
+tests/fortran/gen_*.txt
+tests/fortran/zbsubs_fixed.f
+
 # macOS
 .DS_Store
 

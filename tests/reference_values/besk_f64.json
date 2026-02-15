@@ -1,0 +1,868 @@
+{
+  "generator": "Fortran TOMS 644 (zbsubs.f, revision 930101)",
+  "machine": "IEEE 754 double precision",
+  "tests": [
+    {
+      "function": "zbesk",
+      "label": "K_0(1.0)",
+      "inputs": {
+        "z_re": 1.0,
+        "z_im": 0.0,
+        "fnu": 0.0,
+        "kode": 1,
+        "n": 1
+      },
+      "outputs": {
+        "nz": 0,
+        "ierr": 0,
+        "cy_re": [
+          0.42102443824070834
+        ],
+        "cy_im": [
+          0.0
+        ]
+      }
+    },
+    {
+      "function": "zbesk",
+      "label": "K_1(1.0)",
+      "inputs": {
+        "z_re": 1.0,
+        "z_im": 0.0,
+        "fnu": 1.0,
+        "kode": 1,
+        "n": 1
+      },
+      "outputs": {
+        "nz": 0,
+        "ierr": 0,
+        "cy_re": [
+          0.6019072301972346
+        ],
+        "cy_im": [
+          0.0
+        ]
+      }
+    },
+    {
+      "function": "zbesk",
+      "label": "K_0(0.01)",
+      "inputs": {
+        "z_re": 0.01,
+        "z_im": 0.0,
+        "fnu": 0.0,
+        "kode": 1,
+        "n": 1
+      },
+      "outputs": {
+        "nz": 0,
+        "ierr": 0,
+        "cy_re": [
+          4.721244730161095
+        ],
+        "cy_im": [
+          0.0
+        ]
+      }
+    },
+    {
+      "function": "zbesk",
+      "label": "K_0(0.1)",
+      "inputs": {
+        "z_re": 0.1,
+        "z_im": 0.0,
+        "fnu": 0.0,
+        "kode": 1,
+        "n": 1
+      },
+      "outputs": {
+        "nz": 0,
+        "ierr": 0,
+        "cy_re": [
+          2.427069024702017
+        ],
+        "cy_im": [
+          0.0
+        ]
+      }
+    },
+    {
+      "function": "zbesk",
+      "label": "K_0(2.0)",
+      "inputs": {
+        "z_re": 2.0,
+        "z_im": 0.0,
+        "fnu": 0.0,
+        "kode": 1,
+        "n": 1
+      },
+      "outputs": {
+        "nz": 0,
+        "ierr": 0,
+        "cy_re": [
+          0.11389387274953341
+        ],
+        "cy_im": [
+          0.0
+        ]
+      }
+    },
+    {
+      "function": "zbesk",
+      "label": "K_1(2.0)",
+      "inputs": {
+        "z_re": 2.0,
+        "z_im": 0.0,
+        "fnu": 1.0,
+        "kode": 1,
+        "n": 1
+      },
+      "outputs": {
+        "nz": 0,
+        "ierr": 0,
+        "cy_re": [
+          0.13986588181652246
+        ],
+        "cy_im": [
+          0.0
+        ]
+      }
+    },
+    {
+      "function": "zbesk",
+      "label": "K_0(5.0)",
+      "inputs": {
+        "z_re": 5.0,
+        "z_im": 0.0,
+        "fnu": 0.0,
+        "kode": 1,
+        "n": 1
+      },
+      "outputs": {
+        "nz": 0,
+        "ierr": 0,
+        "cy_re": [
+          0.0036910983340425942
+        ],
+        "cy_im": [
+          0.0
+        ]
+      }
+    },
+    {
+      "function": "zbesk",
+      "label": "K_0(10.0)",
+      "inputs": {
+        "z_re": 10.0,
+        "z_im": 0.0,
+        "fnu": 0.0,
+        "kode": 1,
+        "n": 1
+      },
+      "outputs": {
+        "nz": 0,
+        "ierr": 0,
+        "cy_re": [
+          1.778006231616765e-05
+        ],
+        "cy_im": [
+          0.0
+        ]
+      }
+    },
+    {
+      "function": "zbesk",
+      "label": "K_0(50.0)",
+      "inputs": {
+        "z_re": 50.0,
+        "z_im": 0.0,
+        "fnu": 0.0,
+        "kode": 1,
+        "n": 1
+      },
+      "outputs": {
+        "nz": 0,
+        "ierr": 0,
+        "cy_re": [
+          3.410167749789496e-23
+        ],
+        "cy_im": [
+          0.0
+        ]
+      }
+    },
+    {
+      "function": "zbesk",
+      "label": "K_0.5(1.0)",
+      "inputs": {
+        "z_re": 1.0,
+        "z_im": 0.0,
+        "fnu": 0.5,
+        "kode": 1,
+        "n": 1
+      },
+      "outputs": {
+        "nz": 0,
+        "ierr": 0,
+        "cy_re": [
+          0.4610685044478946
+        ],
+        "cy_im": [
+          0.0
+        ]
+      }
+    },
+    {
+      "function": "zbesk",
+      "label": "K_0.25(1.0)",
+      "inputs": {
+        "z_re": 1.0,
+        "z_im": 0.0,
+        "fnu": 0.25,
+        "kode": 1,
+        "n": 1
+      },
+      "outputs": {
+        "nz": 0,
+        "ierr": 0,
+        "cy_re": [
+          0.4307397744485836
+        ],
+        "cy_im": [
+          0.0
+        ]
+      }
+    },
+    {
+      "function": "zbesk",
+      "label": "K_2.5(3.0)",
+      "inputs": {
+        "z_re": 3.0,
+        "z_im": 0.0,
+        "fnu": 2.5,
+        "kode": 1,
+        "n": 1
+      },
+      "outputs": {
+        "nz": 0,
+        "ierr": 0,
+        "cy_re": [
+          0.0840606319741174
+        ],
+        "cy_im": [
+          0.0
+        ]
+      }
+    },
+    {
+      "function": "zbesk",
+      "label": "K_5(2.0)",
+      "inputs": {
+        "z_re": 2.0,
+        "z_im": 0.0,
+        "fnu": 5.0,
+        "kode": 1,
+        "n": 1
+      },
+      "outputs": {
+        "nz": 0,
+        "ierr": 0,
+        "cy_re": [
+          9.431049100596468
+        ],
+        "cy_im": [
+          0.0
+        ]
+      }
+    },
+    {
+      "function": "zbesk",
+      "label": "K_0(1+i)",
+      "inputs": {
+        "z_re": 1.0,
+        "z_im": 1.0,
+        "fnu": 0.0,
+        "kode": 1,
+        "n": 1
+      },
+      "outputs": {
+        "nz": 0,
+        "ierr": 0,
+        "cy_re": [
+          0.08019772694651774
+        ],
+        "cy_im": [
+          -0.35727745928533017
+        ]
+      }
+    },
+    {
+      "function": "zbesk",
+      "label": "K_1(1+i)",
+      "inputs": {
+        "z_re": 1.0,
+        "z_im": 1.0,
+        "fnu": 1.0,
+        "kode": 1,
+        "n": 1
+      },
+      "outputs": {
+        "nz": 0,
+        "ierr": 0,
+        "cy_re": [
+          0.0245683055237404
+        ],
+        "cy_im": [
+          -0.4597194738011892
+        ]
+      }
+    },
+    {
+      "function": "zbesk",
+      "label": "K_0(1.5+0.5i)",
+      "inputs": {
+        "z_re": 1.5,
+        "z_im": 0.5,
+        "fnu": 0.0,
+        "kode": 1,
+        "n": 1
+      },
+      "outputs": {
+        "nz": 0,
+        "ierr": 0,
+        "cy_re": [
+          0.16728456135094058
+        ],
+        "cy_im": [
+          -0.12565741212241108
+        ]
+      }
+    },
+    {
+      "function": "zbesk",
+      "label": "K_0.25(1.5+0.5i)",
+      "inputs": {
+        "z_re": 1.5,
+        "z_im": 0.5,
+        "fnu": 0.25,
+        "kode": 1,
+        "n": 1
+      },
+      "outputs": {
+        "nz": 0,
+        "ierr": 0,
+        "cy_re": [
+          0.16932827399425499
+        ],
+        "cy_im": [
+          -0.12830408882336905
+        ]
+      }
+    },
+    {
+      "function": "zbesk",
+      "label": "K_0(5+3i)",
+      "inputs": {
+        "z_re": 5.0,
+        "z_im": 3.0,
+        "fnu": 0.0,
+        "kode": 1,
+        "n": 1
+      },
+      "outputs": {
+        "nz": 0,
+        "ierr": 0,
+        "cy_re": [
+          -0.0034121248887629056
+        ],
+        "cy_im": [
+          0.0004077699810708549
+        ]
+      }
+    },
+    {
+      "function": "zbesk",
+      "label": "K_0(0.5+2i)",
+      "inputs": {
+        "z_re": 0.5,
+        "z_im": 2.0,
+        "fnu": 0.0,
+        "kode": 1,
+        "n": 1
+      },
+      "outputs": {
+        "nz": 0,
+        "ierr": 0,
+        "cy_re": [
+          -0.4469029802064223
+        ],
+        "cy_im": [
+          -0.2610714054071454
+        ]
+      }
+    },
+    {
+      "function": "zbesk",
+      "label": "K_2(3+4i)",
+      "inputs": {
+        "z_re": 3.0,
+        "z_im": 4.0,
+        "fnu": 2.0,
+        "kode": 1,
+        "n": 1
+      },
+      "outputs": {
+        "nz": 0,
+        "ierr": 0,
+        "cy_re": [
+          0.0005727475953947571
+        ],
+        "cy_im": [
+          0.03520597765765302
+        ]
+      }
+    },
+    {
+      "function": "zbesk",
+      "label": "K_0(1.0) scaled",
+      "inputs": {
+        "z_re": 1.0,
+        "z_im": 0.0,
+        "fnu": 0.0,
+        "kode": 2,
+        "n": 1
+      },
+      "outputs": {
+        "nz": 0,
+        "ierr": 0,
+        "cy_re": [
+          1.1444630798068949
+        ],
+        "cy_im": [
+          0.0
+        ]
+      }
+    },
+    {
+      "function": "zbesk",
+      "label": "K_0(10.0) scaled",
+      "inputs": {
+        "z_re": 10.0,
+        "z_im": 0.0,
+        "fnu": 0.0,
+        "kode": 2,
+        "n": 1
+      },
+      "outputs": {
+        "nz": 0,
+        "ierr": 0,
+        "cy_re": [
+          0.39163193443659866
+        ],
+        "cy_im": [
+          0.0
+        ]
+      }
+    },
+    {
+      "function": "zbesk",
+      "label": "K_0(1+i) scaled",
+      "inputs": {
+        "z_re": 1.0,
+        "z_im": 1.0,
+        "fnu": 0.0,
+        "kode": 2,
+        "n": 1
+      },
+      "outputs": {
+        "nz": 0,
+        "ierr": 0,
+        "cy_re": [
+          0.935006401047503
+        ],
+        "cy_im": [
+          -0.34129054457006636
+        ]
+      }
+    },
+    {
+      "function": "zbesk",
+      "label": "K_{0,1,2}(2.0)",
+      "inputs": {
+        "z_re": 2.0,
+        "z_im": 0.0,
+        "fnu": 0.0,
+        "kode": 1,
+        "n": 3
+      },
+      "outputs": {
+        "nz": 0,
+        "ierr": 0,
+        "cy_re": [
+          0.11389387274953341,
+          0.13986588181652246,
+          0.2537597545660559
+        ],
+        "cy_im": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "function": "zbesk",
+      "label": "K_{1,2,3}(1+i)",
+      "inputs": {
+        "z_re": 1.0,
+        "z_im": 1.0,
+        "fnu": 1.0,
+        "kode": 1,
+        "n": 3
+      },
+      "outputs": {
+        "nz": 0,
+        "ierr": 0,
+        "cy_re": [
+          0.0245683055237404,
+          -0.354953441330931,
+          -2.3684690543586404
+        ],
+        "cy_im": [
+          -0.4597194738011892,
+          -0.8415652386102597,
+          -1.4329430683598463
+        ]
+      }
+    },
+    {
+      "function": "zbesk",
+      "label": "K_{0.5,1.5,2.5}(3.0)",
+      "inputs": {
+        "z_re": 3.0,
+        "z_im": 0.0,
+        "fnu": 0.5,
+        "kode": 1,
+        "n": 3
+      },
+      "outputs": {
+        "nz": 0,
+        "ierr": 0,
+        "cy_re": [
+          0.0360259851317646,
+          0.0480346468423528,
+          0.0840606319741174
+        ],
+        "cy_im": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "function": "zbknu",
+      "label": "K_0(0.5) series",
+      "inputs": {
+        "z_re": 0.5,
+        "z_im": 0.0,
+        "fnu": 0.0,
+        "kode": 1,
+        "n": 1
+      },
+      "outputs": {
+        "nz": 0,
+        "y_re": [
+          0.9244190712276656
+        ],
+        "y_im": [
+          0.0
+        ]
+      }
+    },
+    {
+      "function": "zbknu",
+      "label": "K_0(1.0)",
+      "inputs": {
+        "z_re": 1.0,
+        "z_im": 0.0,
+        "fnu": 0.0,
+        "kode": 1,
+        "n": 1
+      },
+      "outputs": {
+        "nz": 0,
+        "y_re": [
+          0.42102443824070834
+        ],
+        "y_im": [
+          0.0
+        ]
+      }
+    },
+    {
+      "function": "zbknu",
+      "label": "K_1(0.5) series",
+      "inputs": {
+        "z_re": 0.5,
+        "z_im": 0.0,
+        "fnu": 1.0,
+        "kode": 1,
+        "n": 1
+      },
+      "outputs": {
+        "nz": 0,
+        "y_re": [
+          1.6564411200033007
+        ],
+        "y_im": [
+          0.0
+        ]
+      }
+    },
+    {
+      "function": "zbknu",
+      "label": "K_0.25(0.3) series",
+      "inputs": {
+        "z_re": 0.3,
+        "z_im": 0.0,
+        "fnu": 0.25,
+        "kode": 1,
+        "n": 1
+      },
+      "outputs": {
+        "nz": 0,
+        "y_re": [
+          1.4480426307073682
+        ],
+        "y_im": [
+          0.0
+        ]
+      }
+    },
+    {
+      "function": "zbknu",
+      "label": "K_0(0.1+0.1i) series",
+      "inputs": {
+        "z_re": 0.1,
+        "z_im": 0.1,
+        "fnu": 0.0,
+        "kode": 1,
+        "n": 1
+      },
+      "outputs": {
+        "nz": 0,
+        "y_re": [
+          2.0758476818230402
+        ],
+        "y_im": [
+          -0.7700335531279032
+        ]
+      }
+    },
+    {
+      "function": "zbknu",
+      "label": "K_0(5.0) asymptotic",
+      "inputs": {
+        "z_re": 5.0,
+        "z_im": 0.0,
+        "fnu": 0.0,
+        "kode": 1,
+        "n": 1
+      },
+      "outputs": {
+        "nz": 0,
+        "y_re": [
+          0.0036910983340425942
+        ],
+        "y_im": [
+          0.0
+        ]
+      }
+    },
+    {
+      "function": "zbknu",
+      "label": "K_0(10.0) asymptotic",
+      "inputs": {
+        "z_re": 10.0,
+        "z_im": 0.0,
+        "fnu": 0.0,
+        "kode": 1,
+        "n": 1
+      },
+      "outputs": {
+        "nz": 0,
+        "y_re": [
+          1.778006231616765e-05
+        ],
+        "y_im": [
+          0.0
+        ]
+      }
+    },
+    {
+      "function": "zbknu",
+      "label": "K_2.5(3.0)",
+      "inputs": {
+        "z_re": 3.0,
+        "z_im": 0.0,
+        "fnu": 2.5,
+        "kode": 1,
+        "n": 1
+      },
+      "outputs": {
+        "nz": 0,
+        "y_re": [
+          0.0840606319741174
+        ],
+        "y_im": [
+          0.0
+        ]
+      }
+    },
+    {
+      "function": "zbknu",
+      "label": "K_0(5+3i) asymptotic",
+      "inputs": {
+        "z_re": 5.0,
+        "z_im": 3.0,
+        "fnu": 0.0,
+        "kode": 1,
+        "n": 1
+      },
+      "outputs": {
+        "nz": 0,
+        "y_re": [
+          -0.0034121248887629056
+        ],
+        "y_im": [
+          0.0004077699810708549
+        ]
+      }
+    },
+    {
+      "function": "zbknu",
+      "label": "K_0(1+i)",
+      "inputs": {
+        "z_re": 1.0,
+        "z_im": 1.0,
+        "fnu": 0.0,
+        "kode": 1,
+        "n": 1
+      },
+      "outputs": {
+        "nz": 0,
+        "y_re": [
+          0.08019772694651774
+        ],
+        "y_im": [
+          -0.35727745928533017
+        ]
+      }
+    },
+    {
+      "function": "zbknu",
+      "label": "K_{0,1}(2.0)",
+      "inputs": {
+        "z_re": 2.0,
+        "z_im": 0.0,
+        "fnu": 0.0,
+        "kode": 1,
+        "n": 2
+      },
+      "outputs": {
+        "nz": 0,
+        "y_re": [
+          0.11389387274953341,
+          0.13986588181652246
+        ],
+        "y_im": [
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "function": "zbknu",
+      "label": "K_{0.5,1.5}(3.0)",
+      "inputs": {
+        "z_re": 3.0,
+        "z_im": 0.0,
+        "fnu": 0.5,
+        "kode": 1,
+        "n": 2
+      },
+      "outputs": {
+        "nz": 0,
+        "y_re": [
+          0.0360259851317646,
+          0.0480346468423528
+        ],
+        "y_im": [
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "function": "zbknu",
+      "label": "K_0(1.0) scaled",
+      "inputs": {
+        "z_re": 1.0,
+        "z_im": 0.0,
+        "fnu": 0.0,
+        "kode": 2,
+        "n": 1
+      },
+      "outputs": {
+        "nz": 0,
+        "y_re": [
+          1.1444630798068949
+        ],
+        "y_im": [
+          0.0
+        ]
+      }
+    },
+    {
+      "function": "zbknu",
+      "label": "K_0(10.0) scaled",
+      "inputs": {
+        "z_re": 10.0,
+        "z_im": 0.0,
+        "fnu": 0.0,
+        "kode": 2,
+        "n": 1
+      },
+      "outputs": {
+        "nz": 0,
+        "y_re": [
+          0.39163193443659866
+        ],
+        "y_im": [
+          0.0
+        ]
+      }
+    },
+    {
+      "function": "zbknu",
+      "label": "K_5(2.0)",
+      "inputs": {
+        "z_re": 2.0,
+        "z_im": 0.0,
+        "fnu": 5.0,
+        "kode": 1,
+        "n": 1
+      },
+      "outputs": {
+        "nz": 0,
+        "y_re": [
+          9.431049100596468
+        ],
+        "y_im": [
+          0.0
+        ]
+      }
+    }
+  ]
+}
