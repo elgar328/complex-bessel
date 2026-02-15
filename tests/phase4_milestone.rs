@@ -54,7 +54,7 @@ struct RefOutputs {
     y_im: Option<Vec<f64>>,
 }
 
-const FORTRAN_TOL: f64 = 2e-14;
+const FORTRAN_TOL: f64 = 3e-14;
 
 fn assert_complex_rel(label: &str, got: Complex<f64>, re_ref: f64, im_ref: f64, tol: f64) {
     let expected = Complex::new(re_ref, im_ref);

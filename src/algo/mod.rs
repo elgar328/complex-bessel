@@ -27,3 +27,6 @@ pub(crate) mod uoik;
 pub(crate) mod uni1;
 pub(crate) mod unik;
 pub(crate) mod unk1;
+
+// Phase 6: Airy functions (analytic continuation helper)
+pub(crate) mod acai;

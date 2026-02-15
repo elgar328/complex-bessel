@@ -20,7 +20,7 @@ ZBSUBS_FIXED = zbsubs_fixed.f
 
 .PHONY: all clean
 
-all: $(OUTDIR)/besk_f64.json $(OUTDIR)/besh_f64.json $(OUTDIR)/besi_f64.json $(OUTDIR)/besj_f64.json $(OUTDIR)/besy_f64.json
+all: $(OUTDIR)/besk_f64.json $(OUTDIR)/besh_f64.json $(OUTDIR)/besi_f64.json $(OUTDIR)/besj_f64.json $(OUTDIR)/besy_f64.json $(OUTDIR)/airy_f64.json
 
 # Fix separator lines in zbsubs.f
 $(ZBSUBS_FIXED): $(ZBSUBS)
@@ -76,5 +76,15 @@ $(OUTDIR)/besy_f64.json: gen_besy_refs txt_to_json.py
 	./gen_besy_refs | python3 txt_to_json.py > $@
 	@echo "Generated $@"
 
+# ── Phase 6: Airy functions ──
+
+gen_airy_refs: gen_airy_refs.f $(ZBSUBS_FIXED) $(MACHCON)
+	$(FC) $(FFLAGS) -o $@ gen_airy_refs.f $(ZBSUBS_FIXED) $(MACHCON)
+
+$(OUTDIR)/airy_f64.json: gen_airy_refs txt_to_json.py
+	@mkdir -p $(OUTDIR)
+	./gen_airy_refs | python3 txt_to_json.py > $@
+	@echo "Generated $@"
+
 clean:
-	rm -f gen_besk_refs gen_besh_refs gen_besi_refs gen_besj_refs gen_besy_refs $(ZBSUBS_FIXED) gen_*.txt
+	rm -f gen_besk_refs gen_besh_refs gen_besi_refs gen_besj_refs gen_besy_refs gen_airy_refs $(ZBSUBS_FIXED) gen_*.txt

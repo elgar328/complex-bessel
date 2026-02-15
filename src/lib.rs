@@ -16,6 +16,7 @@
 #[cfg(not(feature = "std"))]
 extern crate alloc;
 
+pub(crate) mod airy;
 pub(crate) mod algo;
 pub(crate) mod besh;
 pub(crate) mod besi;
@@ -72,7 +73,18 @@ pub fn airy<T: BesselFloat>(
     z: Complex<T>,
     deriv: AiryDerivative,
 ) -> Result<Complex<T>, BesselError> {
-    todo!()
+    let (result, _nz) = airy::zairy(z, deriv, Scaling::Unscaled)?;
+    Ok(result)
+}
+
+/// Scaled Airy function: exp(zta)*Ai(z) or exp(zta)*Ai'(z),
+/// where zta = (2/3)*z*sqrt(z).
+pub fn airy_scaled<T: BesselFloat>(
+    z: Complex<T>,
+    deriv: AiryDerivative,
+) -> Result<Complex<T>, BesselError> {
+    let (result, _nz) = airy::zairy(z, deriv, Scaling::Exponential)?;
+    Ok(result)
 }
 
 /// Airy function Bi(z) or its derivative Bi'(z).
@@ -80,7 +92,16 @@ pub fn biry<T: BesselFloat>(
     z: Complex<T>,
     deriv: AiryDerivative,
 ) -> Result<Complex<T>, BesselError> {
-    todo!()
+    airy::zbiry(z, deriv, Scaling::Unscaled)
+}
+
+/// Scaled Airy function: exp(-|Re(zta)|)*Bi(z) or exp(-|Re(zta)|)*Bi'(z),
+/// where zta = (2/3)*z*sqrt(z).
+pub fn biry_scaled<T: BesselFloat>(
+    z: Complex<T>,
+    deriv: AiryDerivative,
+) -> Result<Complex<T>, BesselError> {
+    airy::zbiry(z, deriv, Scaling::Exponential)
 }
 
 // ── Sequence functions with scaling option ──

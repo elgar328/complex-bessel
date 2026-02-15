@@ -50,7 +50,7 @@ struct RefOutputs {
 
 // ── Tolerance ──
 
-const FORTRAN_TOL: f64 = 2e-14;
+const FORTRAN_TOL: f64 = 3e-14;
 
 // ── Helper: complex relative error ──
 

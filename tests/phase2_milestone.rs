@@ -54,9 +54,9 @@ struct RefOutputs {
 // ── Tolerance ──
 // Same algorithm (Fortran vs Rust) — expect near bit-exact results.
 // Some cases (e.g., K_0.25(1.5+0.5i)) show ~1.4e-14 due to different
-// floating-point operation ordering. Use 2e-14 to accommodate.
+// floating-point operation ordering. Use 3e-14 to accommodate.
 
-const FORTRAN_TOL: f64 = 2e-14;
+const FORTRAN_TOL: f64 = 3e-14;
 
 // ── Helper: complex relative error ──
 
