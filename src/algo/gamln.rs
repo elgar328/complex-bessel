@@ -8,12 +8,9 @@
 #![allow(clippy::excessive_precision)]
 #![allow(clippy::approx_constant)]
 
+use crate::algo::constants::R1M5;
 use crate::machine::BesselFloat;
 use crate::types::BesselError;
-
-/// log10(2), the base-10 logarithm of the floating-point radix.
-/// Equivalent to D1MACH(5) for binary IEEE 754.
-const R1M5: f64 = 0.30102999566398120;
 
 /// ln(2π), used in Stirling's formula.
 const CON: f64 = 1.83787706640934548;

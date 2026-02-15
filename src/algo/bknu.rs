@@ -22,12 +22,11 @@ use crate::utils::{zabs, zdiv};
 
 const KMAX: i32 = 30;
 const R1: f64 = 2.0;
-const DPI: f64 = 3.14159265358979324;
 const RTHPI: f64 = 1.25331413731550025; // sqrt(pi/2)
 const SPI: f64 = 1.90985931710274403; // sqrt(6/pi)? Actually 6/(pi^2) related
-const HPI: f64 = 1.57079632679489662; // pi/2
 const FPI: f64 = 1.89769999331517738; // 2^(1.75)/sqrt(pi)
-const TTH: f64 = 6.66666666666666666e-1; // 2/3
+
+use crate::algo::constants::{HPI, PI, R1M5, TTH};
 
 /// Chebyshev coefficients for the f_0 series (small |DNU| case).
 /// CC(1) = γ (Euler-Mascheroni constant).
@@ -119,7 +118,7 @@ pub(crate) fn zbknu<T: BesselFloat>(
 
         let smu;
         if dnu != zero {
-            fc = dnu * T::from(DPI).unwrap();
+            fc = dnu * T::from(PI).unwrap();
             fc = fc / fc.sin();
             smu = Complex::new(csh.re / dnu, csh.im / dnu);
         } else {
@@ -322,7 +321,7 @@ pub(crate) fn zbknu<T: BesselFloat>(
     }
 
     // Check if cos(π·DNU) == 0 or FHS == 0
-    let ak_cos = T::from(DPI).unwrap() * dnu;
+    let ak_cos = T::from(PI).unwrap() * dnu;
     let ak_val = ak_cos.cos().abs();
     let fhs = (T::from(0.25).unwrap() - dnu2).abs();
     if ak_val == zero || fhs == zero {
@@ -338,7 +337,7 @@ pub(crate) fn zbknu<T: BesselFloat>(
     // ── Compute R2 = F(E) for determining backward index K ──
     // T1 = (I1MACH(14) - 1) * D1MACH(5) * 3.321928094
     // D1MACH(5) = log10(2) for binary
-    let r1m5 = T::from(0.30102999566398120).unwrap();
+    let r1m5 = T::from(R1M5).unwrap();
     let t1_raw = T::from(T::MACH_DIGITS - 1).unwrap() * r1m5 * T::from(3.321928094).unwrap();
     let t1_clamped = t1_raw
         .max(T::from(12.0).unwrap())
@@ -356,7 +355,7 @@ pub(crate) fn zbknu<T: BesselFloat>(
 
     if t2_miller <= caz {
         // ── Forward recurrence to find backward index K (label 150) ──
-        let etest = ak_val / (T::from(DPI).unwrap() * caz * tol);
+        let etest = ak_val / (T::from(PI).unwrap() * caz * tol);
         let mut fk_val = one;
         if etest >= one {
             let mut fks = two;

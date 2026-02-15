@@ -10,11 +10,10 @@
 use num_complex::Complex;
 
 use crate::algo::binu::zbinu;
+use crate::algo::constants::HPI;
 use crate::machine::BesselFloat;
 use crate::types::{BesselError, BesselResult, Scaling};
 use crate::utils::zabs;
-
-const HPI: f64 = 1.57079632679489662; // pi/2
 
 /// Compute J_{fnu+j}(z) for j = 0, 1, ..., n-1.
 ///

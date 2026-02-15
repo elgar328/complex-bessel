@@ -9,15 +9,13 @@
 
 use num_complex::Complex;
 
+use crate::algo::constants::PI;
 use crate::algo::s1s2::zs1s2;
 use crate::algo::uchk::zuchk;
 use crate::algo::unik::{UnikCache, zunik};
 use crate::machine::BesselFloat;
 use crate::types::Scaling;
 use crate::utils::zabs;
-
-#[allow(clippy::approx_constant)]
-const PI: f64 = 3.14159265358979324;
 
 /// Compute K(fnu,z) via Region 1 uniform asymptotic expansion + analytic continuation.
 ///

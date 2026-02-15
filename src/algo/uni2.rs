@@ -18,11 +18,7 @@ use crate::machine::BesselFloat;
 use crate::types::{AiryDerivative, Scaling};
 use crate::utils::zabs;
 
-/// HPI = pi/2 (Fortran line 7079)
-const HPI: f64 = 1.57079632679489662e+00;
-
-/// AIC = ln(sqrt(pi/2)) (Fortran line 7080)
-const AIC: f64 = 1.265512123484645396e+00;
+use crate::algo::constants::{AIC, HPI};
 
 /// CIP rotation table (Fortran lines 7077-7078)
 /// CIPR + i*CIPI: {1, i, -1, -i}

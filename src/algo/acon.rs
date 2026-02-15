@@ -13,12 +13,11 @@ use num_complex::Complex;
 
 use crate::algo::binu::zbinu;
 use crate::algo::bknu::zbknu;
+use crate::algo::constants::PI;
 use crate::algo::s1s2::zs1s2;
 use crate::machine::BesselFloat;
 use crate::types::{BesselError, Scaling};
 use crate::utils::zabs;
-
-const PI: f64 = 3.14159265358979324;
 
 /// Analytic continuation of K function from right to left half-plane.
 ///

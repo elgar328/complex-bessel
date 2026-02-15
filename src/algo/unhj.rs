@@ -326,8 +326,7 @@ const GAMA: [f64; 30] = [
 // Named constants (Fortran lines 5443-5447)
 const EX1: f64 = 3.33333333333333333e-01; // 1/3
 const EX2: f64 = 6.66666666666666667e-01; // 2/3
-const HPI: f64 = 1.57079632679489662e+00; // pi/2
-const GPI: f64 = 3.14159265358979324e+00; // pi
+use crate::algo::constants::{HPI, PI};
 const THPI: f64 = 4.71238898038468986e+00; // 3*pi/2
 
 /// Output of the ZUNHJ parameter computation.
@@ -626,7 +625,7 @@ fn large_w2_branch<T: BesselFloat>(
     let ang = {
         let thpi_t = T::from(THPI).unwrap();
         let hpi_t = T::from(HPI).unwrap();
-        let gpi_t = T::from(GPI).unwrap();
+        let gpi_t = T::from(PI).unwrap();
         if zthr >= zero && zthi < zero {
             thpi_t
         } else if zthr == zero {

@@ -8,11 +8,10 @@
 use num_complex::Complex;
 
 use crate::algo::binu::zbinu;
+use crate::algo::constants::PI;
 use crate::machine::BesselFloat;
 use crate::types::{BesselError, BesselResult, Scaling};
 use crate::utils::zabs;
-
-const PI: f64 = 3.14159265358979324;
 
 /// Compute I_{fnu+j}(z) for j = 0, 1, ..., n-1.
 ///

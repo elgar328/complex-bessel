@@ -16,7 +16,7 @@ use crate::types::{AiryDerivative, BesselError, Scaling};
 use crate::utils::{zabs, zdiv};
 
 // ZAIRY constants (Fortran ZAIRY DATA, lines 1600-1603)
-const TTH: f64 = 6.66666666666666667e-01;
+use crate::algo::constants::{PI, TTH};
 const AI_C1: f64 = 3.55028053887817240e-01;
 const AI_C2: f64 = 2.58819403792806799e-01;
 const AI_COEF: f64 = 1.83776298473930683e-01; // 1/(pi*sqrt(3))
@@ -25,7 +25,6 @@ const AI_COEF: f64 = 1.83776298473930683e-01; // 1/(pi*sqrt(3))
 const BI_C1: f64 = 6.14926627446000736e-01; // sqrt(3) * AI_C1
 const BI_C2: f64 = 4.48288357353826359e-01; // sqrt(3) * AI_C2
 const BI_COEF: f64 = 5.77350269189625765e-01; // 1/sqrt(3)
-const PI: f64 = 3.14159265358979324e+00;
 
 // ─── Shared power series helper ─────────────────────────────────────────────
 

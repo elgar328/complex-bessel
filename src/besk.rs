@@ -169,7 +169,7 @@ pub(crate) fn zbesk<T: BesselFloat>(
     if precision_warning {
         // Fortran IERR=3: computation completed but with precision loss.
         // We return Ok with the result; the caller should check the values.
-        // TODO: consider adding a warning field to BesselResult
+        // Fortran IERR=3: precision loss. Currently returns Ok.
     }
 
     Ok(BesselResult {

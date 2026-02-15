@@ -12,14 +12,13 @@ use num_complex::Complex;
 
 use crate::algo::asyi::zasyi;
 use crate::algo::bknu::zbknu;
+use crate::algo::constants::PI;
 use crate::algo::mlri::zmlri;
 use crate::algo::s1s2::zs1s2;
 use crate::algo::seri::zseri;
 use crate::machine::BesselFloat;
 use crate::types::{BesselError, Scaling};
 use crate::utils::zabs;
-
-const PI: f64 = 3.14159265358979324;
 
 /// Analytic continuation for Airy functions.
 ///

@@ -3,6 +3,8 @@
 //! These modules implement the core numerical routines from Amos Algorithm 644.
 //! All functions are `pub(crate)` — they are not part of the public API.
 
+pub(crate) mod constants;
+
 // K function core path
 pub(crate) mod bknu;
 pub(crate) mod gamln;

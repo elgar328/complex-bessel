@@ -9,6 +9,7 @@
 
 use num_complex::Complex;
 
+use crate::algo::constants::PI;
 use crate::machine::BesselFloat;
 use crate::types::Scaling;
 use crate::utils::{zabs, zdiv};
@@ -36,7 +37,7 @@ pub(crate) fn zasyi<T: BesselFloat>(
     let czero = Complex::new(zero, zero);
 
     // Fortran DATA constants (line 3834)
-    let pi = T::from(3.14159265358979324).unwrap();
+    let pi = T::from(PI).unwrap();
     let rtpi = T::from(0.159154943091895336).unwrap(); // 1/(2*pi)
 
     let mut y = vec![czero; n];

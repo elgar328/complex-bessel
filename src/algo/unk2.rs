@@ -12,16 +12,13 @@
 use num_complex::Complex;
 
 use crate::airy::zairy;
+use crate::algo::constants::{AIC, HPI, PI};
 use crate::algo::s1s2::zs1s2;
 use crate::algo::uchk::zuchk;
 use crate::algo::unhj::zunhj;
 use crate::machine::BesselFloat;
 use crate::types::{AiryDerivative, Scaling};
 use crate::utils::zabs;
-
-const HPI: f64 = 1.57079632679489662e+00;
-const PI: f64 = 3.14159265358979324e+00;
-const AIC: f64 = 1.26551212348464539e+00; // ln(sqrt(pi/2))
 
 /// CR1 = (1, sqrt(3)) (Fortran line 6196-6197)
 const CR1R: f64 = 1.0;

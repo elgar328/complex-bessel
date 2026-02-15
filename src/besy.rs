@@ -9,12 +9,11 @@
 
 use num_complex::Complex;
 
+use crate::algo::constants::HPI;
 use crate::besi::zbesi;
 use crate::besk::zbesk;
 use crate::machine::BesselFloat;
 use crate::types::{BesselError, BesselResult, Scaling};
-
-const HPI: f64 = 1.57079632679489662; // pi/2
 
 /// Compute Y_{fnu+j}(z) for j = 0, 1, ..., n-1.
 ///
@@ -125,16 +124,7 @@ pub(crate) fn zbesy<T: BesselFloat>(
 
     // KODE=2: scaled version with underflow protection (Fortran lines 1396-1456)
     let tol = T::tol();
-    let k1_abs = T::MACH_MIN_EXP.abs();
-    let k2_abs = T::MACH_MAX_EXP.abs();
-    let k_val = if k1_abs < k2_abs {
-        T::MACH_MIN_EXP.abs()
-    } else {
-        T::MACH_MAX_EXP.abs()
-    };
-    let d1m5 = T::from(0.30102999566398120).unwrap(); // log10(2)
-    let elim =
-        T::from(2.303).unwrap() * (T::from(k_val as f64).unwrap() * d1m5 - T::from(3.0).unwrap());
+    let elim = T::elim();
 
     let exr = z.re.cos();
     let exi = z.re.sin();

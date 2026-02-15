@@ -17,13 +17,11 @@ use num_complex::Complex;
 use crate::algo::acon::zacon;
 use crate::algo::bknu::zbknu;
 use crate::algo::bunk::zbunk;
+use crate::algo::constants::HPI;
 use crate::algo::uoik::zuoik;
 use crate::machine::BesselFloat;
 use crate::types::{BesselError, BesselResult, HankelKind, Scaling};
 use crate::utils::zabs;
-
-/// pi/2, Fortran DATA constant (zbsubs.f line 173)
-const HPI: f64 = 1.57079632679489662;
 
 /// Compute H_{fnu+j}^(m)(z) for j = 0, 1, ..., n-1.
 ///
