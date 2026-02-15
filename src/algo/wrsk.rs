@@ -1,0 +1,180 @@
+//! I Bessel function via Wronskian normalization.
+//!
+//! Translation of Fortran ZWRSK from TOMS 644.
+//! Computes I(fnu+k, z) for Re(z) >= 0 by normalizing the I-function
+//! ratios from ZRATI using the Wronskian with K(fnu, z) and K(fnu+1, z).
+
+use num_complex::Complex;
+
+use crate::algo::bknu::zbknu;
+use crate::algo::rati::zrati;
+use crate::machine::BesselFloat;
+use crate::types::{BesselError, Scaling};
+use crate::utils::zabs;
+
+/// Compute I Bessel function for Re(z) >= 0 via Wronskian normalization.
+///
+/// Returns `(y, nz)` where `y[k]` = I(fnu+k, z) for k = 0, 1, ..., n-1,
+/// and `nz` is the underflow count (always 0 on success).
+///
+/// Equivalent to Fortran ZWRSK in TOMS 644 (zbsubs.f lines 3527-3621).
+///
+/// # Algorithm
+/// 1. Get K(fnu, z), K(fnu+1, z) from zbknu
+/// 2. Get I-function ratios from zrati
+/// 3. Normalize via Wronskian: I(v)·K(v+1) + I(v+1)·K(v) = 1/z
+/// 4. Forward recurrence for remaining values
+pub(crate) fn zwrsk<T: BesselFloat>(
+    z: Complex<T>,
+    fnu: T,
+    kode: Scaling,
+    n: usize,
+    tol: T,
+    elim: T,
+    alim: T,
+) -> Result<(Vec<Complex<T>>, usize), BesselError> {
+    let zero = T::zero();
+    let one = T::one();
+    let nz: usize = 0;
+
+    // ── Step 1: K(fnu, z) and K(fnu+1, z) via zbknu (Fortran line 3550) ──
+    let (cw, nw) = zbknu(z, fnu, kode, 2, tol, elim, alim)?;
+    if nw != 0 {
+        // Any nonzero NW (including underflows) is fatal for normalization
+        return Err(BesselError::Overflow);
+    }
+
+    // ── Step 2: I-function ratios via zrati (Fortran line 3552) ──
+    let mut y = zrati(z, fnu, n, tol);
+
+    // ── Step 3: Normalization constant (Fortran lines 3557-3605) ──
+    // KODE=1: CINU = 1; KODE=2: CINU = exp(i·Im(z))
+    let (mut cinur, mut cinui) = match kode {
+        Scaling::Unscaled => (one, zero),
+        Scaling::Exponential => (z.im.cos(), z.im.sin()),
+    };
+
+    // 3-level scaling to prevent under/overflow (Fortran lines 3569-3579)
+    let acw = zabs(cw[1]);
+    let ascle = T::from(1.0e3).unwrap() * T::MACH_TINY / tol;
+    let csclr;
+    if acw <= ascle {
+        csclr = one / tol; // scale up: K is very small
+    } else {
+        let ascle_inv = one / ascle;
+        if acw >= ascle_inv {
+            csclr = tol; // scale down: K is very large
+        } else {
+            csclr = one; // no scaling needed
+        }
+    }
+
+    // Scale K values (Fortran lines 3580-3583)
+    let c1r = cw[0].re * csclr;
+    let c1i = cw[0].im * csclr;
+    let c2r = cw[1].re * csclr;
+    let c2i = cw[1].im * csclr;
+
+    // Save first ratio before overwriting (Fortran lines 3584-3585)
+    let str_saved = y[0].re;
+    let sti_saved = y[0].im;
+
+    // PT = ratio * C1 + C2 = (ratio * K(fnu) + K(fnu+1)) * csclr
+    // (Fortran lines 3590-3593)
+    let ptr = str_saved * c1r - sti_saved * c1i + c2r;
+    let pti = str_saved * c1i + sti_saved * c1r + c2i;
+
+    // CT = z * PT (Fortran lines 3594-3595)
+    let ctr = z.re * ptr - z.im * pti;
+    let cti = z.re * pti + z.im * ptr;
+
+    // CINU = CINU * conj(CT)/|CT|^2 = CINU / CT (Fortran lines 3596-3603)
+    let act = zabs(Complex::new(ctr, cti));
+    let ract = one / act;
+    let ct_hat_r = ctr * ract; // Re(conj(CT)/|CT|)
+    let ct_hat_i = -cti * ract; // Im(conj(CT)/|CT|)
+    let ptr2 = cinur * ract;
+    let pti2 = cinui * ract;
+    cinur = ptr2 * ct_hat_r - pti2 * ct_hat_i;
+    cinui = ptr2 * ct_hat_i + pti2 * ct_hat_r;
+
+    // Y(1) = CINU * csclr = I(fnu, z) (Fortran lines 3604-3605)
+    y[0] = Complex::new(cinur * csclr, cinui * csclr);
+
+    if n == 1 {
+        return Ok((y, nz));
+    }
+
+    // ── Step 4: Forward recurrence (Fortran lines 3607-3615) ──
+    let mut str_val = str_saved;
+    let mut sti_val = sti_saved;
+    for item in y.iter_mut().skip(1) {
+        let ptr = str_val * cinur - sti_val * cinui;
+        cinui = str_val * cinui + sti_val * cinur;
+        cinur = ptr;
+        str_val = item.re; // save next ratio before overwriting
+        sti_val = item.im;
+        *item = Complex::new(cinur * csclr, cinui * csclr);
+    }
+
+    Ok((y, nz))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use num_complex::Complex64;
+
+    #[test]
+    fn wrsk_wronskian_identity() {
+        // Verify: I(v,z)*K(v+1,z) + I(v+1,z)*K(v,z) = 1/z
+        let z = Complex64::new(2.0, 1.0);
+        let fnu = 0.5;
+        let tol = f64::tol();
+        let elim = f64::elim();
+        let alim = f64::alim();
+
+        let (i_vals, _) = zwrsk(z, fnu, Scaling::Unscaled, 2, tol, elim, alim).unwrap();
+        let (k_vals, _) = zbknu(z, fnu, Scaling::Unscaled, 2, tol, elim, alim).unwrap();
+
+        let wronskian = i_vals[0] * k_vals[1] + i_vals[1] * k_vals[0];
+        let expected = Complex64::new(1.0, 0.0) / z;
+        let err = (wronskian - expected).norm() / expected.norm();
+        assert!(err < 1e-13, "Wronskian error = {err:.2e}");
+    }
+
+    #[test]
+    fn wrsk_i0_real_positive() {
+        // I(0, 1.0) ≈ 1.2660658777520084
+        let z = Complex64::new(1.0, 0.0);
+        let tol = f64::tol();
+        let elim = f64::elim();
+        let alim = f64::alim();
+
+        let (y, nz) = zwrsk(z, 0.0, Scaling::Unscaled, 1, tol, elim, alim).unwrap();
+        assert_eq!(nz, 0);
+        let err = (y[0].re - 1.2660658777520084).abs();
+        assert!(err < 1e-13, "I(0,1) error = {err:.2e}");
+        assert!(y[0].im.abs() < 1e-14);
+    }
+
+    #[test]
+    fn wrsk_sequence() {
+        // I(0,2), I(1,2), I(2,2)
+        let z = Complex64::new(2.0, 0.0);
+        let tol = f64::tol();
+        let elim = f64::elim();
+        let alim = f64::alim();
+
+        let (y, _) = zwrsk(z, 0.0, Scaling::Unscaled, 3, tol, elim, alim).unwrap();
+        // I(0,2) ≈ 2.2795853023360673
+        let err0 = (y[0].re - 2.2795853023360673).abs();
+        assert!(err0 < 1e-13, "I(0,2) error = {err0:.2e}");
+        // I(1,2) ≈ 1.5906368546373291
+        let err1 = (y[1].re - 1.5906368546373291).abs();
+        assert!(err1 < 1e-13, "I(1,2) error = {err1:.2e}");
+        // I(2,2) ≈ 0.68894844769873814
+        let err2 = (y[2].re - 0.68894844769873814).abs();
+        assert!(err2 < 1e-13, "I(2,2) error = {err2:.2e}");
+    }
+}

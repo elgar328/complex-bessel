@@ -20,21 +20,31 @@ ZBSUBS_FIXED = zbsubs_fixed.f
 
 .PHONY: all clean
 
-all: $(OUTDIR)/besk_f64.json
+all: $(OUTDIR)/besk_f64.json $(OUTDIR)/besh_f64.json
 
 # Fix separator lines in zbsubs.f
 $(ZBSUBS_FIXED): $(ZBSUBS)
 	sed 's/^-\{2,\}/C ---/' $< > $@
 
-# Compile reference generator
+# ── Phase 2: K function ──
+
 gen_besk_refs: gen_besk_refs.f $(ZBSUBS_FIXED) $(MACHCON)
 	$(FC) $(FFLAGS) -o $@ gen_besk_refs.f $(ZBSUBS_FIXED) $(MACHCON)
 
-# Generate JSON reference values
 $(OUTDIR)/besk_f64.json: gen_besk_refs txt_to_json.py
 	@mkdir -p $(OUTDIR)
 	./gen_besk_refs | python3 txt_to_json.py > $@
 	@echo "Generated $@"
 
+# ── Phase 3: H function ──
+
+gen_besh_refs: gen_besh_refs.f $(ZBSUBS_FIXED) $(MACHCON)
+	$(FC) $(FFLAGS) -o $@ gen_besh_refs.f $(ZBSUBS_FIXED) $(MACHCON)
+
+$(OUTDIR)/besh_f64.json: gen_besh_refs txt_to_json.py
+	@mkdir -p $(OUTDIR)
+	./gen_besh_refs | python3 txt_to_json.py > $@
+	@echo "Generated $@"
+
 clean:
-	rm -f gen_besk_refs $(ZBSUBS_FIXED) gen_*.txt
+	rm -f gen_besk_refs gen_besh_refs $(ZBSUBS_FIXED) gen_*.txt

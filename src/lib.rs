@@ -17,6 +17,7 @@
 extern crate alloc;
 
 pub(crate) mod algo;
+pub(crate) mod besh;
 pub(crate) mod besk;
 pub mod machine;
 pub mod types;
@@ -56,7 +57,8 @@ pub fn hankel<T: BesselFloat>(
     nu: T,
     z: Complex<T>,
 ) -> Result<Complex<T>, BesselError> {
-    todo!()
+    let result = besh::zbesh(z, nu, kind, Scaling::Unscaled, 1)?;
+    Ok(result.values[0])
 }
 
 /// Airy function Ai(z) or its derivative Ai'(z).
@@ -125,5 +127,5 @@ pub fn hankel_seq<T: BesselFloat>(
     n: usize,
     scaling: Scaling,
 ) -> Result<BesselResult<T>, BesselError> {
-    todo!()
+    besh::zbesh(z, nu, kind, scaling, n)
 }

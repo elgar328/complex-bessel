@@ -51,6 +51,8 @@ def parse_fortran_output(text):
             current["inputs"]["fnu"] = _parse_float(line[6:])
         elif line.startswith("kode  "):
             current["inputs"]["kode"] = int(line[6:].strip())
+        elif line.startswith("m     "):
+            current["inputs"]["m"] = int(line[6:].strip())
         elif line.startswith("n     "):
             current["inputs"]["n"] = int(line[6:].strip())
 

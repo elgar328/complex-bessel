@@ -10,3 +10,7 @@ pub(crate) mod kscl;
 pub(crate) mod s1s2;
 pub(crate) mod shch;
 pub(crate) mod uchk;
+
+// Phase 3: H function + Wronskian
+pub(crate) mod rati;
+pub(crate) mod wrsk;
