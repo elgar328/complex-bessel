@@ -37,10 +37,6 @@ const HPI: f64 = 1.57079632679489662;
 /// - `scaling`: `Unscaled` = H(m,v,z), `Exponential` = H(m,v,z)*exp(-(3-2m)*i*z)
 /// - `n`: number of sequence members (>= 1)
 ///
-/// # Current Limitations
-/// - ZACON (Phase 4) not implemented: H^(1) with Im(z) < 0 returns error
-/// - ZBUNK (Phase 5b) not implemented: large orders with Re(zn) < 0 returns error
-/// - ZUOIK (Phase 5a) not implemented: underflow pre-check skipped for fn > 2
 pub(crate) fn zbesh<T: BesselFloat>(
     z: Complex<T>,
     fnu: T,
