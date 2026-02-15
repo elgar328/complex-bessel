@@ -22,3 +22,8 @@ pub(crate) mod binu;
 pub(crate) mod mlri;
 pub(crate) mod seri;
 pub(crate) mod uoik;
+
+// Phase 5a: Region 1 uniform asymptotic
+pub(crate) mod uni1;
+pub(crate) mod unik;
+pub(crate) mod unk1;
