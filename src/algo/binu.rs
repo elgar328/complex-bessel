@@ -9,6 +9,7 @@ use num_complex::Complex;
 use num_traits::Float;
 
 use crate::algo::asyi::zasyi;
+use crate::algo::buni::zbuni;
 use crate::algo::mlri::zmlri;
 use crate::algo::seri::zseri;
 use crate::algo::uoik::zuoik;
@@ -121,9 +122,21 @@ fn dispatch_20<T: BesselFloat>(
     dfnu = fnu + T::from((nn - 1) as f64).unwrap();
 
     if dfnu > fnul || az > fnul {
-        // Label 110: ZBUNI — not implemented in Phase 4
+        // Label 110: increment fnu+nn-1 up to fnul, compute and recur backward
         // (Fortran lines 4469-4481)
-        return Err(BesselError::ConvergenceFailure);
+        let nui_f = (fnul - dfnu).to_f64().unwrap() as i32 + 1;
+        let nui = nui_f.max(0) as usize;
+        let result = zbuni(z, fnu, kode, nn, nui, fnul, tol, elim, alim);
+        if result.nz < 0 {
+            return handle_error(result.nz);
+        }
+        nz += result.nz as usize;
+        cy[..nn].copy_from_slice(&result.y[..nn]);
+        if result.nlast == 0 {
+            return Ok((cy.to_vec(), nz));
+        }
+        // NLAST != 0: retry from label 60 with reduced nn (Fortran GO TO 60)
+        nn = result.nlast;
     }
 
     // Label 60: check az vs rl (Fortran lines 4438-4439)

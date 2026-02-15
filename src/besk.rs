@@ -9,6 +9,7 @@ use num_traits::Float;
 
 use crate::algo::acon::zacon;
 use crate::algo::bknu::zbknu;
+use crate::algo::bunk::zbunk;
 use crate::algo::uoik::zuoik;
 use crate::machine::BesselFloat;
 use crate::types::{BesselError, BesselResult, Scaling};
@@ -93,25 +94,31 @@ pub(crate) fn zbesk<T: BesselFloat>(
 
     if fn_val > fnul {
         // ── Large order path: uniform asymptotics (ZBUNK) ──
-        // TODO: Phase 5b — ZBUNK not yet implemented
-        // For now, fall through to direct computation if Re(z) >= 0,
-        // which works for moderate orders via ZBKNU
-        if z.re >= zero {
-            // Try ZBKNU directly — works for moderate large orders
-            let (y, nw) = zbknu(z, fnu, scaling, nn, tol, elim, alim)?;
-            return if precision_warning {
-                Err(BesselError::PrecisionLoss)
-            } else {
-                Ok(BesselResult {
-                    values: y,
-                    underflow_count: nw,
-                })
-            };
+        // Fortran ZBESK label 80-90 (zbsubs.f lines 1149-1159)
+        let mr = if z.re >= zero {
+            0i32
+        } else if z.im < zero {
+            -1i32
         } else {
-            // Left half-plane + large order: needs ZBUNK
-            // TODO: implement in Phase 5b
-            return Err(BesselError::ConvergenceFailure);
+            1i32
+        };
+        let (y, nw) = zbunk(z, fnu, scaling, mr, nn, tol, elim, alim);
+        if nw < 0 {
+            return if nw == -1 {
+                Err(BesselError::Overflow)
+            } else {
+                Err(BesselError::ConvergenceFailure)
+            };
         }
+        nz += nw as usize;
+        return if precision_warning {
+            Err(BesselError::PrecisionLoss)
+        } else {
+            Ok(BesselResult {
+                values: y,
+                underflow_count: nz,
+            })
+        };
     }
 
     // ── Small-to-moderate order path ──

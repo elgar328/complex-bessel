@@ -30,3 +30,10 @@ pub(crate) mod unk1;
 
 // Phase 6: Airy functions (analytic continuation helper)
 pub(crate) mod acai;
+
+// Phase 5b: Region 2 uniform asymptotic + dispatchers
+pub(crate) mod buni;
+pub(crate) mod bunk;
+pub(crate) mod unhj;
+pub(crate) mod uni2;
+pub(crate) mod unk2;

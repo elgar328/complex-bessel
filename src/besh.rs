@@ -17,6 +17,7 @@ use num_traits::Float;
 
 use crate::algo::acon::zacon;
 use crate::algo::bknu::zbknu;
+use crate::algo::bunk::zbunk;
 use crate::algo::uoik::zuoik;
 use crate::machine::BesselFloat;
 use crate::types::{BesselError, BesselResult, HankelKind, Scaling};
@@ -114,15 +115,28 @@ pub(crate) fn zbesh<T: BesselFloat>(
     let mut nn_eff = nn;
 
     let cy = if fnu > fnul {
-        // Large order: ZBUNK (not implemented)
-        // Fallback to zbknu if Re(zn) >= 0 (Fortran label 90 path)
-        if znr >= zero {
-            let (y, nw) = zbknu(zn, fnu, scaling, nn_eff, tol, elim, alim)?;
-            nz += nw;
-            y
-        } else {
-            return Err(BesselError::ConvergenceFailure);
+        // Large order: uniform asymptotic expansions (ZBUNK)
+        // Fortran ZBESH label 90-100 (zbsubs.f lines 269-284)
+        let mut mr = 0i32;
+        let mut zn_call = zn;
+        // Check if ZN is in the left half plane (needs analytic continuation)
+        if !((znr >= zero) && (znr != zero || zni >= zero || m != 2)) {
+            mr = -mm;
+            if znr == zero && zni < zero {
+                // Negate ZN to put it in RHP (Fortran lines 278-279)
+                zn_call = Complex::new(-znr, -zni);
+            }
         }
+        let (y, nw) = zbunk(zn_call, fnu, scaling, mr, nn_eff, tol, elim, alim);
+        if nw < 0 {
+            return if nw == -1 {
+                Err(BesselError::Overflow)
+            } else {
+                Err(BesselError::ConvergenceFailure)
+            };
+        }
+        nz += nw as usize;
+        y
     } else {
         // ── Small-to-moderate order overflow checks (Fortran lines 232-249) ──
         if fn_val > one {

@@ -78,8 +78,14 @@ def parse_fortran_output(text):
 
 
 def _parse_float(s):
-    """Parse Fortran double precision format (D-exponent) to Python float."""
+    """Parse Fortran double precision format (D-exponent) to Python float.
+
+    Handles cases where gfortran drops the 'E' for 3-digit exponents,
+    e.g., '0.12345678901234567+110' -> '0.12345678901234567E+110'
+    """
     s = s.strip().replace("D", "E").replace("d", "e")
+    # Fix missing 'E' before +/- exponent (3-digit exponents in gfortran)
+    s = re.sub(r'(\d)([+-]\d{3})$', r'\1E\2', s)
     return float(s)
 
 
