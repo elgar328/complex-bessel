@@ -1,21 +1,4 @@
-# Project planning documents
 PROJECT_PLAN.md
-PUBLISH_PLAN.md
 CLAUDE.md
-
-# Downloaded reference materials (reproducible via refs/download.sh)
-refs/fortran/
-refs/cpp/
-refs/papers/
-
-
-# Compiled Fortran test binaries and intermediate files
-tests/fortran/gen_*_refs
-tests/fortran/gen_*.txt
-tests/fortran/zbsubs_fixed.f
-
-# macOS
 .DS_Store
-
-# Added by cargo
 /target

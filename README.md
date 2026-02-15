@@ -70,6 +70,9 @@ For integer orders, exact shortcuts are used (e.g., J_{-n} = (-1)^n J_n).
 
 Results match the original Fortran TOMS 644 to ~14 significant digits (f64).
 The `f32` generic implementation provides ~6-7 digit accuracy.
+Comprehensive accuracy analysis with Fortran reference comparisons is available at
+[complex-bessel-accuracy](https://github.com/elgar328/complex-bessel-accuracy)
+(coming soon).
 
 ## `no_std`
 

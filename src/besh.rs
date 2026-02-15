@@ -298,28 +298,4 @@ mod tests {
             diff / scale
         );
     }
-
-    #[test]
-    fn besh_h1_upper_half_plane() {
-        // H^(1)(0, 1+i) should be computable (Im(z) >= 0)
-        let z = Complex64::new(1.0, 1.0);
-        let result = zbesh(z, 0.0, HankelKind::First, Scaling::Unscaled, 1);
-        assert!(result.is_ok(), "H^(1)(0, 1+i) should succeed");
-    }
-
-    #[test]
-    fn besh_h2_lower_half_plane() {
-        // H^(2)(0, 1-i) should be computable (Im(z) <= 0)
-        let z = Complex64::new(1.0, -1.0);
-        let result = zbesh(z, 0.0, HankelKind::Second, Scaling::Unscaled, 1);
-        assert!(result.is_ok(), "H^(2)(0, 1-i) should succeed");
-    }
-
-    #[test]
-    fn besh_h1_lower_half_plane() {
-        // H^(1)(0, 1-i) via ZACON (Im(z) < 0, m=1)
-        let z = Complex64::new(1.0, -1.0);
-        let result = zbesh(z, 0.0, HankelKind::First, Scaling::Unscaled, 1);
-        assert!(result.is_ok(), "H^(1)(0, 1-i) should succeed with ZACON");
-    }
 }

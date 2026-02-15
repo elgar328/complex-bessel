@@ -39,39 +39,3 @@ pub(crate) fn zbunk<T: BesselFloat>(
         zunk1(z, fnu, kode, mr, n, tol, elim, alim)
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use num_complex::Complex64;
-
-    const TOL: f64 = 2.220446049250313e-16;
-    const ELIM: f64 = 700.9217936944459;
-    const ALIM: f64 = 664.8716455337102;
-
-    #[test]
-    fn zbunk_region1_dispatch() {
-        // |Im(z)| < |Re(z)|*sqrt(3) → ZUNK1
-        let z = Complex64::new(5.0, 1.0);
-        let (y, nz) = zbunk(z, 90.0, Scaling::Unscaled, 0, 1, TOL, ELIM, ALIM);
-        assert!(nz >= 0);
-        assert!(y[0].re.is_finite());
-    }
-
-    #[test]
-    fn zbunk_region2_dispatch() {
-        // |Im(z)| > |Re(z)|*sqrt(3) → ZUNK2
-        let z = Complex64::new(1.0, 10.0);
-        let (y, nz) = zbunk(z, 90.0, Scaling::Unscaled, 0, 1, TOL, ELIM, ALIM);
-        assert!(nz >= 0);
-        assert!(y[0].re.is_finite());
-    }
-
-    #[test]
-    fn zbunk_analytic_continuation() {
-        let z = Complex64::new(-3.0, 5.0);
-        let (y, nz) = zbunk(z, 90.0, Scaling::Unscaled, 1, 1, TOL, ELIM, ALIM);
-        assert!(nz >= 0, "nz = {}", nz);
-        assert!(y[0].re.is_finite());
-    }
-}

@@ -144,21 +144,6 @@ mod tests {
     use num_complex::Complex64;
 
     #[test]
-    fn besi_i0_real() {
-        let z = Complex64::new(1.0, 0.0);
-        let result = zbesi(z, 0.0, Scaling::Unscaled, 1).unwrap();
-        assert!((result.values[0].re - 1.2660658777520084).abs() < 1e-14);
-    }
-
-    #[test]
-    fn besi_negative_real() {
-        // I_0(-1) = I_0(1) (I_0 is even)
-        let z = Complex64::new(-1.0, 0.0);
-        let result = zbesi(z, 0.0, Scaling::Unscaled, 1).unwrap();
-        assert!((result.values[0].re - 1.2660658777520084).abs() < 1e-14);
-    }
-
-    #[test]
     fn besi_input_validation() {
         let z = Complex64::new(1.0, 0.0);
         assert!(zbesi(z, -1.0, Scaling::Unscaled, 1).is_err());

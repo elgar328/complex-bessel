@@ -630,21 +630,6 @@ mod tests {
     }
 
     #[test]
-    fn zairy_large_real() {
-        // Ai(2.0) via K function — compare to known value
-        // Ai(2.0) ≈ 0.034924130423274379
-        let (ai, nz) = zairy(
-            Complex64::new(2.0, 0.0),
-            AiryDerivative::Value,
-            Scaling::Unscaled,
-        )
-        .unwrap();
-        assert_eq!(nz, 0);
-        assert!((ai.re - 0.034924130423274379).abs() < 1e-13);
-        assert!(ai.im.abs() < 1e-15);
-    }
-
-    #[test]
     fn zairy_negative_real() {
         // Ai(-1.0): oscillatory region, via ZACAI
         // Ai(-1.0) ≈ 0.53556088329235176
@@ -713,45 +698,6 @@ mod tests {
         .unwrap();
         assert!((bi.re - 0.85427704310315549).abs() < 1e-13);
         assert!(bi.im.abs() < 1e-15);
-    }
-
-    #[test]
-    fn zbiry_large_real() {
-        // Bi(2.0) ≈ 3.2980949999782147
-        let bi = zbiry(
-            Complex64::new(2.0, 0.0),
-            AiryDerivative::Value,
-            Scaling::Unscaled,
-        )
-        .unwrap();
-        assert!((bi.re - 3.2980949999782147).abs() < 1e-12);
-        assert!(bi.im.abs() < 1e-13);
-    }
-
-    #[test]
-    fn zbiry_negative_real() {
-        // Bi(-1.0) ≈ 0.10399738949694461
-        let bi = zbiry(
-            Complex64::new(-1.0, 0.0),
-            AiryDerivative::Value,
-            Scaling::Unscaled,
-        )
-        .unwrap();
-        assert!((bi.re - 0.10399738949694461).abs() < 1e-13);
-        assert!(bi.im.abs() < 1e-13);
-    }
-
-    #[test]
-    fn zbiry_complex() {
-        // Bi(1+i) ≈ 0.71665807338276843 + 0.61988929040084476i (mpmath 30-digit reference)
-        let bi = zbiry(
-            Complex64::new(1.0, 1.0),
-            AiryDerivative::Value,
-            Scaling::Unscaled,
-        )
-        .unwrap();
-        assert!((bi.re - 0.71665807338276843).abs() < 1e-12);
-        assert!((bi.im - 0.61988929040084476).abs() < 1e-12);
     }
 
     #[test]

@@ -183,12 +183,6 @@ mod tests {
     use super::*;
     use num_complex::Complex64;
 
-    // Reference values: Fortran TOMS 644 (zbsubs.f, revision 930101).
-    // Full reference set: tests/reference_values/besk_f64.json
-    // Comprehensive tests: tests/phase2_milestone.rs
-
-    // ── Input validation tests ──
-
     #[test]
     fn besk_z_zero_returns_error() {
         let z = Complex64::new(0.0, 0.0);
@@ -214,47 +208,5 @@ mod tests {
             zbesk(z, 0.0, Scaling::Unscaled, 0),
             Err(BesselError::InvalidInput)
         ));
-    }
-
-    #[test]
-    fn besk_left_half_plane() {
-        // K_0(-1+i) via ZACON analytic continuation
-        let z = Complex64::new(-1.0, 1.0);
-        let result = zbesk(z, 0.0, Scaling::Unscaled, 1);
-        assert!(result.is_ok(), "K_0(-1+i) should succeed with ZACON");
-    }
-
-    // ── Smoke tests (basic correctness) ──
-
-    #[test]
-    fn besk_k0_real() {
-        // Fortran TOMS 644: K_0(1.0) = 0.42102443824070834
-        let z = Complex64::new(1.0, 0.0);
-        let result = zbesk(z, 0.0, Scaling::Unscaled, 1).unwrap();
-        assert_eq!(result.underflow_count, 0);
-        assert!((result.values[0].re - 0.42102443824070834).abs() < 1e-14);
-        assert!(result.values[0].im.abs() < 1e-14);
-    }
-
-    #[test]
-    fn besk_complex_arg() {
-        // Fortran TOMS 644: K_0(1+i) = (0.08019772694651774, -0.35727745928533017)
-        let z = Complex64::new(1.0, 1.0);
-        let result = zbesk(z, 0.0, Scaling::Unscaled, 1).unwrap();
-        let expected = Complex64::new(0.08019772694651774, -0.35727745928533017);
-        let err = (result.values[0] - expected).norm() / expected.norm();
-        assert!(err < 2e-14, "K_0(1+i) rel err = {err:.2e}");
-    }
-
-    #[test]
-    fn besk_sequence() {
-        // Fortran TOMS 644: K_{0,1,2}(2.0)
-        let z = Complex64::new(2.0, 0.0);
-        let result = zbesk(z, 0.0, Scaling::Unscaled, 3).unwrap();
-        assert_eq!(result.values.len(), 3);
-        assert_eq!(result.underflow_count, 0);
-        assert!((result.values[0].re - 0.11389387274953341).abs() < 1e-14);
-        assert!((result.values[1].re - 0.13986588181652246).abs() < 1e-14);
-        assert!((result.values[2].re - 0.2537597545660559).abs() < 1e-13);
     }
 }

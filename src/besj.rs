@@ -134,40 +134,6 @@ mod tests {
     use num_complex::Complex64;
 
     #[test]
-    fn besj_j0_real() {
-        // J_0(1.0) ≈ 0.7651976865579666
-        let z = Complex64::new(1.0, 0.0);
-        let result = zbesj(z, 0.0, Scaling::Unscaled, 1).unwrap();
-        assert!(
-            (result.values[0].re - 0.7651976865579666).abs() < 1e-14,
-            "J_0(1) = {}",
-            result.values[0].re
-        );
-    }
-
-    #[test]
-    fn besj_j1_real() {
-        // J_1(1.0) ≈ 0.44005058574493355
-        let z = Complex64::new(1.0, 0.0);
-        let result = zbesj(z, 1.0, Scaling::Unscaled, 1).unwrap();
-        assert!(
-            (result.values[0].re - 0.44005058574493355).abs() < 1e-14,
-            "J_1(1) = {}",
-            result.values[0].re
-        );
-    }
-
-    #[test]
-    fn besj_sequence() {
-        // J_{0,1,2}(2.0)
-        let z = Complex64::new(2.0, 0.0);
-        let result = zbesj(z, 0.0, Scaling::Unscaled, 3).unwrap();
-        assert!((result.values[0].re - 0.22389077914123567).abs() < 1e-14);
-        assert!((result.values[1].re - 0.5767248077568734).abs() < 1e-14);
-        assert!((result.values[2].re - 0.35283402861563772).abs() < 1e-14);
-    }
-
-    #[test]
     fn besj_input_validation() {
         let z = Complex64::new(1.0, 0.0);
         assert!(zbesj(z, -1.0, Scaling::Unscaled, 1).is_err());

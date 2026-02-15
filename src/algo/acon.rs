@@ -288,29 +288,3 @@ pub(crate) fn zacon<T: BesselFloat>(
 
     Ok((y, nz))
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use num_complex::Complex64;
-
-    #[test]
-    fn acon_basic() {
-        // K_0(-1+i) should work via analytic continuation
-        let z = Complex64::new(-1.0, 1.0);
-        let mr = 1i32; // Im(z) > 0
-        let result = zacon(
-            z,
-            0.0,
-            Scaling::Unscaled,
-            mr,
-            1,
-            f64::rl(),
-            f64::fnul(),
-            f64::tol(),
-            f64::elim(),
-            f64::alim(),
-        );
-        assert!(result.is_ok(), "zacon should succeed for K_0(-1+i)");
-    }
-}

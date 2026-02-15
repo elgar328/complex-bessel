@@ -217,30 +217,6 @@ mod tests {
     use num_complex::Complex64;
 
     #[test]
-    fn besy_y0_real() {
-        // Y_0(1.0) ≈ 0.08825696421567696
-        let z = Complex64::new(1.0, 0.0);
-        let result = zbesy(z, 0.0, Scaling::Unscaled, 1).unwrap();
-        assert!(
-            (result.values[0].re - 0.08825696421567696).abs() < 1e-13,
-            "Y_0(1) = {}",
-            result.values[0].re
-        );
-    }
-
-    #[test]
-    fn besy_y1_real() {
-        // Y_1(1.0) ≈ -0.7812128213002887
-        let z = Complex64::new(1.0, 0.0);
-        let result = zbesy(z, 1.0, Scaling::Unscaled, 1).unwrap();
-        assert!(
-            (result.values[0].re - (-0.7812128213002887)).abs() < 1e-13,
-            "Y_1(1) = {}",
-            result.values[0].re
-        );
-    }
-
-    #[test]
     fn besy_z_zero_returns_error() {
         let z = Complex64::new(0.0, 0.0);
         assert!(zbesy(z, 0.0, Scaling::Unscaled, 1).is_err());

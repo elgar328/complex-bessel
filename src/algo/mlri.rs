@@ -244,33 +244,3 @@ pub(crate) fn zmlri<T: BesselFloat>(
 
     (y, nz)
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use num_complex::Complex64;
-
-    #[test]
-    fn mlri_i0_real() {
-        // I_0(1.0) ≈ 1.2660658777520084
-        let z = Complex64::new(1.0, 0.0);
-        let (y, nz) = zmlri(z, 0.0, Scaling::Unscaled, 1, f64::tol());
-        assert_eq!(nz, 0);
-        assert!(
-            (y[0].re - 1.2660658777520084).abs() < 1e-13,
-            "I_0(1) = {}",
-            y[0].re
-        );
-    }
-
-    #[test]
-    fn mlri_sequence() {
-        // I_{0,1,2}(2.0)
-        let z = Complex64::new(2.0, 0.0);
-        let (y, nz) = zmlri(z, 0.0, Scaling::Unscaled, 3, f64::tol());
-        assert_eq!(nz, 0);
-        assert!((y[0].re - 2.2795853023360673).abs() < 1e-13);
-        assert!((y[1].re - 1.5906368546373291).abs() < 1e-13);
-        assert!((y[2].re - 0.6889484476987382).abs() < 1e-13);
-    }
-}

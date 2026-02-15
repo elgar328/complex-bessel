@@ -9,7 +9,7 @@ keywords = ["bessel", "complex", "special-functions", "mathematics", "no-std"]
 categories = ["mathematics", "science", "no-std"]
 readme = "README.md"
 repository = "https://github.com/elgar328/complex-bessel"
-exclude = ["refs/", "scripts/", "PUBLISH_PLAN.md", "PROJECT_PLAN.md"]
+exclude = ["PROJECT_PLAN.md"]
 
 [dependencies]
 num-complex = { version = "0.4", default-features = false }
@@ -19,8 +19,3 @@ num-traits = { version = "0.2", default-features = false, features = ["libm"] }
 default = ["std"]
 std = ["num-complex/std", "num-traits/std"]
 
-[dev-dependencies]
-criterion = "0.5"
-approx = "0.5"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
