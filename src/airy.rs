@@ -7,7 +7,6 @@
 #![allow(clippy::approx_constant)]
 
 use num_complex::Complex;
-use num_traits::Float;
 
 use crate::algo::acai::zacai;
 use crate::algo::binu::zbinu;

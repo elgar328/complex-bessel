@@ -8,7 +8,6 @@
 #![allow(clippy::approx_constant)]
 
 use num_complex::Complex;
-use num_traits::Float;
 
 use crate::algo::binu::zbinu;
 use crate::machine::BesselFloat;
@@ -57,9 +56,9 @@ pub(crate) fn zbesj<T: BesselFloat>(
     }
 
     let aa_sqrt = aa.sqrt();
-    let mut precision_warning = false;
+    let mut _precision_warning = false;
     if az > aa_sqrt || fn_val > aa_sqrt {
-        precision_warning = true;
+        _precision_warning = true;
     }
 
     // CSGN = exp(fnu*HPI*i) with precision preservation (Fortran lines 830-839)

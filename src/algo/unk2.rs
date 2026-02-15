@@ -10,7 +10,6 @@
 #![allow(clippy::approx_constant)]
 
 use num_complex::Complex;
-use num_traits::Float;
 
 use crate::airy::zairy;
 use crate::algo::s1s2::zs1s2;
@@ -97,7 +96,7 @@ pub(crate) fn zunk2<T: BesselFloat>(
     // (Fortran lines 6228-6232)
     let yy = zri;
     let mut znr = zri;
-    let mut zni = -zrr;
+    let zni = -zrr;
     let zbr = zrr;
     let mut zbi = zri;
 
@@ -325,7 +324,7 @@ pub(crate) fn zunk2<T: BesselFloat>(
             let sti = zbi + result_last.zeta2.im;
             let rast = fn_last / zabs(Complex::new(str, sti));
             let str2 = str * rast * rast;
-            let sti2 = -sti * rast * rast;
+            let _sti2 = -sti * rast * rast;
             result_last.zeta1.re - str2
         } else {
             result_last.zeta1.re - result_last.zeta2.re
@@ -457,7 +456,7 @@ pub(crate) fn zunk2<T: BesselFloat>(
             asumd = asum_arr[jj];
             bsumd = bsum_arr[jj];
             j = 3 - j; // flip j
-        } else if (kk_idx == n && ib_ac < n) {
+        } else if kk_idx == n && ib_ac < n {
             // label 210: fresh computation
             let result_ac = zunhj(Complex::new(znr, zni), fn_val, 0, tol);
             phid = result_ac.phi;
@@ -758,7 +757,7 @@ mod tests {
     #[test]
     fn zunk2_k_sequence() {
         let z = Complex64::new(1.0, 10.0);
-        let (y, nz) = zunk2(z, 90.0, Scaling::Unscaled, 0, 3, TOL, ELIM, ALIM);
+        let (_y, nz) = zunk2(z, 90.0, Scaling::Unscaled, 0, 3, TOL, ELIM, ALIM);
         assert!(nz >= 0);
     }
 
@@ -782,7 +781,7 @@ mod tests {
     #[test]
     fn zunk2_real_argument() {
         let z = Complex64::new(10.0, 0.0);
-        let (y, nz) = zunk2(z, 90.0, Scaling::Unscaled, 0, 1, TOL, ELIM, ALIM);
+        let (_y, nz) = zunk2(z, 90.0, Scaling::Unscaled, 0, 1, TOL, ELIM, ALIM);
         assert!(nz >= 0);
     }
 }

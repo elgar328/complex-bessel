@@ -8,7 +8,6 @@
 #![allow(clippy::excessive_precision)]
 
 use num_complex::Complex;
-use num_traits::Float;
 
 use crate::algo::uchk::zuchk;
 use crate::algo::unik::zunik;
@@ -71,7 +70,7 @@ pub(crate) fn zuni1<T: BesselFloat>(
     let fn_val = fnu.max(one);
     let result0 = zunik(z, fn_val, 1, 1, tol, None);
 
-    let (s1r, s1i) = if kode == Scaling::Exponential {
+    let (s1r, _s1i) = if kode == Scaling::Exponential {
         // KODE=2 (Fortran lines 6894-6900)
         let st = Complex::new(z.re + result0.zeta2.re, z.im + result0.zeta2.im);
         let rast = fn_val / zabs(st);
@@ -110,8 +109,8 @@ pub(crate) fn zuni1<T: BesselFloat>(
         let mut iflag: usize = 2; // default scaling level (1-based for cssr/csrr indexing)
         let mut cy = [czero; 2]; // CYR, CYI workspace
 
-        let mut last_phi = czero;
-        let mut last_sum = czero;
+        let mut _last_phi = czero;
+        let mut _last_sum = czero;
 
         let mut computed_ok = true;
         #[allow(clippy::needless_range_loop)]
@@ -120,8 +119,8 @@ pub(crate) fn zuni1<T: BesselFloat>(
             let fn_val = fnu + T::from((nd - 1 - i) as f64).unwrap();
             let result = zunik(z, fn_val, 1, 0, tol, None);
 
-            last_phi = result.phi;
-            last_sum = result.sum;
+            _last_phi = result.phi;
+            _last_sum = result.sum;
 
             let (s1r, s1i) = if kode == Scaling::Exponential {
                 // KODE=2 (Fortran lines 6916-6922)

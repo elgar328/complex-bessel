@@ -6,7 +6,6 @@
 #![allow(clippy::approx_constant)]
 
 use num_complex::Complex;
-use num_traits::Float;
 
 use crate::algo::binu::zbinu;
 use crate::machine::BesselFloat;
@@ -55,9 +54,9 @@ pub(crate) fn zbesi<T: BesselFloat>(
     }
 
     let aa_sqrt = aa.sqrt();
-    let mut precision_warning = false;
+    let mut _precision_warning = false;
     if az > aa_sqrt || fn_val > aa_sqrt {
-        precision_warning = true;
+        _precision_warning = true;
     }
 
     // Compute in right half-plane, continue to left if needed
@@ -87,14 +86,14 @@ pub(crate) fn zbesi<T: BesselFloat>(
     }
 
     let zn = Complex::new(znr, zni);
-    let kode_int = match scaling {
+    let _kode_int = match scaling {
         Scaling::Unscaled => 1,
         Scaling::Exponential => 2,
     };
 
     // Call ZBINU (Fortran lines 581-583)
     let (mut cy, nz_raw) = zbinu(zn, fnu, scaling, n, rl, fnul, tol, elim, alim)?;
-    let mut nz = nz_raw;
+    let nz = nz_raw;
 
     if z.re >= zero {
         // Right half-plane: done

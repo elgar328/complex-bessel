@@ -8,13 +8,11 @@
 #![allow(clippy::approx_constant)]
 
 use num_complex::Complex;
-use num_traits::Float;
 
 use crate::besi::zbesi;
 use crate::besk::zbesk;
 use crate::machine::BesselFloat;
 use crate::types::{BesselError, BesselResult, Scaling};
-use crate::utils::zabs;
 
 const HPI: f64 = 1.57079632679489662; // pi/2
 
@@ -32,7 +30,7 @@ pub(crate) fn zbesy<T: BesselFloat>(
 ) -> Result<BesselResult<T>, BesselError> {
     let zero = T::zero();
     let one = T::one();
-    let half = T::from(0.5).unwrap();
+    let _half = T::from(0.5).unwrap();
     let hpi_t = T::from(HPI).unwrap();
 
     // Input validation (Fortran lines 1342-1348)

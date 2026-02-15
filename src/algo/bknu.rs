@@ -6,9 +6,9 @@
 // Exact Fortran constants — preserve verbatim.
 #![allow(clippy::excessive_precision)]
 #![allow(clippy::approx_constant)]
+#![allow(unused_assignments)]
 
 use num_complex::Complex;
-use num_traits::Float;
 
 use crate::algo::gamln::gamln;
 use crate::algo::kscl::zkscl;
@@ -496,7 +496,7 @@ pub(crate) fn zbknu<T: BesselFloat>(
 fn forward_recurrence<T: BesselFloat>(
     z: Complex<T>,
     fnu: T,
-    koded: &Scaling,
+    _koded: &Scaling,
     n: usize,
     y: &mut [Complex<T>],
     nz: &mut usize,
@@ -515,7 +515,7 @@ fn forward_recurrence<T: BesselFloat>(
 ) -> Result<(Vec<Complex<T>>, usize), BesselError> {
     let zero = T::zero();
     let one = T::one();
-    let czero = Complex::new(zero, zero);
+    let _czero = Complex::new(zero, zero);
 
     // CK = (DNU + 1) * RZ
     let str_init = fnu - T::from(inu).unwrap() + one;
@@ -535,7 +535,7 @@ fn forward_recurrence<T: BesselFloat>(
         }
 
         // ── Normal forward recurrence (labels 225-230) ──
-        let mut inub = 0_i32; // 0-based start
+        let inub = 0_i32; // 0-based start
         let mut p1r = csrr[kflag];
         let mut ascle = bry[kflag];
 
@@ -661,7 +661,7 @@ fn iflag1_recurrence<T: BesselFloat>(
     bry: &[T; 3],
 ) -> Result<(Vec<Complex<T>>, usize), BesselError> {
     let zero = T::zero();
-    let one = T::one();
+    let _one = T::one();
     let czero = Complex::new(zero, zero);
     let half = T::from(0.5).unwrap();
 

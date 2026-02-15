@@ -9,7 +9,6 @@
 #![allow(clippy::too_many_arguments)]
 
 use num_complex::Complex;
-use num_traits::Float;
 
 use crate::algo::asyi::zasyi;
 use crate::algo::bknu::zbknu;
@@ -57,7 +56,7 @@ pub(crate) fn zacai<T: BesselFloat>(
 
     // I function dispatch (Fortran lines 4706-4731)
     // Direct calls to avoid ZBINU → ZBUNI → ZUNI2 → ZAIRY recursion
-    let (mut y, nw): (Vec<Complex<T>>, i32) =
+    let (mut y, _nw): (Vec<Complex<T>>, i32) =
         if az <= two || az * az * T::from(0.25).unwrap() <= dfnu + one {
             // Label 10: power series (Fortran line 4710)
             zseri(zn, fnu, kode, nn, tol, elim, alim)

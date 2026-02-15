@@ -3,7 +3,6 @@
 //! Translations of Amos ZABS and ZDIV from TOMS 644.
 
 use num_complex::Complex;
-use num_traits::Float;
 
 use crate::machine::BesselFloat;
 

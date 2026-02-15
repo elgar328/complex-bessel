@@ -9,7 +9,6 @@
 #![allow(clippy::approx_constant)]
 
 use num_complex::Complex;
-use num_traits::Float;
 
 use crate::airy::zairy;
 use crate::algo::uchk::zuchk;
@@ -73,7 +72,7 @@ pub(crate) fn zuni2<T: BesselFloat>(
 
     // ── Rotate z to right half plane (Fortran lines 7102-7106) ──
     let mut znr = z.im; // ZNR = ZI
-    let mut zni = -z.re; // ZNI = -ZR
+    let zni = -z.re; // ZNI = -ZR
     let zbr = z.re;
     let mut zbi = z.im;
     let mut cidi = -one; // CIDI = -1
@@ -109,7 +108,7 @@ pub(crate) fn zuni2<T: BesselFloat>(
         let sti = zbi + result0.zeta2.im;
         let rast = fn_val / zabs(Complex::new(str, sti));
         let str2 = str * rast * rast;
-        let sti2 = -sti * rast * rast;
+        let _sti2 = -sti * rast * rast;
         -result0.zeta1.re + str2
     } else {
         -result0.zeta1.re + result0.zeta2.re

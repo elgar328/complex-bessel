@@ -8,7 +8,6 @@
 #![allow(clippy::excessive_precision)]
 
 use num_complex::Complex;
-use num_traits::Float;
 
 use crate::algo::s1s2::zs1s2;
 use crate::algo::uchk::zuchk;

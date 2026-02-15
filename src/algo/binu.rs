@@ -6,7 +6,6 @@
 #![allow(clippy::too_many_arguments)]
 
 use num_complex::Complex;
-use num_traits::Float;
 
 use crate::algo::asyi::zasyi;
 use crate::algo::buni::zbuni;
@@ -91,7 +90,7 @@ fn dispatch_20<T: BesselFloat>(
 ) -> Result<(Vec<Complex<T>>, usize), BesselError> {
     let zero = T::zero();
     let one = T::one();
-    let czero = Complex::new(zero, zero);
+    let _czero = Complex::new(zero, zero);
 
     // Fortran lines 4412-4422: check for asymptotic expansion
     if az >= rl {

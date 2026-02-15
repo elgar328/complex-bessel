@@ -3,7 +3,6 @@
 //! Translation of Fortran ZSHCH from TOMS 644 / SLATEC.
 
 use num_complex::Complex;
-use num_traits::Float;
 
 use crate::machine::BesselFloat;
 

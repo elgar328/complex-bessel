@@ -10,7 +10,6 @@
 
 use crate::machine::BesselFloat;
 use crate::types::BesselError;
-use num_traits::Float;
 
 /// log10(2), the base-10 logarithm of the floating-point radix.
 /// Equivalent to D1MACH(5) for binary IEEE 754.

@@ -6,7 +6,6 @@
 #![allow(clippy::too_many_arguments)]
 
 use num_complex::Complex;
-use num_traits::Float;
 
 use crate::algo::uni1::zuni1;
 use crate::algo::uni2::zuni2;
@@ -51,7 +50,7 @@ pub(crate) fn zbuni<T: BesselFloat>(
     let one = T::one();
     let czero = Complex::new(zero, zero);
 
-    let mut nz: i32 = 0;
+    let nz: i32 = 0;
 
     // Region select (Fortran lines 6687-6690)
     let ax = z.re.abs() * T::from(1.7321).unwrap();
@@ -89,7 +88,7 @@ pub(crate) fn zbuni<T: BesselFloat>(
 
     // Compute 2 values at boosted order (Fortran lines 6700-6711)
     let mut cy = [czero; 2];
-    let (mut nlast_val, nw) = if iform == 1 {
+    let (_nlast_val, nw) = if iform == 1 {
         let result = zuni1(z, gnu, kode, 2, fnul, tol, elim, alim);
         cy[0] = result.y[0];
         cy[1] = result.y[1];

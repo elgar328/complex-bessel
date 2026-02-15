@@ -7,9 +7,9 @@
 #![allow(clippy::excessive_precision)]
 #![allow(clippy::approx_constant)]
 #![allow(clippy::too_many_arguments)]
+#![allow(unused_assignments)]
 
 use num_complex::Complex;
-use num_traits::Float;
 
 use crate::algo::binu::zbinu;
 use crate::algo::bknu::zbknu;
@@ -47,7 +47,7 @@ pub(crate) fn zacon<T: BesselFloat>(
     let nn = n;
 
     // Compute I function at -z via ZBINU (Fortran lines 4206-4208)
-    let (mut y, nw) = zbinu(zn, fnu, kode, nn, rl, fnul, tol, elim, alim)?;
+    let (mut y, _nw) = zbinu(zn, fnu, kode, nn, rl, fnul, tol, elim, alim)?;
     // nw is returned as usize from zbinu; if it failed, we already got an Err
 
     // Compute K function at -z via ZBKNU (Fortran lines 4212-4213)

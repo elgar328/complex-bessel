@@ -8,7 +8,6 @@
 #![allow(clippy::too_many_arguments)]
 
 use num_complex::Complex;
-use num_traits::Float;
 
 use crate::machine::BesselFloat;
 use crate::types::Scaling;
@@ -32,7 +31,7 @@ pub(crate) fn zasyi<T: BesselFloat>(
 ) -> (Vec<Complex<T>>, i32) {
     let zero = T::zero();
     let one = T::one();
-    let two = T::from(2.0).unwrap();
+    let _two = T::from(2.0).unwrap();
     let eight = T::from(8.0).unwrap();
     let czero = Complex::new(zero, zero);
 
@@ -41,7 +40,7 @@ pub(crate) fn zasyi<T: BesselFloat>(
     let rtpi = T::from(0.159154943091895336).unwrap(); // 1/(2*pi)
 
     let mut y = vec![czero; n];
-    let mut nz: i32 = 0;
+    let nz: i32 = 0;
 
     let az = zabs(z);
     let arm = T::from(1.0e3).unwrap() * T::MACH_TINY;
@@ -108,7 +107,7 @@ pub(crate) fn zasyi<T: BesselFloat>(
         let inu = fnu.to_i32().unwrap();
         let arg = (fnu - T::from(inu as f64).unwrap()) * pi;
         let inu_adj = inu + n as i32 - il as i32;
-        let mut ak_sign = -arg.sin();
+        let ak_sign = -arg.sin();
         let mut bk_sign = arg.cos();
         if z.im < zero {
             bk_sign = -bk_sign;

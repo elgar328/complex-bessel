@@ -5,7 +5,6 @@
 #![allow(clippy::excessive_precision)]
 
 use num_complex::Complex;
-use num_traits::Float;
 
 use crate::algo::gamln::gamln;
 use crate::machine::BesselFloat;
@@ -24,11 +23,11 @@ pub(crate) fn zmlri<T: BesselFloat>(
 ) -> (Vec<Complex<T>>, i32) {
     let zero = T::zero();
     let one = T::one();
-    let two = T::from(2.0).unwrap();
+    let _two = T::from(2.0).unwrap();
     let czero = Complex::new(zero, zero);
 
     let scle = T::MACH_TINY / tol;
-    let mut nz: i32 = 0;
+    let nz: i32 = 0;
     let az = zabs(z);
     let iaz = az.to_i32().unwrap();
     let ifnu = fnu.to_i32().unwrap();

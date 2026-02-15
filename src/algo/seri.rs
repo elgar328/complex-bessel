@@ -6,7 +6,6 @@
 #![allow(clippy::excessive_precision)]
 
 use num_complex::Complex;
-use num_traits::Float;
 
 use crate::algo::gamln::gamln;
 use crate::algo::uchk::zuchk;

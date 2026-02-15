@@ -7,9 +7,9 @@
 
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::excessive_precision)]
+#![allow(unused_assignments)]
 
 use num_complex::Complex;
-use num_traits::Float;
 
 use crate::algo::uchk::zuchk;
 use crate::algo::unhj::zunhj;
@@ -187,7 +187,7 @@ pub(crate) fn zuoik<T: BesselFloat>(
     loop {
         gnu = fnu + T::from((nn - 1) as f64).unwrap();
 
-        let (phi2, mut aarg2);
+        let (phi2, aarg2);
         if iform == 1 {
             // ZUNIK call (Fortran lines 4122-4126)
             let result2 = zunik(zr_arg, gnu, ikflg, 1, tol, None);

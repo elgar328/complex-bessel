@@ -5,7 +5,6 @@
 //! and `zbunk` (large order uniform asymptotics).
 
 use num_complex::Complex;
-use num_traits::Float;
 
 use crate::algo::acon::zacon;
 use crate::algo::bknu::zbknu;

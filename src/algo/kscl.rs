@@ -2,8 +2,9 @@
 //!
 //! Translation of Fortran ZKSCL from TOMS 644 / SLATEC.
 
+#![allow(unused_assignments)]
+
 use num_complex::Complex;
-use num_traits::Float;
 
 use crate::algo::uchk::zuchk;
 use crate::machine::BesselFloat;

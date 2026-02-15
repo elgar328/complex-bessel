@@ -4,13 +4,38 @@
 //! second kind (Y), modified first kind (I), modified second kind (K),
 //! Hankel functions (H), and Airy functions (Ai, Bi).
 //!
-//! # Status
+//! # Features
 //!
-//! This crate is in early development (alpha). Function signatures are defined
-//! but implementations are not yet available.
+//! - **Full complex domain**: all functions accept `Complex<f64>` or `Complex<f32>` arguments
+//! - **Negative orders**: single-value functions support ν < 0 via DLMF reflection formulas
+//! - **Sequence computation**: compute ν, ν+1, …, ν+n−1 in one call
+//! - **Exponential scaling**: optional scaling to prevent overflow/underflow
+//! - **`no_std` compatible**: works with `alloc` only (disable default `std` feature)
+//! - **High accuracy**: matches Fortran TOMS 644 to ~14 significant digits
+//!
+//! # Quick Start
+//!
+//! ```
+//! use complex_bessel::*;
+//! use num_complex::Complex;
+//!
+//! let z = Complex::new(1.0, 2.0);
+//!
+//! // Single-value computation
+//! let j = besselj(0.5, z).unwrap();
+//! let k = besselk(1.0, z).unwrap();
+//!
+//! // Negative order
+//! let j_neg = besselj(-0.5, z).unwrap();
+//!
+//! // Scaled computation (e.g., e^(-|Re(z)|) * J_ν(z))
+//! let j_scaled = besselj_scaled(0.5, z).unwrap();
+//!
+//! // Sequence: K_0(z), K_1(z), K_2(z)
+//! let k_seq = besselk_seq(0.0, z, 3, Scaling::Unscaled).unwrap();
+//! assert_eq!(k_seq.values.len(), 3);
+//! ```
 
-// TODO: remove this once functions are implemented
-#![allow(unused)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 #[cfg(not(feature = "std"))]
@@ -32,43 +57,254 @@ pub use types::{AiryDerivative, BesselError, BesselResult, HankelKind, Scaling};
 
 use num_complex::Complex;
 
+// ── Helper: integer order detection ──
+
+/// Check if `nu` is a non-negative integer. Returns `Some(n)` if so.
+fn as_integer<T: BesselFloat>(nu: T) -> Option<i64> {
+    if nu == nu.floor() {
+        // Safe conversion: orders beyond i64 range are not practical
+        nu.to_i64()
+    } else {
+        None
+    }
+}
+
+// ── Internal: compute with given scaling for negative order support ──
+
+fn besselj_internal<T: BesselFloat>(
+    nu: T,
+    z: Complex<T>,
+    scaling: Scaling,
+) -> Result<Complex<T>, BesselError> {
+    let zero = T::zero();
+    if nu >= zero {
+        let result = besj::zbesj(z, nu, scaling, 1)?;
+        return Ok(result.values[0]);
+    }
+
+    // Negative order: J_{-ν}(z) = cos(νπ)*J_ν(z) - sin(νπ)*Y_ν(z) (DLMF 10.4.1)
+    let abs_nu = nu.abs();
+
+    // Integer shortcut: J_{-n}(z) = (-1)^n * J_n(z)
+    if let Some(n) = as_integer(abs_nu) {
+        let result = besj::zbesj(z, abs_nu, scaling, 1)?;
+        let sign = if n % 2 == 0 { T::one() } else { -T::one() };
+        return Ok(result.values[0] * sign);
+    }
+
+    // General case: need both J and Y at positive |ν|
+    let pi = T::from(core::f64::consts::PI).unwrap();
+    let nu_pi = abs_nu * pi;
+    let cos_nu_pi = nu_pi.cos();
+    let sin_nu_pi = nu_pi.sin();
+
+    let j_result = besj::zbesj(z, abs_nu, scaling, 1)?;
+    let y_result = besy::zbesy(z, abs_nu, scaling, 1)?;
+
+    let j_val = j_result.values[0];
+    let y_val = y_result.values[0];
+
+    Ok(j_val * cos_nu_pi - y_val * sin_nu_pi)
+}
+
+fn bessely_internal<T: BesselFloat>(
+    nu: T,
+    z: Complex<T>,
+    scaling: Scaling,
+) -> Result<Complex<T>, BesselError> {
+    let zero = T::zero();
+    if nu >= zero {
+        let result = besy::zbesy(z, nu, scaling, 1)?;
+        return Ok(result.values[0]);
+    }
+
+    // Negative order: Y_{-ν}(z) = sin(νπ)*J_ν(z) + cos(νπ)*Y_ν(z) (DLMF 10.4.2)
+    let abs_nu = nu.abs();
+
+    // Integer shortcut: Y_{-n}(z) = (-1)^n * Y_n(z)
+    if let Some(n) = as_integer(abs_nu) {
+        let result = besy::zbesy(z, abs_nu, scaling, 1)?;
+        let sign = if n % 2 == 0 { T::one() } else { -T::one() };
+        return Ok(result.values[0] * sign);
+    }
+
+    // General case: need both J and Y at positive |ν|
+    let pi = T::from(core::f64::consts::PI).unwrap();
+    let nu_pi = abs_nu * pi;
+    let cos_nu_pi = nu_pi.cos();
+    let sin_nu_pi = nu_pi.sin();
+
+    let j_result = besj::zbesj(z, abs_nu, scaling, 1)?;
+    let y_result = besy::zbesy(z, abs_nu, scaling, 1)?;
+
+    let j_val = j_result.values[0];
+    let y_val = y_result.values[0];
+
+    Ok(j_val * sin_nu_pi + y_val * cos_nu_pi)
+}
+
+fn besseli_internal<T: BesselFloat>(
+    nu: T,
+    z: Complex<T>,
+    scaling: Scaling,
+) -> Result<Complex<T>, BesselError> {
+    let zero = T::zero();
+    if nu >= zero {
+        let result = besi::zbesi(z, nu, scaling, 1)?;
+        return Ok(result.values[0]);
+    }
+
+    // Negative order: I_{-ν}(z) = I_ν(z) + (2/π)*sin(νπ)*K_ν(z) (DLMF 10.27.2)
+    let abs_nu = nu.abs();
+
+    // Integer shortcut: I_{-n}(z) = I_n(z)
+    if as_integer(abs_nu).is_some() {
+        let result = besi::zbesi(z, abs_nu, scaling, 1)?;
+        return Ok(result.values[0]);
+    }
+
+    // General case: need both I and K at positive |ν|
+    let pi = T::from(core::f64::consts::PI).unwrap();
+    let two = T::from(2.0).unwrap();
+    let nu_pi = abs_nu * pi;
+    let sin_nu_pi = nu_pi.sin();
+
+    let i_result = besi::zbesi(z, abs_nu, scaling, 1)?;
+    let k_result = besk::zbesk(z, abs_nu, scaling, 1)?;
+
+    let i_val = i_result.values[0];
+    let k_val = k_result.values[0];
+
+    Ok(i_val + k_val * (two / pi * sin_nu_pi))
+}
+
+fn besselk_internal<T: BesselFloat>(
+    nu: T,
+    z: Complex<T>,
+    scaling: Scaling,
+) -> Result<Complex<T>, BesselError> {
+    // K_{-ν}(z) = K_ν(z) (DLMF 10.27.3) — K is even in ν
+    let abs_nu = nu.abs();
+    let result = besk::zbesk(z, abs_nu, scaling, 1)?;
+    Ok(result.values[0])
+}
+
+fn hankel_internal<T: BesselFloat>(
+    kind: HankelKind,
+    nu: T,
+    z: Complex<T>,
+    scaling: Scaling,
+) -> Result<Complex<T>, BesselError> {
+    let zero = T::zero();
+    if nu >= zero {
+        let result = besh::zbesh(z, nu, kind, scaling, 1)?;
+        return Ok(result.values[0]);
+    }
+
+    // Negative order (DLMF 10.4.6, 10.4.7):
+    //   H^(1)_{-ν}(z) = exp(νπi) * H^(1)_ν(z)
+    //   H^(2)_{-ν}(z) = exp(-νπi) * H^(2)_ν(z)
+    let abs_nu = nu.abs();
+    let result = besh::zbesh(z, abs_nu, kind, scaling, 1)?;
+    let h_val = result.values[0];
+
+    let pi = T::from(core::f64::consts::PI).unwrap();
+    let nu_pi = abs_nu * pi;
+
+    let rotation = match kind {
+        // exp(νπi) = cos(νπ) + i*sin(νπ)
+        HankelKind::First => Complex::new(nu_pi.cos(), nu_pi.sin()),
+        // exp(-νπi) = cos(νπ) - i*sin(νπ)
+        HankelKind::Second => Complex::new(nu_pi.cos(), -nu_pi.sin()),
+    };
+
+    Ok(h_val * rotation)
+}
+
 // ── Single-value convenience functions ──
 
 /// Bessel function of the first kind, J_ν(z).
+///
+/// Computes a single value of the Bessel function J_ν(z) for complex z
+/// and real order ν (any real value, including negative).
+///
+/// For negative ν, the DLMF 10.4.1 reflection formula is applied:
+/// `J_{-ν}(z) = cos(νπ) J_ν(z) - sin(νπ) Y_ν(z)`.
+///
+/// # Errors
+///
+/// Returns [`BesselError`] if the computation fails (overflow, precision loss, etc.).
 pub fn besselj<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, BesselError> {
-    let result = besj::zbesj(z, nu, Scaling::Unscaled, 1)?;
-    Ok(result.values[0])
+    besselj_internal(nu, z, Scaling::Unscaled)
 }
 
 /// Bessel function of the second kind, Y_ν(z).
+///
+/// Computes a single value of the Bessel function Y_ν(z) for complex z
+/// and real order ν (any real value, including negative).
+///
+/// For negative ν, the DLMF 10.4.2 reflection formula is applied:
+/// `Y_{-ν}(z) = sin(νπ) J_ν(z) + cos(νπ) Y_ν(z)`.
+///
+/// # Errors
+///
+/// Returns [`BesselError`] if the computation fails (overflow, z = 0, etc.).
 pub fn bessely<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, BesselError> {
-    let result = besy::zbesy(z, nu, Scaling::Unscaled, 1)?;
-    Ok(result.values[0])
+    bessely_internal(nu, z, Scaling::Unscaled)
 }
 
 /// Modified Bessel function of the first kind, I_ν(z).
+///
+/// Computes a single value of I_ν(z) for complex z and real order ν
+/// (any real value, including negative).
+///
+/// For negative ν, the DLMF 10.27.2 reflection formula is applied:
+/// `I_{-ν}(z) = I_ν(z) + (2/π) sin(νπ) K_ν(z)`.
+///
+/// # Errors
+///
+/// Returns [`BesselError`] if the computation fails (overflow, precision loss, etc.).
 pub fn besseli<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, BesselError> {
-    let result = besi::zbesi(z, nu, Scaling::Unscaled, 1)?;
-    Ok(result.values[0])
+    besseli_internal(nu, z, Scaling::Unscaled)
 }
 
 /// Modified Bessel function of the second kind, K_ν(z).
+///
+/// Computes a single value of K_ν(z) for complex z and real order ν
+/// (any real value, including negative). K is even in ν: K_{-ν}(z) = K_ν(z).
+///
+/// # Errors
+///
+/// Returns [`BesselError`] if the computation fails (overflow, z = 0, etc.).
 pub fn besselk<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, BesselError> {
-    let result = besk::zbesk(z, nu, Scaling::Unscaled, 1)?;
-    Ok(result.values[0])
+    besselk_internal(nu, z, Scaling::Unscaled)
 }
 
-/// Hankel function, H_ν^(m)(z).
+/// Hankel function H_ν^(m)(z), m = 1 or 2.
+///
+/// Computes a single value of the Hankel function for complex z and real order ν
+/// (any real value, including negative).
+///
+/// For negative ν, the DLMF 10.4.6–7 reflection formulas are applied:
+/// - `H^(1)_{-ν}(z) = exp(νπi) H^(1)_ν(z)`
+/// - `H^(2)_{-ν}(z) = exp(-νπi) H^(2)_ν(z)`
+///
+/// # Errors
+///
+/// Returns [`BesselError`] if the computation fails (overflow, z = 0, etc.).
 pub fn hankel<T: BesselFloat>(
     kind: HankelKind,
     nu: T,
     z: Complex<T>,
 ) -> Result<Complex<T>, BesselError> {
-    let result = besh::zbesh(z, nu, kind, Scaling::Unscaled, 1)?;
-    Ok(result.values[0])
+    hankel_internal(kind, nu, z, Scaling::Unscaled)
 }
 
 /// Airy function Ai(z) or its derivative Ai'(z).
+///
+/// # Errors
+///
+/// Returns [`BesselError`] if the computation fails.
 pub fn airy<T: BesselFloat>(
     z: Complex<T>,
     deriv: AiryDerivative,
@@ -77,8 +313,88 @@ pub fn airy<T: BesselFloat>(
     Ok(result)
 }
 
-/// Scaled Airy function: exp(zta)*Ai(z) or exp(zta)*Ai'(z),
-/// where zta = (2/3)*z*sqrt(z).
+/// Airy function Bi(z) or its derivative Bi'(z).
+///
+/// # Errors
+///
+/// Returns [`BesselError`] if the computation fails.
+pub fn biry<T: BesselFloat>(
+    z: Complex<T>,
+    deriv: AiryDerivative,
+) -> Result<Complex<T>, BesselError> {
+    airy::zbiry(z, deriv, Scaling::Unscaled)
+}
+
+// ── Scaled single-value functions ──
+
+/// Scaled J_ν(z): multiplied by exp(-|Im(z)|).
+///
+/// Returns `exp(-|Im(z)|) * J_ν(z)`. Supports negative ν via reflection.
+///
+/// # Errors
+///
+/// Returns [`BesselError`] if the computation fails.
+pub fn besselj_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, BesselError> {
+    besselj_internal(nu, z, Scaling::Exponential)
+}
+
+/// Scaled Y_ν(z): multiplied by exp(-|Im(z)|).
+///
+/// Returns `exp(-|Im(z)|) * Y_ν(z)`. Supports negative ν via reflection.
+///
+/// # Errors
+///
+/// Returns [`BesselError`] if the computation fails.
+pub fn bessely_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, BesselError> {
+    bessely_internal(nu, z, Scaling::Exponential)
+}
+
+/// Scaled I_ν(z): multiplied by exp(-|Re(z)|).
+///
+/// Returns `exp(-|Re(z)|) * I_ν(z)`. Supports negative ν via reflection.
+///
+/// # Errors
+///
+/// Returns [`BesselError`] if the computation fails.
+pub fn besseli_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, BesselError> {
+    besseli_internal(nu, z, Scaling::Exponential)
+}
+
+/// Scaled K_ν(z): multiplied by exp(z).
+///
+/// Returns `exp(z) * K_ν(z)`. Supports negative ν (K is even in ν).
+///
+/// # Errors
+///
+/// Returns [`BesselError`] if the computation fails.
+pub fn besselk_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, BesselError> {
+    besselk_internal(nu, z, Scaling::Exponential)
+}
+
+/// Scaled Hankel function H_ν^(m)(z).
+///
+/// - H^(1): multiplied by exp(-iz)
+/// - H^(2): multiplied by exp(iz)
+///
+/// Supports negative ν via reflection.
+///
+/// # Errors
+///
+/// Returns [`BesselError`] if the computation fails.
+pub fn hankel_scaled<T: BesselFloat>(
+    kind: HankelKind,
+    nu: T,
+    z: Complex<T>,
+) -> Result<Complex<T>, BesselError> {
+    hankel_internal(kind, nu, z, Scaling::Exponential)
+}
+
+/// Scaled Airy function: `exp(zta) * Ai(z)` or `exp(zta) * Ai'(z)`,
+/// where `zta = (2/3) * z * sqrt(z)`.
+///
+/// # Errors
+///
+/// Returns [`BesselError`] if the computation fails.
 pub fn airy_scaled<T: BesselFloat>(
     z: Complex<T>,
     deriv: AiryDerivative,
@@ -87,16 +403,12 @@ pub fn airy_scaled<T: BesselFloat>(
     Ok(result)
 }
 
-/// Airy function Bi(z) or its derivative Bi'(z).
-pub fn biry<T: BesselFloat>(
-    z: Complex<T>,
-    deriv: AiryDerivative,
-) -> Result<Complex<T>, BesselError> {
-    airy::zbiry(z, deriv, Scaling::Unscaled)
-}
-
-/// Scaled Airy function: exp(-|Re(zta)|)*Bi(z) or exp(-|Re(zta)|)*Bi'(z),
-/// where zta = (2/3)*z*sqrt(z).
+/// Scaled Airy function: `exp(-|Re(zta)|) * Bi(z)` or `exp(-|Re(zta)|) * Bi'(z)`,
+/// where `zta = (2/3) * z * sqrt(z)`.
+///
+/// # Errors
+///
+/// Returns [`BesselError`] if the computation fails.
 pub fn biry_scaled<T: BesselFloat>(
     z: Complex<T>,
     deriv: AiryDerivative,
@@ -107,6 +419,12 @@ pub fn biry_scaled<T: BesselFloat>(
 // ── Sequence functions with scaling option ──
 
 /// Compute J_{ν+j}(z) for j = 0, 1, ..., n-1.
+///
+/// Requires ν ≥ 0. Use [`besselj`] for negative orders.
+///
+/// # Errors
+///
+/// Returns [`BesselError::InvalidInput`] if ν < 0 or n < 1.
 pub fn besselj_seq<T: BesselFloat>(
     nu: T,
     z: Complex<T>,
@@ -117,6 +435,12 @@ pub fn besselj_seq<T: BesselFloat>(
 }
 
 /// Compute Y_{ν+j}(z) for j = 0, 1, ..., n-1.
+///
+/// Requires ν ≥ 0. Use [`bessely`] for negative orders.
+///
+/// # Errors
+///
+/// Returns [`BesselError::InvalidInput`] if ν < 0 or n < 1.
 pub fn bessely_seq<T: BesselFloat>(
     nu: T,
     z: Complex<T>,
@@ -127,6 +451,12 @@ pub fn bessely_seq<T: BesselFloat>(
 }
 
 /// Compute I_{ν+j}(z) for j = 0, 1, ..., n-1.
+///
+/// Requires ν ≥ 0. Use [`besseli`] for negative orders.
+///
+/// # Errors
+///
+/// Returns [`BesselError::InvalidInput`] if ν < 0 or n < 1.
 pub fn besseli_seq<T: BesselFloat>(
     nu: T,
     z: Complex<T>,
@@ -137,6 +467,12 @@ pub fn besseli_seq<T: BesselFloat>(
 }
 
 /// Compute K_{ν+j}(z) for j = 0, 1, ..., n-1.
+///
+/// Requires ν ≥ 0. Use [`besselk`] for negative orders.
+///
+/// # Errors
+///
+/// Returns [`BesselError::InvalidInput`] if ν < 0 or n < 1.
 pub fn besselk_seq<T: BesselFloat>(
     nu: T,
     z: Complex<T>,
@@ -147,6 +483,12 @@ pub fn besselk_seq<T: BesselFloat>(
 }
 
 /// Compute H_{ν+j}^(m)(z) for j = 0, 1, ..., n-1.
+///
+/// Requires ν ≥ 0. Use [`hankel`] for negative orders.
+///
+/// # Errors
+///
+/// Returns [`BesselError::InvalidInput`] if ν < 0 or n < 1.
 pub fn hankel_seq<T: BesselFloat>(
     kind: HankelKind,
     nu: T,

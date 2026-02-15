@@ -10,7 +10,6 @@
 #![allow(clippy::too_many_arguments)]
 
 use num_complex::Complex;
-use num_traits::Float;
 
 use crate::machine::BesselFloat;
 use crate::utils::{zabs, zdiv};
@@ -641,7 +640,7 @@ fn large_w2_branch<T: BesselFloat>(
     let ex2_t = T::from(EX2).unwrap();
     let pp = azth.powf(ex2_t);
     let ang_scaled = ang * ex2_t;
-    let mut zetar = pp * ang_scaled.cos();
+    let zetar = pp * ang_scaled.cos();
     let zetai = pp * ang_scaled.sin();
     let zetai = if zetai < zero { zero } else { zetai };
 
