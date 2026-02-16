@@ -3,9 +3,16 @@
 Pure Rust implementation of complex Bessel functions based on
 **Amos Algorithm 644** (ACM TOMS 644).
 
-Provides Bessel functions J, Y, I, K, Hankel H^(1)/H^(2), and Airy functions
+Provides Bessel functions J, Y, I, K, Hankel H<sup>(1)</sup>/H<sup>(2)</sup>, and Airy functions
 Ai/Bi for complex arguments and real orders, with ~14-digit accuracy matching
 the original Fortran implementation.
+
+## Installation
+
+```toml
+[dependencies]
+complex-bessel = "0.1.0-alpha.1"
+```
 
 ## Usage
 
@@ -41,39 +48,38 @@ let bi_prime = biry(z, AiryDerivative::Derivative).unwrap();
 
 | Function | Description | Scaled version returns |
 |----------|-------------|------------------------|
-| `besselj` / `besselj_scaled` | J_v(z), Bessel first kind | exp(-\|Im(z)\|) · J_v(z) |
-| `bessely` / `bessely_scaled` | Y_v(z), Bessel second kind | exp(-\|Im(z)\|) · Y_v(z) |
-| `besseli` / `besseli_scaled` | I_v(z), modified first kind | exp(-\|Re(z)\|) · I_v(z) |
-| `besselk` / `besselk_scaled` | K_v(z), modified second kind | exp(z) · K_v(z) |
-| `hankel` / `hankel_scaled` | H_v^(m)(z), Hankel | exp(∓iz) · H_v^(m)(z) |
-| `airy` / `airy_scaled` | Ai(z), Ai'(z) | exp(zta) · Ai(z) |
-| `biry` / `biry_scaled` | Bi(z), Bi'(z) | exp(-\|Re(zta)\|) · Bi(z) |
+| `besselj` / `besselj_scaled` | J<sub>ν</sub>(z), Bessel first kind | exp(−\|Im(z)\|) · J<sub>ν</sub>(z) |
+| `bessely` / `bessely_scaled` | Y<sub>ν</sub>(z), Bessel second kind | exp(−\|Im(z)\|) · Y<sub>ν</sub>(z) |
+| `besseli` / `besseli_scaled` | I<sub>ν</sub>(z), modified first kind | exp(−\|Re(z)\|) · I<sub>ν</sub>(z) |
+| `besselk` / `besselk_scaled` | K<sub>ν</sub>(z), modified second kind | exp(z) · K<sub>ν</sub>(z) |
+| `hankel` / `hankel_scaled` | H<sub>ν</sub><sup>(m)</sup>(z), Hankel | exp(∓iz) · H<sub>ν</sub><sup>(m)</sup>(z) |
+| `airy` / `airy_scaled` | Ai(z), Ai′(z) | exp(ζ) · Ai(z) |
+| `biry` / `biry_scaled` | Bi(z), Bi′(z) | exp(−\|Re(ζ)\|) · Bi(z) |
 
 Sequence variants (`besselj_seq`, `bessely_seq`, `besseli_seq`, `besselk_seq`,
-`hankel_seq`) compute values at consecutive orders v, v+1, ..., v+n-1 in a
-single call. These require v >= 0.
+`hankel_seq`) compute values at consecutive orders ν, ν+1, …, ν+n−1 in a
+single call. These require ν ≥ 0.
 
 ## Negative Order
 
 Single-value functions accept any real order (positive or negative) using
 DLMF reflection formulas:
 
-- **K**: even in v, K_{-v}(z) = K_v(z)
-- **J**: J_{-v}(z) = cos(vpi) J_v(z) - sin(vpi) Y_v(z)
-- **Y**: Y_{-v}(z) = sin(vpi) J_v(z) + cos(vpi) Y_v(z)
-- **I**: I_{-v}(z) = I_v(z) + (2/pi) sin(vpi) K_v(z)
-- **H^(1)**: H^(1)_{-v}(z) = exp(vpi*i) H^(1)_v(z)
-- **H^(2)**: H^(2)_{-v}(z) = exp(-vpi*i) H^(2)_v(z)
+- **K**: even in ν, K<sub>−ν</sub>(z) = K<sub>ν</sub>(z)
+- **J**: J<sub>−ν</sub>(z) = cos(νπ) J<sub>ν</sub>(z) − sin(νπ) Y<sub>ν</sub>(z)
+- **Y**: Y<sub>−ν</sub>(z) = sin(νπ) J<sub>ν</sub>(z) + cos(νπ) Y<sub>ν</sub>(z)
+- **I**: I<sub>−ν</sub>(z) = I<sub>ν</sub>(z) + (2/π) sin(νπ) K<sub>ν</sub>(z)
+- **H<sup>(1)</sup>**: H<sup>(1)</sup><sub>−ν</sub>(z) = exp(νπi) H<sup>(1)</sup><sub>ν</sub>(z)
+- **H<sup>(2)</sup>**: H<sup>(2)</sup><sub>−ν</sub>(z) = exp(−νπi) H<sup>(2)</sup><sub>ν</sub>(z)
 
-For integer orders, exact shortcuts are used (e.g., J_{-n} = (-1)^n J_n).
+For integer orders, exact shortcuts are used (e.g., J<sub>−n</sub> = (−1)<sup>n</sup> J<sub>n</sub>).
 
 ## Accuracy
 
 Results match the original Fortran TOMS 644 to ~14 significant digits (f64).
 The `f32` generic implementation provides ~6-7 digit accuracy.
-Comprehensive accuracy analysis with Fortran reference comparisons is available at
-[complex-bessel-accuracy](https://github.com/elgar328/complex-bessel-accuracy)
-(coming soon).
+Comprehensive accuracy analysis with Fortran reference comparisons is maintained in a
+[separate repository](https://github.com/elgar328/complex-bessel-accuracy).
 
 ## `no_std`
 

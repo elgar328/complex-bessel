@@ -9,7 +9,6 @@ keywords = ["bessel", "complex", "special-functions", "mathematics", "no-std"]
 categories = ["mathematics", "science", "no-std"]
 readme = "README.md"
 repository = "https://github.com/elgar328/complex-bessel"
-exclude = ["PROJECT_PLAN.md"]
 
 [dependencies]
 num-complex = { version = "0.4", default-features = false }
