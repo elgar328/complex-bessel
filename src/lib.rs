@@ -1,20 +1,18 @@
-//! Pure Rust implementation of complex Bessel functions based on Amos Algorithm 644 (TOMS 644).
+//! Pure Rust implementation of complex Bessel functions based on Amos Algorithm 644 (ACM TOMS 644).
 //!
-//! This crate provides complex-valued Bessel functions of the first kind (J),
-//! second kind (Y), modified first kind (I), modified second kind (K),
-//! Hankel functions (H), and Airy functions (Ai, Bi).
+//! Provides Bessel functions J, Y, I, K, Hankel H⁽¹⁾/H⁽²⁾, and Airy functions Ai/Bi
+//! for complex arguments and real orders.
 //!
 //! # Features
 //!
-//! - **Full complex domain**: all functions accept `Complex<f64>` or `Complex<f32>` arguments
-//! - **Negative orders**: single-value functions support ν < 0 via DLMF reflection formulas
-//! - **Sequence computation**: compute ν, ν+1, …, ν+n−1 in one call
-//! - **Exponential scaling**: optional scaling to prevent overflow/underflow
-//! - **`no_std` compatible**: works with `alloc` only (disable default `std` feature)
-//! - **Precision status**: [`BesselStatus`] reports when results may have reduced precision
-//! - **High accuracy**: matches Fortran TOMS 644 to ~14 significant digits
+//! - **Dual precision** — all functions accept `Complex<f64>` or `Complex<f32>`
+//! - **Complete function set** — J, Y, I, K, H⁽¹⁾, H⁽²⁾, Ai, Bi
+//! - **Consecutive orders** — `_seq` variants return ν, ν+1, …, ν+n−1 in one call
+//! - **Exponential scaling** — `_scaled` variants prevent overflow/underflow
+//! - **Negative orders** — single-value functions accept ν < 0 via reflection formulas
+//! - **`no_std`** — works with `alloc` only
 //!
-//! # Quick Start
+//! # Quick start
 //!
 //! ```
 //! use complex_bessel::*;
@@ -22,24 +20,114 @@
 //!
 //! let z = Complex::new(1.0, 2.0);
 //!
-//! // Single-value computation
 //! let j = besselj(0.5, z).unwrap();
 //! let k = besselk(1.0, z).unwrap();
+//! let h = hankel(HankelKind::First, 0.0, z).unwrap();
 //!
-//! // Negative order
-//! let j_neg = besselj(-0.5, z).unwrap();
-//!
-//! // Scaled computation (e.g., e^(-|Im(z)|) * J_ν(z))
-//! let j_scaled = besselj_scaled(0.5, z).unwrap();
-//!
-//! // Sequence: K_0(z), K_1(z), K_2(z)
-//! let k_seq = besselk_seq(0.0, z, 3, Scaling::Unscaled).unwrap();
-//! assert_eq!(k_seq.values.len(), 3);
+//! // Scaled versions prevent overflow/underflow
+//! let k_scaled = besselk_scaled(1.0, z).unwrap();
 //!
 //! // Airy functions
 //! let ai = airy(z, AiryDerivative::Value).unwrap();
-//! let bi = biry(z, AiryDerivative::Value).unwrap();
 //! ```
+//!
+//! # Generic types
+//!
+//! All functions are generic over `f64` and `f32` via the [`BesselFloat`] trait:
+//!
+//! ```
+//! use complex_bessel::besselj;
+//! use num_complex::Complex;
+//!
+//! // f64 (default)
+//! let z64 = Complex::new(1.0_f64, 2.0);
+//! let j64 = besselj(0.5_f64, z64).unwrap();
+//!
+//! // f32
+//! let z32 = Complex::new(1.0_f32, 2.0);
+//! let j32 = besselj(0.5_f32, z32).unwrap();
+//! ```
+//!
+//! # Consecutive orders
+//!
+//! The `_seq` variants compute values at consecutive orders ν, ν+1, …, ν+n−1
+//! in a single call. Internal recurrence is shared, so this is more efficient
+//! than calling the single-value function n times.
+//!
+//! ```
+//! use complex_bessel::*;
+//! use num_complex::Complex;
+//!
+//! let z = Complex::new(1.0, 2.0);
+//!
+//! // K_0(z), K_1(z), K_2(z)
+//! let seq = besselk_seq(0.0, z, 3, Scaling::Unscaled).unwrap();
+//! assert_eq!(seq.values.len(), 3);
+//! ```
+//!
+//! Sequence results include a [`BesselStatus`] field:
+//! - [`BesselStatus::Normal`] — full precision (~14 digits for f64, ~6–7 for f32)
+//! - [`BesselStatus::ReducedPrecision`] — some precision lost (|z| or ν very large)
+//!
+//! Single-value functions silently return the best available result.
+//!
+//! Sequence variants require ν ≥ 0. Use single-value functions for negative orders.
+//!
+//! # Exponential scaling
+//!
+//! The `_scaled` variants multiply by an exponential factor to prevent
+//! overflow/underflow for large arguments. See [`Scaling`] for the exact
+//! factor applied to each function.
+//!
+//! ```
+//! use complex_bessel::*;
+//! use num_complex::Complex;
+//!
+//! let z = Complex::new(100.0, 0.0);
+//!
+//! // K_0(100) ≈ 4.66e-45 — unscaled works but close to underflow
+//! let k = besselk(0.0, z).unwrap();
+//!
+//! // exp(100) * K_0(100) ≈ 0.1257 — scaled version stays in normal range
+//! let k_s = besselk_scaled(0.0, z).unwrap();
+//! ```
+//!
+//! | Function | Scaled variant returns |
+//! |----------|-----------------------|
+//! | J, Y | exp(−\|Im(z)\|) · f(z) |
+//! | I | exp(−\|Re(z)\|) · I(z) |
+//! | K | exp(z) · K(z) |
+//! | H<sup>(1)</sup> | exp(−iz) · H<sup>(1)</sup>(z) |
+//! | H<sup>(2)</sup> | exp(iz) · H<sup>(2)</sup>(z) |
+//! | Ai | exp(ζ) · Ai(z) |
+//! | Bi | exp(−\|Re(ζ)\|) · Bi(z) |
+//!
+//! where ζ = (2/3) z√z.
+//!
+//! # Negative orders
+//!
+//! All single-value functions accept any real order, including negative values.
+//! DLMF reflection formulas are applied automatically:
+//!
+//! - **J**: J<sub>−ν</sub>(z) = cos(νπ) J<sub>ν</sub>(z) − sin(νπ) Y<sub>ν</sub>(z) (DLMF 10.4.1)
+//! - **Y**: Y<sub>−ν</sub>(z) = sin(νπ) J<sub>ν</sub>(z) + cos(νπ) Y<sub>ν</sub>(z) (DLMF 10.4.2)
+//! - **I**: I<sub>−ν</sub>(z) = I<sub>ν</sub>(z) + (2/π) sin(νπ) K<sub>ν</sub>(z) (DLMF 10.27.2)
+//! - **K**: K<sub>−ν</sub>(z) = K<sub>ν</sub>(z) (even in ν, DLMF 10.27.3)
+//! - **H<sup>(1)</sup>**: H<sup>(1)</sup><sub>−ν</sub>(z) = exp(νπi) H<sup>(1)</sup><sub>ν</sub>(z) (DLMF 10.4.6)
+//! - **H<sup>(2)</sup>**: H<sup>(2)</sup><sub>−ν</sub>(z) = exp(−νπi) H<sup>(2)</sup><sub>ν</sub>(z) (DLMF 10.4.7)
+//!
+//! For integer orders, simplified identities are used (e.g., J<sub>−n</sub>(z) = (−1)<sup>n</sup> J<sub>n</sub>(z)).
+//!
+//! # `no_std` support
+//!
+//! Disable the default `std` feature:
+//!
+//! ```toml
+//! [dependencies]
+//! complex-bessel = { version = "0.1", default-features = false }
+//! ```
+//!
+//! Requires `alloc`. All functions remain available.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -343,9 +431,15 @@ pub fn biry<T: BesselFloat>(
 
 // ── Scaled single-value functions ──
 
-/// Scaled J_ν(z): multiplied by exp(-|Im(z)|).
+/// Scaled Bessel function of the first kind: `exp(-|Im(z)|) · J_ν(z)`.
 ///
-/// Returns `exp(-|Im(z)|) * J_ν(z)`. Supports negative ν via reflection.
+/// The exponential factor cancels the asymptotic growth of J for large imaginary
+/// arguments, keeping results in a representable floating-point range.
+/// This is especially useful when |Im(z)| is large.
+///
+/// Supports negative ν via the same reflection formula as [`besselj`].
+///
+/// See [crate-level docs](crate#exponential-scaling) for the full scaling table.
 ///
 /// # Errors
 ///
@@ -354,9 +448,14 @@ pub fn besselj_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>
     besselj_internal(nu, z, Scaling::Exponential)
 }
 
-/// Scaled Y_ν(z): multiplied by exp(-|Im(z)|).
+/// Scaled Bessel function of the second kind: `exp(-|Im(z)|) · Y_ν(z)`.
 ///
-/// Returns `exp(-|Im(z)|) * Y_ν(z)`. Supports negative ν via reflection.
+/// The exponential factor cancels the asymptotic growth of Y for large imaginary
+/// arguments, keeping results in a representable floating-point range.
+///
+/// Supports negative ν via the same reflection formula as [`bessely`].
+///
+/// See [crate-level docs](crate#exponential-scaling) for the full scaling table.
 ///
 /// # Errors
 ///
@@ -365,9 +464,14 @@ pub fn bessely_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>
     bessely_internal(nu, z, Scaling::Exponential)
 }
 
-/// Scaled I_ν(z): multiplied by exp(-|Re(z)|).
+/// Scaled modified Bessel function of the first kind: `exp(-|Re(z)|) · I_ν(z)`.
 ///
-/// Returns `exp(-|Re(z)|) * I_ν(z)`. Supports negative ν via reflection.
+/// I_ν(z) grows exponentially for large |Re(z)|, so the unscaled value can
+/// easily overflow. The scaling factor `exp(-|Re(z)|)` keeps the result finite.
+///
+/// Supports negative ν via the same reflection formula as [`besseli`].
+///
+/// See [crate-level docs](crate#exponential-scaling) for the full scaling table.
 ///
 /// # Errors
 ///
@@ -376,9 +480,27 @@ pub fn besseli_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>
     besseli_internal(nu, z, Scaling::Exponential)
 }
 
-/// Scaled K_ν(z): multiplied by exp(z).
+/// Scaled modified Bessel function of the second kind: `exp(z) · K_ν(z)`.
 ///
-/// Returns `exp(z) * K_ν(z)`. Supports negative ν (K is even in ν).
+/// K_ν(z) decays exponentially for large Re(z), so unscaled values can underflow
+/// to zero. The scaling factor `exp(z)` keeps the result in a normal range.
+///
+/// Supports negative ν (K is even in ν: K_{-ν} = K_ν).
+///
+/// See [crate-level docs](crate#exponential-scaling) for the full scaling table.
+///
+/// # Example
+///
+/// ```
+/// use complex_bessel::besselk_scaled;
+/// use num_complex::Complex;
+///
+/// let z = Complex::new(500.0, 0.0);
+///
+/// // K_0(500) would underflow to 0, but the scaled version stays finite:
+/// let k_s = besselk_scaled(0.0, z).unwrap();
+/// assert!(k_s.re > 0.0); // exp(500) * K_0(500) ≈ 0.0564
+/// ```
 ///
 /// # Errors
 ///
@@ -389,10 +511,15 @@ pub fn besselk_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>
 
 /// Scaled Hankel function H_ν^(m)(z).
 ///
-/// - H^(1): multiplied by exp(-iz)
-/// - H^(2): multiplied by exp(iz)
+/// - H^(1): returns `exp(-iz) · H_ν^(1)(z)`
+/// - H^(2): returns `exp(iz) · H_ν^(2)(z)`
 ///
-/// Supports negative ν via reflection.
+/// The Hankel functions grow exponentially in the complex plane;
+/// the scaling factor removes this growth, preventing overflow.
+///
+/// Supports negative ν via the same reflection formulas as [`hankel`].
+///
+/// See [crate-level docs](crate#exponential-scaling) for the full scaling table.
 ///
 /// # Errors
 ///
@@ -405,8 +532,13 @@ pub fn hankel_scaled<T: BesselFloat>(
     hankel_internal(kind, nu, z, Scaling::Exponential)
 }
 
-/// Scaled Airy function: `exp(zta) * Ai(z)` or `exp(zta) * Ai'(z)`,
-/// where `zta = (2/3) * z * sqrt(z)`.
+/// Scaled Airy function: `exp(ζ) · Ai(z)` or `exp(ζ) · Ai'(z)`,
+/// where ζ = (2/3) z√z.
+///
+/// Ai(z) decays super-exponentially for large positive real z.
+/// The scaling factor `exp(ζ)` keeps the result representable.
+///
+/// See [crate-level docs](crate#exponential-scaling) for the full scaling table.
 ///
 /// # Errors
 ///
@@ -419,8 +551,13 @@ pub fn airy_scaled<T: BesselFloat>(
     Ok(result)
 }
 
-/// Scaled Airy function: `exp(-|Re(zta)|) * Bi(z)` or `exp(-|Re(zta)|) * Bi'(z)`,
-/// where `zta = (2/3) * z * sqrt(z)`.
+/// Scaled Airy function: `exp(-|Re(ζ)|) · Bi(z)` or `exp(-|Re(ζ)|) · Bi'(z)`,
+/// where ζ = (2/3) z√z.
+///
+/// Bi(z) grows super-exponentially for large positive real z.
+/// The scaling factor `exp(-|Re(ζ)|)` keeps the result representable.
+///
+/// See [crate-level docs](crate#exponential-scaling) for the full scaling table.
 ///
 /// # Errors
 ///
@@ -434,9 +571,18 @@ pub fn biry_scaled<T: BesselFloat>(
 
 // ── Sequence functions with scaling option ──
 
-/// Compute J_{ν+j}(z) for j = 0, 1, ..., n-1.
+/// Compute J_{ν+j}(z) for j = 0, 1, …, n−1 in a single call.
+///
+/// Returns a [`BesselResult`] containing `n` values and a [`BesselStatus`]:
+/// - [`BesselStatus::Normal`] — full precision (~14 digits for f64)
+/// - [`BesselStatus::ReducedPrecision`] — some precision lost (|z| or ν very large)
+///
+/// The `scaling` parameter selects [`Scaling::Unscaled`] or [`Scaling::Exponential`];
+/// see [crate-level docs](crate#exponential-scaling) for details.
 ///
 /// Requires ν ≥ 0. Use [`besselj`] for negative orders.
+///
+/// See [crate-level docs](crate#consecutive-orders) for more on sequence functions.
 ///
 /// # Errors
 ///
@@ -450,9 +596,18 @@ pub fn besselj_seq<T: BesselFloat>(
     besj::zbesj(z, nu, scaling, n)
 }
 
-/// Compute Y_{ν+j}(z) for j = 0, 1, ..., n-1.
+/// Compute Y_{ν+j}(z) for j = 0, 1, …, n−1 in a single call.
+///
+/// Returns a [`BesselResult`] containing `n` values and a [`BesselStatus`]:
+/// - [`BesselStatus::Normal`] — full precision (~14 digits for f64)
+/// - [`BesselStatus::ReducedPrecision`] — some precision lost (|z| or ν very large)
+///
+/// The `scaling` parameter selects [`Scaling::Unscaled`] or [`Scaling::Exponential`];
+/// see [crate-level docs](crate#exponential-scaling) for details.
 ///
 /// Requires ν ≥ 0. Use [`bessely`] for negative orders.
+///
+/// See [crate-level docs](crate#consecutive-orders) for more on sequence functions.
 ///
 /// # Errors
 ///
@@ -466,9 +621,18 @@ pub fn bessely_seq<T: BesselFloat>(
     besy::zbesy(z, nu, scaling, n)
 }
 
-/// Compute I_{ν+j}(z) for j = 0, 1, ..., n-1.
+/// Compute I_{ν+j}(z) for j = 0, 1, …, n−1 in a single call.
+///
+/// Returns a [`BesselResult`] containing `n` values and a [`BesselStatus`]:
+/// - [`BesselStatus::Normal`] — full precision (~14 digits for f64)
+/// - [`BesselStatus::ReducedPrecision`] — some precision lost (|z| or ν very large)
+///
+/// The `scaling` parameter selects [`Scaling::Unscaled`] or [`Scaling::Exponential`];
+/// see [crate-level docs](crate#exponential-scaling) for details.
 ///
 /// Requires ν ≥ 0. Use [`besseli`] for negative orders.
+///
+/// See [crate-level docs](crate#consecutive-orders) for more on sequence functions.
 ///
 /// # Errors
 ///
@@ -482,9 +646,32 @@ pub fn besseli_seq<T: BesselFloat>(
     besi::zbesi(z, nu, scaling, n)
 }
 
-/// Compute K_{ν+j}(z) for j = 0, 1, ..., n-1.
+/// Compute K_{ν+j}(z) for j = 0, 1, …, n−1 in a single call.
+///
+/// Returns a [`BesselResult`] containing `n` values and a [`BesselStatus`]:
+/// - [`BesselStatus::Normal`] — full precision (~14 digits for f64)
+/// - [`BesselStatus::ReducedPrecision`] — some precision lost (|z| or ν very large)
+///
+/// The `scaling` parameter selects [`Scaling::Unscaled`] or [`Scaling::Exponential`];
+/// see [crate-level docs](crate#exponential-scaling) for details.
 ///
 /// Requires ν ≥ 0. Use [`besselk`] for negative orders.
+///
+/// See [crate-level docs](crate#consecutive-orders) for more on sequence functions.
+///
+/// # Example
+///
+/// ```
+/// use complex_bessel::*;
+/// use num_complex::Complex;
+///
+/// let z = Complex::new(1.0, 2.0);
+///
+/// // K_0(z), K_1(z), K_2(z) in one call
+/// let result = besselk_seq(0.0, z, 3, Scaling::Unscaled).unwrap();
+/// assert_eq!(result.values.len(), 3);
+/// assert!(matches!(result.status, BesselStatus::Normal));
+/// ```
 ///
 /// # Errors
 ///
@@ -498,9 +685,18 @@ pub fn besselk_seq<T: BesselFloat>(
     besk::zbesk(z, nu, scaling, n)
 }
 
-/// Compute H_{ν+j}^(m)(z) for j = 0, 1, ..., n-1.
+/// Compute H_{ν+j}^(m)(z) for j = 0, 1, …, n−1 in a single call.
+///
+/// Returns a [`BesselResult`] containing `n` values and a [`BesselStatus`]:
+/// - [`BesselStatus::Normal`] — full precision (~14 digits for f64)
+/// - [`BesselStatus::ReducedPrecision`] — some precision lost (|z| or ν very large)
+///
+/// The `scaling` parameter selects [`Scaling::Unscaled`] or [`Scaling::Exponential`];
+/// see [crate-level docs](crate#exponential-scaling) for details.
 ///
 /// Requires ν ≥ 0. Use [`hankel`] for negative orders.
+///
+/// See [crate-level docs](crate#consecutive-orders) for more on sequence functions.
 ///
 /// # Errors
 ///
