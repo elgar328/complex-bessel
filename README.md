@@ -1,17 +1,21 @@
 # complex-bessel
 
-Pure Rust implementation of complex Bessel functions based on
-**Amos Algorithm 644** (ACM TOMS 644).
+Pure Rust implementation of complex Bessel functions based on **Amos Algorithm 644** (ACM TOMS 644).
 
-Provides Bessel functions J, Y, I, K, Hankel H<sup>(1)</sup>/H<sup>(2)</sup>, and Airy functions
-Ai/Bi for complex arguments and real orders, with ~14-digit accuracy matching
-the original Fortran implementation.
+Provides Bessel functions J, Y, I, K, Hankel H<sup>(1)</sup>/H<sup>(2)</sup>, and Airy functions Ai/Bi for complex arguments and real orders.
 
 ## Installation
 
 ```toml
 [dependencies]
 complex-bessel = "0.1.0-alpha.1"
+```
+
+For `no_std` environments (requires `alloc`):
+
+```toml
+[dependencies]
+complex-bessel = { version = "0.1", default-features = false }
 ```
 
 ## Usage
@@ -22,27 +26,35 @@ use num_complex::Complex;
 
 let z = Complex::new(1.0, 2.0);
 
-// Single-value functions (support negative order)
 let j = besselj(0.5, z).unwrap();
 let k = besselk(1.0, z).unwrap();
 let h = hankel(HankelKind::First, 0.0, z).unwrap();
+let j_neg = besselj(-1.5, z).unwrap();  // negative orders work directly
 
-// Negative order via DLMF reflection formulas
-let j_neg = besselj(-1.5, z).unwrap();
-let k_neg = besselk(-1.0, z).unwrap();  // K_{-v} = K_v
-
-// Scaled computation to prevent overflow/underflow
-let k_scaled = besselk_scaled(1.0, z).unwrap();  // exp(z) * K_1(z)
-
-// Sequence: compute K_0(z), K_1(z), K_2(z)
-let seq = besselk_seq(0.0, z, 3, Scaling::Unscaled).unwrap();
-assert_eq!(seq.values.len(), 3);
-assert_eq!(seq.status, BesselStatus::Normal);  // precision status
+// Scaled versions prevent overflow/underflow
+let k_scaled = besselk_scaled(1.0, z).unwrap();
 
 // Airy functions
 let ai = airy(z, AiryDerivative::Value).unwrap();
-let bi_prime = biry(z, AiryDerivative::Derivative).unwrap();
 ```
+
+### Sequence computation
+
+`_seq` variants compute values at consecutive orders ν, ν+1, …, ν+n−1 in a
+single call. Internal recurrence is shared, so this is more efficient than
+calling the single-value function n times.
+
+```rust
+// J_0(z), J_1(z), ..., J_9(z)
+let seq = besselj_seq(0.0, z, 10, Scaling::Unscaled).unwrap();
+
+// Partial-wave expansion: Σ (2n+1) · J_n(z)
+let sum: Complex<f64> = seq.values.iter().enumerate()
+    .map(|(n, &jn)| jn * (2 * n + 1) as f64)
+    .sum();
+```
+
+Sequence results include a `status` field (`BesselStatus::Normal` or `ReducedPrecision`) that warns when precision loss may have occurred. Single-value functions silently return the best available result.
 
 ## Functions
 
@@ -56,39 +68,17 @@ let bi_prime = biry(z, AiryDerivative::Derivative).unwrap();
 | `airy` / `airy_scaled` | Ai(z), Ai′(z) | exp(ζ) · Ai(z) |
 | `biry` / `biry_scaled` | Bi(z), Bi′(z) | exp(−\|Re(ζ)\|) · Bi(z) |
 
-Sequence variants (`besselj_seq`, `bessely_seq`, `besseli_seq`, `besselk_seq`,
-`hankel_seq`) compute values at consecutive orders ν, ν+1, …, ν+n−1 in a
-single call. These require ν ≥ 0.
+where ζ = (2/3) z√z.
 
-## Negative Order
+Each function has a `_seq` variant for consecutive-order computation (see [above](#sequence-computation)). Sequence variants require ν ≥ 0.
 
-Single-value functions accept any real order (positive or negative) using
-DLMF reflection formulas:
-
-- **K**: even in ν, K<sub>−ν</sub>(z) = K<sub>ν</sub>(z)
-- **J**: J<sub>−ν</sub>(z) = cos(νπ) J<sub>ν</sub>(z) − sin(νπ) Y<sub>ν</sub>(z)
-- **Y**: Y<sub>−ν</sub>(z) = sin(νπ) J<sub>ν</sub>(z) + cos(νπ) Y<sub>ν</sub>(z)
-- **I**: I<sub>−ν</sub>(z) = I<sub>ν</sub>(z) + (2/π) sin(νπ) K<sub>ν</sub>(z)
-- **H<sup>(1)</sup>**: H<sup>(1)</sup><sub>−ν</sub>(z) = exp(νπi) H<sup>(1)</sup><sub>ν</sub>(z)
-- **H<sup>(2)</sup>**: H<sup>(2)</sup><sub>−ν</sub>(z) = exp(−νπi) H<sup>(2)</sup><sub>ν</sub>(z)
-
-For integer orders, exact shortcuts are used (e.g., J<sub>−n</sub> = (−1)<sup>n</sup> J<sub>n</sub>).
+All single-value functions accept negative orders — DLMF reflection formulas are applied automatically.
 
 ## Accuracy
 
 Results match the original Fortran TOMS 644 to ~14 significant digits (f64).
 The `f32` generic implementation provides ~6-7 digit accuracy.
-Comprehensive accuracy analysis with Fortran reference comparisons is maintained in a
-[separate repository](https://github.com/elgar328/complex-bessel-accuracy).
-
-## `no_std`
-
-Disable the default `std` feature to use in `no_std` environments (requires `alloc`):
-
-```toml
-[dependencies]
-complex-bessel = { version = "0.1", default-features = false }
-```
+Comprehensive accuracy analysis with Fortran reference comparisons is maintained in a [separate repository](https://github.com/elgar328/complex-bessel-accuracy).
 
 ## License
 
