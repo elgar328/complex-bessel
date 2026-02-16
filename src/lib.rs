@@ -11,6 +11,7 @@
 //! - **Sequence computation**: compute ν, ν+1, …, ν+n−1 in one call
 //! - **Exponential scaling**: optional scaling to prevent overflow/underflow
 //! - **`no_std` compatible**: works with `alloc` only (disable default `std` feature)
+//! - **Precision status**: [`BesselStatus`] reports when results may have reduced precision
 //! - **High accuracy**: matches Fortran TOMS 644 to ~14 significant digits
 //!
 //! # Quick Start
@@ -28,7 +29,7 @@
 //! // Negative order
 //! let j_neg = besselj(-0.5, z).unwrap();
 //!
-//! // Scaled computation (e.g., e^(-|Re(z)|) * J_ν(z))
+//! // Scaled computation (e.g., e^(-|Im(z)|) * J_ν(z))
 //! let j_scaled = besselj_scaled(0.5, z).unwrap();
 //!
 //! // Sequence: K_0(z), K_1(z), K_2(z)

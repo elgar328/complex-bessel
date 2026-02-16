@@ -49,6 +49,9 @@ fn main() {
         println!("  K_{j}({z}) = {val}");
     }
 
+    println!("  underflow_count: {}", seq.underflow_count);
+    println!("  status: {:?}", seq.status);
+
     // -- Airy functions --
     println!("\n=== Airy functions ===");
     let ai = airy(z, AiryDerivative::Value).unwrap();

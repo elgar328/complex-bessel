@@ -30,7 +30,7 @@ pub struct BesselResult<T: BesselFloat> {
 
 /// Scaling option for Bessel function computation.
 ///
-/// Exponential scaling multiplies the result by a function-specific factor:
+/// The `_scaled` function returns `factor * f(z)`, where factor is:
 /// - J, Y: `exp(-|Im(z)|)`
 /// - I: `exp(-|Re(z)|)`
 /// - K: `exp(z)`

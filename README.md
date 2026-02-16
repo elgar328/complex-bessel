@@ -30,6 +30,7 @@ let k_scaled = besselk_scaled(1.0, z).unwrap();  // exp(z) * K_1(z)
 // Sequence: compute K_0(z), K_1(z), K_2(z)
 let seq = besselk_seq(0.0, z, 3, Scaling::Unscaled).unwrap();
 assert_eq!(seq.values.len(), 3);
+assert_eq!(seq.status, BesselStatus::Normal);  // precision status
 
 // Airy functions
 let ai = airy(z, AiryDerivative::Value).unwrap();
@@ -38,15 +39,15 @@ let bi_prime = biry(z, AiryDerivative::Derivative).unwrap();
 
 ## Functions
 
-| Function | Description | Scaling factor |
-|----------|-------------|----------------|
-| `besselj` / `besselj_scaled` | J_v(z), Bessel first kind | exp(-\|Im(z)\|) |
-| `bessely` / `bessely_scaled` | Y_v(z), Bessel second kind | exp(-\|Im(z)\|) |
-| `besseli` / `besseli_scaled` | I_v(z), modified first kind | exp(-\|Re(z)\|) |
-| `besselk` / `besselk_scaled` | K_v(z), modified second kind | exp(z) |
-| `hankel` / `hankel_scaled` | H_v^(m)(z), Hankel | exp(-iz) / exp(iz) |
-| `airy` / `airy_scaled` | Ai(z), Ai'(z) | exp(zta) |
-| `biry` / `biry_scaled` | Bi(z), Bi'(z) | exp(-\|Re(zta)\|) |
+| Function | Description | Scaled version returns |
+|----------|-------------|------------------------|
+| `besselj` / `besselj_scaled` | J_v(z), Bessel first kind | exp(-\|Im(z)\|) · J_v(z) |
+| `bessely` / `bessely_scaled` | Y_v(z), Bessel second kind | exp(-\|Im(z)\|) · Y_v(z) |
+| `besseli` / `besseli_scaled` | I_v(z), modified first kind | exp(-\|Re(z)\|) · I_v(z) |
+| `besselk` / `besselk_scaled` | K_v(z), modified second kind | exp(z) · K_v(z) |
+| `hankel` / `hankel_scaled` | H_v^(m)(z), Hankel | exp(∓iz) · H_v^(m)(z) |
+| `airy` / `airy_scaled` | Ai(z), Ai'(z) | exp(zta) · Ai(z) |
+| `biry` / `biry_scaled` | Bi(z), Bi'(z) | exp(-\|Re(zta)\|) · Bi(z) |
 
 Sequence variants (`besselj_seq`, `bessely_seq`, `besseli_seq`, `besselk_seq`,
 `hankel_seq`) compute values at consecutive orders v, v+1, ..., v+n-1 in a
