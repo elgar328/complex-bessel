@@ -13,7 +13,7 @@ use crate::algo::constants::HPI;
 use crate::besi::zbesi;
 use crate::besk::zbesk;
 use crate::machine::BesselFloat;
-use crate::types::{BesselError, BesselResult, Scaling};
+use crate::types::{BesselError, BesselResult, BesselStatus, Scaling};
 
 /// Compute Y_{fnu+j}(z) for j = 0, 1, ..., n-1.
 ///
@@ -29,7 +29,6 @@ pub(crate) fn zbesy<T: BesselFloat>(
 ) -> Result<BesselResult<T>, BesselError> {
     let zero = T::zero();
     let one = T::one();
-    let _half = T::from(0.5).unwrap();
     let hpi_t = T::from(HPI).unwrap();
 
     // Input validation (Fortran lines 1342-1348)
@@ -119,6 +118,7 @@ pub(crate) fn zbesy<T: BesselFloat>(
         return Ok(BesselResult {
             values: cy,
             underflow_count: nz,
+            status: BesselStatus::Normal,
         });
     }
 
@@ -198,6 +198,7 @@ pub(crate) fn zbesy<T: BesselFloat>(
     Ok(BesselResult {
         values: cy,
         underflow_count: nz_out,
+        status: BesselStatus::Normal,
     })
 }
 

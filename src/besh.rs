@@ -20,7 +20,7 @@ use crate::algo::bunk::zbunk;
 use crate::algo::constants::HPI;
 use crate::algo::uoik::zuoik;
 use crate::machine::BesselFloat;
-use crate::types::{BesselError, BesselResult, HankelKind, Scaling};
+use crate::types::{BesselError, BesselResult, BesselStatus, HankelKind, Scaling};
 use crate::utils::zabs;
 
 /// Compute H_{fnu+j}^(m)(z) for j = 0, 1, ..., n-1.
@@ -145,9 +145,15 @@ pub(crate) fn zbesh<T: BesselFloat>(
                     // All underflowed — still need phase post-processing
                     // Return zero values; the phase code below is a no-op
                     let cy_zero = vec![Complex::new(zero, zero); nn];
+                    let status = if precision_warning {
+                        BesselStatus::ReducedPrecision
+                    } else {
+                        BesselStatus::Normal
+                    };
                     return Ok(BesselResult {
                         values: cy_zero,
                         underflow_count: nz,
+                        status,
                     });
                 }
             }
@@ -231,13 +237,16 @@ pub(crate) fn zbesh<T: BesselFloat>(
         csgnr = str_new;
     }
 
-    if precision_warning {
-        // Fortran IERR=3: computation completed but with precision loss
-    }
+    let status = if precision_warning {
+        BesselStatus::ReducedPrecision
+    } else {
+        BesselStatus::Normal
+    };
 
     Ok(BesselResult {
         values: result,
         underflow_count: nz,
+        status,
     })
 }
 

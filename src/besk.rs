@@ -11,7 +11,7 @@ use crate::algo::bknu::zbknu;
 use crate::algo::bunk::zbunk;
 use crate::algo::uoik::zuoik;
 use crate::machine::BesselFloat;
-use crate::types::{BesselError, BesselResult, Scaling};
+use crate::types::{BesselError, BesselResult, BesselStatus, Scaling};
 use crate::utils::zabs;
 
 /// Compute K_{ν+j}(z) for j = 0, 1, ..., n-1.
@@ -31,7 +31,6 @@ use crate::utils::zabs;
 /// # Errors
 /// - `InvalidInput`: z = 0, ν < 0, or n < 1
 /// - `Overflow`: |z| too small or result magnitude overflow
-/// - `PrecisionLoss`: |z| or ν caused loss of more than half significant digits
 /// - `TotalPrecisionLoss`: complete loss of significance
 /// - `ConvergenceFailure`: algorithm did not converge
 pub(crate) fn zbesk<T: BesselFloat>(
@@ -110,14 +109,16 @@ pub(crate) fn zbesk<T: BesselFloat>(
             };
         }
         nz += nw as usize;
-        return if precision_warning {
-            Err(BesselError::PrecisionLoss)
+        let status = if precision_warning {
+            BesselStatus::ReducedPrecision
         } else {
-            Ok(BesselResult {
-                values: y,
-                underflow_count: nz,
-            })
+            BesselStatus::Normal
         };
+        return Ok(BesselResult {
+            values: y,
+            underflow_count: nz,
+            status,
+        });
     }
 
     // ── Small-to-moderate order path ──
@@ -135,9 +136,15 @@ pub(crate) fn zbesk<T: BesselFloat>(
             nz += nuf as usize;
             nn -= nuf as usize;
             if nn == 0 {
+                let status = if precision_warning {
+                    BesselStatus::ReducedPrecision
+                } else {
+                    BesselStatus::Normal
+                };
                 return Ok(BesselResult {
                     values: vec![Complex::new(T::zero(), T::zero()); n],
                     underflow_count: nz,
+                    status,
                 });
             }
         }
@@ -166,15 +173,16 @@ pub(crate) fn zbesk<T: BesselFloat>(
         y_acon
     };
 
-    if precision_warning {
-        // Fortran IERR=3: computation completed but with precision loss.
-        // We return Ok with the result; the caller should check the values.
-        // Fortran IERR=3: precision loss. Currently returns Ok.
-    }
+    let status = if precision_warning {
+        BesselStatus::ReducedPrecision
+    } else {
+        BesselStatus::Normal
+    };
 
     Ok(BesselResult {
         values: y,
         underflow_count: nz,
+        status,
     })
 }
 

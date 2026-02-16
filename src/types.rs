@@ -8,12 +8,24 @@ use num_complex::Complex;
 
 use crate::machine::BesselFloat;
 
+/// Status of the computation result.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BesselStatus {
+    /// Computation within normal precision bounds (~14-15 digits for f64).
+    Normal,
+    /// Result computed but may have lost more than half of significant digits.
+    /// Occurs when |z| or ν exceeds ~32767 for f64.
+    ReducedPrecision,
+}
+
 /// Result of a Bessel function sequence computation.
 pub struct BesselResult<T: BesselFloat> {
     /// Computed function values for orders ν, ν+1, ..., ν+n-1.
     pub values: Vec<Complex<T>>,
     /// Number of leading components set to zero due to underflow.
     pub underflow_count: usize,
+    /// Precision status of the computation.
+    pub status: BesselStatus,
 }
 
 /// Scaling option for Bessel function computation.
@@ -59,8 +71,6 @@ pub enum BesselError {
     InvalidInput,
     /// Overflow: |z| or ν too large, or |z| too small.
     Overflow,
-    /// Argument reduction caused loss of more than half of significant digits.
-    PrecisionLoss,
     /// Argument reduction caused loss of all significant digits.
     TotalPrecisionLoss,
     /// Algorithm did not meet termination criteria.
@@ -75,12 +85,6 @@ impl fmt::Display for BesselError {
             }
             BesselError::Overflow => {
                 write!(f, "overflow: result magnitude exceeds representable range")
-            }
-            BesselError::PrecisionLoss => {
-                write!(
-                    f,
-                    "precision loss: more than half of significant digits lost"
-                )
             }
             BesselError::TotalPrecisionLoss => {
                 write!(f, "total precision loss: no significant digits remain")

@@ -10,7 +10,7 @@ use num_complex::Complex;
 use crate::algo::binu::zbinu;
 use crate::algo::constants::PI;
 use crate::machine::BesselFloat;
-use crate::types::{BesselError, BesselResult, Scaling};
+use crate::types::{BesselError, BesselResult, BesselStatus, Scaling};
 use crate::utils::zabs;
 
 /// Compute I_{fnu+j}(z) for j = 0, 1, ..., n-1.
@@ -53,9 +53,9 @@ pub(crate) fn zbesi<T: BesselFloat>(
     }
 
     let aa_sqrt = aa.sqrt();
-    let mut _precision_warning = false;
+    let mut precision_warning = false;
     if az > aa_sqrt || fn_val > aa_sqrt {
-        _precision_warning = true;
+        precision_warning = true;
     }
 
     // Compute in right half-plane, continue to left if needed
@@ -85,20 +85,22 @@ pub(crate) fn zbesi<T: BesselFloat>(
     }
 
     let zn = Complex::new(znr, zni);
-    let _kode_int = match scaling {
-        Scaling::Unscaled => 1,
-        Scaling::Exponential => 2,
-    };
 
     // Call ZBINU (Fortran lines 581-583)
-    let (mut cy, nz_raw) = zbinu(zn, fnu, scaling, n, rl, fnul, tol, elim, alim)?;
-    let nz = nz_raw;
+    let (mut cy, nz) = zbinu(zn, fnu, scaling, n, rl, fnul, tol, elim, alim)?;
+
+    let status = if precision_warning {
+        BesselStatus::ReducedPrecision
+    } else {
+        BesselStatus::Normal
+    };
 
     if z.re >= zero {
         // Right half-plane: done
         return Ok(BesselResult {
             values: cy,
             underflow_count: nz,
+            status,
         });
     }
 
@@ -108,6 +110,7 @@ pub(crate) fn zbesi<T: BesselFloat>(
         return Ok(BesselResult {
             values: cy,
             underflow_count: nz,
+            status,
         });
     }
 
@@ -134,6 +137,7 @@ pub(crate) fn zbesi<T: BesselFloat>(
     Ok(BesselResult {
         values: cy,
         underflow_count: nz,
+        status,
     })
 }
 

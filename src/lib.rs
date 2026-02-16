@@ -53,7 +53,7 @@ pub mod types;
 pub(crate) mod utils;
 
 pub use machine::BesselFloat;
-pub use types::{AiryDerivative, BesselError, BesselResult, HankelKind, Scaling};
+pub use types::{AiryDerivative, BesselError, BesselResult, BesselStatus, HankelKind, Scaling};
 
 use num_complex::Complex;
 

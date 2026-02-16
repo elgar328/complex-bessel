@@ -12,7 +12,7 @@ use num_complex::Complex;
 use crate::algo::binu::zbinu;
 use crate::algo::constants::HPI;
 use crate::machine::BesselFloat;
-use crate::types::{BesselError, BesselResult, Scaling};
+use crate::types::{BesselError, BesselResult, BesselStatus, Scaling};
 use crate::utils::zabs;
 
 /// Compute J_{fnu+j}(z) for j = 0, 1, ..., n-1.
@@ -55,9 +55,9 @@ pub(crate) fn zbesj<T: BesselFloat>(
     }
 
     let aa_sqrt = aa.sqrt();
-    let mut _precision_warning = false;
+    let mut precision_warning = false;
     if az > aa_sqrt || fn_val > aa_sqrt {
-        _precision_warning = true;
+        precision_warning = true;
     }
 
     // CSGN = exp(fnu*HPI*i) with precision preservation (Fortran lines 830-839)
@@ -86,8 +86,13 @@ pub(crate) fn zbesj<T: BesselFloat>(
     let zn = Complex::new(znr, zni);
 
     // Call ZBINU (Fortran lines 852-853)
-    let (mut cy, nz_raw) = zbinu(zn, fnu, scaling, n, rl, fnul, tol, elim, alim)?;
-    let nz = nz_raw;
+    let (mut cy, nz) = zbinu(zn, fnu, scaling, n, rl, fnul, tol, elim, alim)?;
+
+    let status = if precision_warning {
+        BesselStatus::ReducedPrecision
+    } else {
+        BesselStatus::Normal
+    };
 
     // Apply phase factor (Fortran lines 855-878)
     let nl = n - nz;
@@ -95,6 +100,7 @@ pub(crate) fn zbesj<T: BesselFloat>(
         return Ok(BesselResult {
             values: cy,
             underflow_count: nz,
+            status,
         });
     }
 
@@ -124,6 +130,7 @@ pub(crate) fn zbesj<T: BesselFloat>(
     Ok(BesselResult {
         values: cy,
         underflow_count: nz,
+        status,
     })
 }
 
