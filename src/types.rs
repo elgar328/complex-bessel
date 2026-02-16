@@ -36,8 +36,8 @@ pub struct BesselResult<T: BesselFloat> {
 /// - K: `exp(z)`
 /// - H^(1): `exp(-iz)`
 /// - H^(2): `exp(iz)`
-/// - Ai: `exp((2/3) z^{3/2})`
-/// - Bi: `exp(-|Re((2/3) z^{3/2})|)`
+/// - Ai: `exp(zta)` where `zta = (2/3) * z * sqrt(z)`
+/// - Bi: `exp(-|Re(zta)|)` where `zta = (2/3) * z * sqrt(z)`
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Scaling {
     /// No scaling applied.

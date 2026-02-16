@@ -35,6 +35,10 @@
 //! // Sequence: K_0(z), K_1(z), K_2(z)
 //! let k_seq = besselk_seq(0.0, z, 3, Scaling::Unscaled).unwrap();
 //! assert_eq!(k_seq.values.len(), 3);
+//!
+//! // Airy functions
+//! let ai = airy(z, AiryDerivative::Value).unwrap();
+//! let bi = biry(z, AiryDerivative::Value).unwrap();
 //! ```
 
 #![cfg_attr(not(feature = "std"), no_std)]
@@ -303,6 +307,11 @@ pub fn hankel<T: BesselFloat>(
 
 /// Airy function Ai(z) or its derivative Ai'(z).
 ///
+/// Computes the Airy function for complex z. Airy functions are solutions
+/// to the differential equation `w'' - z·w = 0`.
+///
+/// Use [`AiryDerivative::Value`] for Ai(z) or [`AiryDerivative::Derivative`] for Ai'(z).
+///
 /// # Errors
 ///
 /// Returns [`BesselError`] if the computation fails.
@@ -315,6 +324,12 @@ pub fn airy<T: BesselFloat>(
 }
 
 /// Airy function Bi(z) or its derivative Bi'(z).
+///
+/// Computes the Airy function of the second kind for complex z.
+/// Bi(z) is the solution to `w'' - z·w = 0` that grows exponentially
+/// for large positive real z.
+///
+/// Use [`AiryDerivative::Value`] for Bi(z) or [`AiryDerivative::Derivative`] for Bi'(z).
 ///
 /// # Errors
 ///
