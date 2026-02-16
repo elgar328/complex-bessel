@@ -22,13 +22,14 @@
 //!
 //! let j = besselj(0.5, z).unwrap();
 //! let k = besselk(1.0, z).unwrap();
-//! let h = hankel(HankelKind::First, 0.0, z).unwrap();
+//! let h = hankel1(0.0, z).unwrap();
 //!
 //! // Scaled versions prevent overflow/underflow
 //! let k_scaled = besselk_scaled(1.0, z).unwrap();
 //!
 //! // Airy functions
-//! let ai = airy(z, AiryDerivative::Value).unwrap();
+//! let ai = airy(z).unwrap();
+//! let ai_prime = airyprime(z).unwrap();
 //! ```
 //!
 //! # Generic types
@@ -146,9 +147,10 @@ pub mod types;
 pub(crate) mod utils;
 
 pub use machine::BesselFloat;
-pub use types::{AiryDerivative, BesselError, BesselResult, BesselStatus, HankelKind, Scaling};
+pub use types::{BesselError, BesselResult, BesselStatus, Scaling};
 
 use num_complex::Complex;
+use types::{AiryDerivative, HankelKind};
 
 // ── Helper: integer order detection ──
 
@@ -373,60 +375,84 @@ pub fn besselk<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Besse
     besselk_internal(nu, z, Scaling::Unscaled)
 }
 
-/// Hankel function H_ν^(m)(z), m = 1 or 2.
+/// Hankel function of the first kind, H_ν^(1)(z).
 ///
-/// Computes a single value of the Hankel function for complex z and real order ν
+/// Computes a single value of H_ν^(1)(z) for complex z and real order ν
 /// (any real value, including negative).
 ///
-/// For negative ν, the DLMF 10.4.6–7 reflection formulas are applied:
-/// - `H^(1)_{-ν}(z) = exp(νπi) H^(1)_ν(z)`
-/// - `H^(2)_{-ν}(z) = exp(-νπi) H^(2)_ν(z)`
+/// For negative ν, the DLMF 10.4.6 reflection formula is applied:
+/// `H^(1)_{-ν}(z) = exp(νπi) H^(1)_ν(z)`.
 ///
 /// # Errors
 ///
 /// Returns [`BesselError`] if the computation fails (overflow, z = 0, etc.).
-pub fn hankel<T: BesselFloat>(
-    kind: HankelKind,
-    nu: T,
-    z: Complex<T>,
-) -> Result<Complex<T>, BesselError> {
-    hankel_internal(kind, nu, z, Scaling::Unscaled)
+pub fn hankel1<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, BesselError> {
+    hankel_internal(HankelKind::First, nu, z, Scaling::Unscaled)
 }
 
-/// Airy function Ai(z) or its derivative Ai'(z).
+/// Hankel function of the second kind, H_ν^(2)(z).
 ///
-/// Computes the Airy function for complex z. Airy functions are solutions
-/// to the differential equation `w'' - z·w = 0`.
+/// Computes a single value of H_ν^(2)(z) for complex z and real order ν
+/// (any real value, including negative).
 ///
-/// Use [`AiryDerivative::Value`] for Ai(z) or [`AiryDerivative::Derivative`] for Ai'(z).
+/// For negative ν, the DLMF 10.4.7 reflection formula is applied:
+/// `H^(2)_{-ν}(z) = exp(-νπi) H^(2)_ν(z)`.
+///
+/// # Errors
+///
+/// Returns [`BesselError`] if the computation fails (overflow, z = 0, etc.).
+pub fn hankel2<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, BesselError> {
+    hankel_internal(HankelKind::Second, nu, z, Scaling::Unscaled)
+}
+
+/// Airy function Ai(z).
+///
+/// Computes the Airy function of the first kind for complex z.
+/// Ai(z) is a solution to the differential equation `w'' - z·w = 0`
+/// that decays exponentially for large positive real z.
 ///
 /// # Errors
 ///
 /// Returns [`BesselError`] if the computation fails.
-pub fn airy<T: BesselFloat>(
-    z: Complex<T>,
-    deriv: AiryDerivative,
-) -> Result<Complex<T>, BesselError> {
-    let (result, _nz) = airy::zairy(z, deriv, Scaling::Unscaled)?;
+pub fn airy<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, BesselError> {
+    let (result, _nz) = airy::zairy(z, AiryDerivative::Value, Scaling::Unscaled)?;
     Ok(result)
 }
 
-/// Airy function Bi(z) or its derivative Bi'(z).
+/// Derivative of the Airy function, Ai'(z).
 ///
-/// Computes the Airy function of the second kind for complex z.
-/// Bi(z) is the solution to `w'' - z·w = 0` that grows exponentially
-/// for large positive real z.
-///
-/// Use [`AiryDerivative::Value`] for Bi(z) or [`AiryDerivative::Derivative`] for Bi'(z).
+/// Computes the derivative of the Airy function of the first kind for complex z.
 ///
 /// # Errors
 ///
 /// Returns [`BesselError`] if the computation fails.
-pub fn biry<T: BesselFloat>(
-    z: Complex<T>,
-    deriv: AiryDerivative,
-) -> Result<Complex<T>, BesselError> {
-    airy::zbiry(z, deriv, Scaling::Unscaled)
+pub fn airyprime<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, BesselError> {
+    let (result, _nz) = airy::zairy(z, AiryDerivative::Derivative, Scaling::Unscaled)?;
+    Ok(result)
+}
+
+/// Airy function of the second kind, Bi(z).
+///
+/// Computes the Airy function Bi(z) for complex z.
+/// Bi(z) is the solution to `w'' - z·w = 0` that grows exponentially
+/// for large positive real z.
+///
+/// # Errors
+///
+/// Returns [`BesselError`] if the computation fails.
+pub fn biry<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, BesselError> {
+    airy::zbiry(z, AiryDerivative::Value, Scaling::Unscaled)
+}
+
+/// Derivative of the Airy function of the second kind, Bi'(z).
+///
+/// Computes the derivative of Bi(z) for complex z.
+///
+/// # Errors
+///
+/// Returns [`BesselError`] if the computation fails.
+pub fn biryprime<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, BesselError> {
+    airy::zbiry(z, AiryDerivative::Derivative, Scaling::Unscaled)
 }
 
 // ── Scaled single-value functions ──
@@ -509,31 +535,39 @@ pub fn besselk_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>
     besselk_internal(nu, z, Scaling::Exponential)
 }
 
-/// Scaled Hankel function H_ν^(m)(z).
+/// Scaled Hankel function of the first kind: `exp(-iz) · H_ν^(1)(z)`.
 ///
-/// - H^(1): returns `exp(-iz) · H_ν^(1)(z)`
-/// - H^(2): returns `exp(iz) · H_ν^(2)(z)`
-///
-/// The Hankel functions grow exponentially in the complex plane;
+/// H^(1) grows exponentially in the lower half-plane;
 /// the scaling factor removes this growth, preventing overflow.
 ///
-/// Supports negative ν via the same reflection formulas as [`hankel`].
+/// Supports negative ν via the same reflection formula as [`hankel1`].
 ///
 /// See [crate-level docs](crate#exponential-scaling) for the full scaling table.
 ///
 /// # Errors
 ///
 /// Returns [`BesselError`] if the computation fails.
-pub fn hankel_scaled<T: BesselFloat>(
-    kind: HankelKind,
-    nu: T,
-    z: Complex<T>,
-) -> Result<Complex<T>, BesselError> {
-    hankel_internal(kind, nu, z, Scaling::Exponential)
+pub fn hankel1_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, BesselError> {
+    hankel_internal(HankelKind::First, nu, z, Scaling::Exponential)
 }
 
-/// Scaled Airy function: `exp(ζ) · Ai(z)` or `exp(ζ) · Ai'(z)`,
-/// where ζ = (2/3) z√z.
+/// Scaled Hankel function of the second kind: `exp(iz) · H_ν^(2)(z)`.
+///
+/// H^(2) grows exponentially in the upper half-plane;
+/// the scaling factor removes this growth, preventing overflow.
+///
+/// Supports negative ν via the same reflection formula as [`hankel2`].
+///
+/// See [crate-level docs](crate#exponential-scaling) for the full scaling table.
+///
+/// # Errors
+///
+/// Returns [`BesselError`] if the computation fails.
+pub fn hankel2_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, BesselError> {
+    hankel_internal(HankelKind::Second, nu, z, Scaling::Exponential)
+}
+
+/// Scaled Airy function: `exp(ζ) · Ai(z)`, where ζ = (2/3) z√z.
 ///
 /// Ai(z) decays super-exponentially for large positive real z.
 /// The scaling factor `exp(ζ)` keeps the result representable.
@@ -543,15 +577,24 @@ pub fn hankel_scaled<T: BesselFloat>(
 /// # Errors
 ///
 /// Returns [`BesselError`] if the computation fails.
-pub fn airy_scaled<T: BesselFloat>(
-    z: Complex<T>,
-    deriv: AiryDerivative,
-) -> Result<Complex<T>, BesselError> {
-    let (result, _nz) = airy::zairy(z, deriv, Scaling::Exponential)?;
+pub fn airy_scaled<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, BesselError> {
+    let (result, _nz) = airy::zairy(z, AiryDerivative::Value, Scaling::Exponential)?;
     Ok(result)
 }
 
-/// Scaled Airy function: `exp(-|Re(ζ)|) · Bi(z)` or `exp(-|Re(ζ)|) · Bi'(z)`,
+/// Scaled derivative of the Airy function: `exp(ζ) · Ai'(z)`, where ζ = (2/3) z√z.
+///
+/// See [crate-level docs](crate#exponential-scaling) for the full scaling table.
+///
+/// # Errors
+///
+/// Returns [`BesselError`] if the computation fails.
+pub fn airyprime_scaled<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, BesselError> {
+    let (result, _nz) = airy::zairy(z, AiryDerivative::Derivative, Scaling::Exponential)?;
+    Ok(result)
+}
+
+/// Scaled Airy function of the second kind: `exp(-|Re(ζ)|) · Bi(z)`,
 /// where ζ = (2/3) z√z.
 ///
 /// Bi(z) grows super-exponentially for large positive real z.
@@ -562,11 +605,20 @@ pub fn airy_scaled<T: BesselFloat>(
 /// # Errors
 ///
 /// Returns [`BesselError`] if the computation fails.
-pub fn biry_scaled<T: BesselFloat>(
-    z: Complex<T>,
-    deriv: AiryDerivative,
-) -> Result<Complex<T>, BesselError> {
-    airy::zbiry(z, deriv, Scaling::Exponential)
+pub fn biry_scaled<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, BesselError> {
+    airy::zbiry(z, AiryDerivative::Value, Scaling::Exponential)
+}
+
+/// Scaled derivative of the Airy function of the second kind:
+/// `exp(-|Re(ζ)|) · Bi'(z)`, where ζ = (2/3) z√z.
+///
+/// See [crate-level docs](crate#exponential-scaling) for the full scaling table.
+///
+/// # Errors
+///
+/// Returns [`BesselError`] if the computation fails.
+pub fn biryprime_scaled<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, BesselError> {
+    airy::zbiry(z, AiryDerivative::Derivative, Scaling::Exponential)
 }
 
 // ── Sequence functions with scaling option ──
@@ -685,7 +737,7 @@ pub fn besselk_seq<T: BesselFloat>(
     besk::zbesk(z, nu, scaling, n)
 }
 
-/// Compute H_{ν+j}^(m)(z) for j = 0, 1, …, n−1 in a single call.
+/// Compute H_{ν+j}^(1)(z) for j = 0, 1, …, n−1 in a single call.
 ///
 /// Returns a [`BesselResult`] containing `n` values and a [`BesselStatus`]:
 /// - [`BesselStatus::Normal`] — full precision (~14 digits for f64)
@@ -694,19 +746,43 @@ pub fn besselk_seq<T: BesselFloat>(
 /// The `scaling` parameter selects [`Scaling::Unscaled`] or [`Scaling::Exponential`];
 /// see [crate-level docs](crate#exponential-scaling) for details.
 ///
-/// Requires ν ≥ 0. Use [`hankel`] for negative orders.
+/// Requires ν ≥ 0. Use [`hankel1`] for negative orders.
 ///
 /// See [crate-level docs](crate#consecutive-orders) for more on sequence functions.
 ///
 /// # Errors
 ///
 /// Returns [`BesselError::InvalidInput`] if ν < 0 or n < 1.
-pub fn hankel_seq<T: BesselFloat>(
-    kind: HankelKind,
+pub fn hankel1_seq<T: BesselFloat>(
     nu: T,
     z: Complex<T>,
     n: usize,
     scaling: Scaling,
 ) -> Result<BesselResult<T>, BesselError> {
-    besh::zbesh(z, nu, kind, scaling, n)
+    besh::zbesh(z, nu, HankelKind::First, scaling, n)
+}
+
+/// Compute H_{ν+j}^(2)(z) for j = 0, 1, …, n−1 in a single call.
+///
+/// Returns a [`BesselResult`] containing `n` values and a [`BesselStatus`]:
+/// - [`BesselStatus::Normal`] — full precision (~14 digits for f64)
+/// - [`BesselStatus::ReducedPrecision`] — some precision lost (|z| or ν very large)
+///
+/// The `scaling` parameter selects [`Scaling::Unscaled`] or [`Scaling::Exponential`];
+/// see [crate-level docs](crate#exponential-scaling) for details.
+///
+/// Requires ν ≥ 0. Use [`hankel2`] for negative orders.
+///
+/// See [crate-level docs](crate#consecutive-orders) for more on sequence functions.
+///
+/// # Errors
+///
+/// Returns [`BesselError::InvalidInput`] if ν < 0 or n < 1.
+pub fn hankel2_seq<T: BesselFloat>(
+    nu: T,
+    z: Complex<T>,
+    n: usize,
+    scaling: Scaling,
+) -> Result<BesselResult<T>, BesselError> {
+    besh::zbesh(z, nu, HankelKind::Second, scaling, n)
 }

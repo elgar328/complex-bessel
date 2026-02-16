@@ -48,7 +48,7 @@ pub enum Scaling {
 
 /// Kind of Hankel function.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum HankelKind {
+pub(crate) enum HankelKind {
     /// H^(1), Hankel function of the first kind.
     First,
     /// H^(2), Hankel function of the second kind.
@@ -57,7 +57,7 @@ pub enum HankelKind {
 
 /// Selects Airy function value or its derivative.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum AiryDerivative {
+pub(crate) enum AiryDerivative {
     /// Ai(z) or Bi(z).
     Value,
     /// Ai'(z) or Bi'(z).

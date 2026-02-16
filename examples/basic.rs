@@ -18,10 +18,10 @@ fn main() {
     let k = besselk(1.0, z).unwrap();
     println!("K_1({z}) = {k}");
 
-    let h1 = hankel(HankelKind::First, 0.0, z).unwrap();
+    let h1 = hankel1(0.0, z).unwrap();
     println!("H^(1)_0({z}) = {h1}");
 
-    let h2 = hankel(HankelKind::Second, 0.0, z).unwrap();
+    let h2 = hankel2(0.0, z).unwrap();
     println!("H^(2)_0({z}) = {h2}");
 
     // -- Negative order --
@@ -54,13 +54,13 @@ fn main() {
 
     // -- Airy functions --
     println!("\n=== Airy functions ===");
-    let ai = airy(z, AiryDerivative::Value).unwrap();
+    let ai = airy(z).unwrap();
     println!("Ai({z}) = {ai}");
 
-    let ai_prime = airy(z, AiryDerivative::Derivative).unwrap();
+    let ai_prime = airyprime(z).unwrap();
     println!("Ai'({z}) = {ai_prime}");
 
-    let bi = biry(z, AiryDerivative::Value).unwrap();
+    let bi = biry(z).unwrap();
     println!("Bi({z}) = {bi}");
 
     // -- f32 support --
