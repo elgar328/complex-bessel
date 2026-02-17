@@ -188,10 +188,8 @@ fn besselj_internal<T: BesselFloat>(
     }
 
     // General case: need both J and Y at positive |ν|
-    let pi = T::from(core::f64::consts::PI).unwrap();
-    let nu_pi = abs_nu * pi;
-    let cos_nu_pi = nu_pi.cos();
-    let sin_nu_pi = nu_pi.sin();
+    let cos_nu_pi = utils::cospi(abs_nu);
+    let sin_nu_pi = utils::sinpi(abs_nu);
 
     let j_result = besj::zbesj(z, abs_nu, scaling, 1)?;
     let y_result = besy::zbesy(z, abs_nu, scaling, 1)?;
@@ -224,10 +222,8 @@ fn bessely_internal<T: BesselFloat>(
     }
 
     // General case: need both J and Y at positive |ν|
-    let pi = T::from(core::f64::consts::PI).unwrap();
-    let nu_pi = abs_nu * pi;
-    let cos_nu_pi = nu_pi.cos();
-    let sin_nu_pi = nu_pi.sin();
+    let cos_nu_pi = utils::cospi(abs_nu);
+    let sin_nu_pi = utils::sinpi(abs_nu);
 
     let j_result = besj::zbesj(z, abs_nu, scaling, 1)?;
     let y_result = besy::zbesy(z, abs_nu, scaling, 1)?;
@@ -261,8 +257,7 @@ fn besseli_internal<T: BesselFloat>(
     // General case: need both I and K at positive |ν|
     let pi = T::from(core::f64::consts::PI).unwrap();
     let two = T::from(2.0).unwrap();
-    let nu_pi = abs_nu * pi;
-    let sin_nu_pi = nu_pi.sin();
+    let sin_nu_pi = utils::sinpi(abs_nu);
 
     let i_result = besi::zbesi(z, abs_nu, scaling, 1)?;
     let k_result = besk::zbesk(z, abs_nu, scaling, 1)?;
@@ -318,14 +313,14 @@ fn hankel_internal<T: BesselFloat>(
     let result = besh::zbesh(z, abs_nu, kind, scaling, 1)?;
     let h_val = result.values[0];
 
-    let pi = T::from(core::f64::consts::PI).unwrap();
-    let nu_pi = abs_nu * pi;
+    let cos_nu_pi = utils::cospi(abs_nu);
+    let sin_nu_pi = utils::sinpi(abs_nu);
 
     let rotation = match kind {
         // exp(νπi) = cos(νπ) + i*sin(νπ)
-        HankelKind::First => Complex::new(nu_pi.cos(), nu_pi.sin()),
+        HankelKind::First => Complex::new(cos_nu_pi, sin_nu_pi),
         // exp(-νπi) = cos(νπ) - i*sin(νπ)
-        HankelKind::Second => Complex::new(nu_pi.cos(), -nu_pi.sin()),
+        HankelKind::Second => Complex::new(cos_nu_pi, -sin_nu_pi),
     };
 
     Ok(h_val * rotation)

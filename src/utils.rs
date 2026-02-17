@@ -46,6 +46,100 @@ pub(crate) fn zdiv<T: BesselFloat>(a: Complex<T>, b: Complex<T>) -> Complex<T> {
     Complex::new((a.re * cc + a.im * cd) * bm, (a.im * cc - a.re * cd) * bm)
 }
 
+/// Compute sin(π·x) with exact values at half-integers.
+///
+/// Reduces the argument modulo 2 first, so `sinpi(n)` is exactly 0 for
+/// any integer `n`, and `sinpi(n + 0.5)` is exactly ±1. This avoids the
+/// catastrophic rounding errors of `(x * PI).sin()` when x is a
+/// half-integer (e.g. `sin(1.5 * PI)` = −1.837e-16 instead of 0).
+///
+/// Algorithm follows scipy/xsf: reduce to [0, 0.5], use symmetry.
+#[inline]
+pub(crate) fn sinpi<T: BesselFloat>(x: T) -> T {
+    let zero = T::zero();
+    let one = T::one();
+    let two = T::from(2.0).unwrap();
+    let half = T::from(0.5).unwrap();
+    let one_half = T::from(1.5).unwrap();
+    let pi = T::from(core::f64::consts::PI).unwrap();
+
+    // sinpi is odd: sinpi(-x) = -sinpi(x)
+    let (ax, sign) = if x < zero { (-x, -one) } else { (x, one) };
+
+    // Reduce to [0, 2): r = ax mod 2
+    let r = ax % two;
+
+    // Exact special values
+    if r == zero || r == one {
+        return zero;
+    }
+    if r == half {
+        return sign;
+    }
+    if r == one_half {
+        return -sign;
+    }
+
+    // Use symmetry to reduce to [0, 0.5]
+    let s = if r < half {
+        (r * pi).sin()
+    } else if r < one {
+        ((one - r) * pi).sin()
+    } else if r < one_half {
+        -((r - one) * pi).sin()
+    } else {
+        -((two - r) * pi).sin()
+    };
+
+    sign * s
+}
+
+/// Compute cos(π·x) with exact values at integers and half-integers.
+///
+/// Reduces the argument modulo 2 first, so `cospi(n + 0.5)` is exactly 0
+/// for any integer `n`, and `cospi(n)` is exactly ±1. This avoids the
+/// catastrophic rounding errors of `(x * PI).cos()` when x is a
+/// half-integer (e.g. `cos(1.5 * PI)` = −1.837e-16 instead of 0).
+///
+/// Algorithm follows scipy/xsf: reduce to [0, 0.5], use symmetry.
+#[inline]
+pub(crate) fn cospi<T: BesselFloat>(x: T) -> T {
+    let zero = T::zero();
+    let one = T::one();
+    let two = T::from(2.0).unwrap();
+    let half = T::from(0.5).unwrap();
+    let one_half = T::from(1.5).unwrap();
+    let pi = T::from(core::f64::consts::PI).unwrap();
+
+    // cospi is even: cospi(-x) = cospi(x)
+    let ax = x.abs();
+
+    // Reduce to [0, 2): r = ax mod 2
+    let r = ax % two;
+
+    // Exact special values
+    if r == zero {
+        return one;
+    }
+    if r == half || r == one_half {
+        return zero;
+    }
+    if r == one {
+        return -one;
+    }
+
+    // Use symmetry to reduce to [0, 0.5]
+    if r < half {
+        (r * pi).cos()
+    } else if r < one {
+        -((one - r) * pi).cos()
+    } else if r < one_half {
+        -((r - one) * pi).cos()
+    } else {
+        ((two - r) * pi).cos()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -179,5 +273,113 @@ mod tests {
         let c = zdiv(a, b);
         assert!((c.re - 2.2).abs() < 1e-5);
         assert!((c.im - (-0.4)).abs() < 1e-5);
+    }
+
+    // ── sinpi tests ──
+
+    #[test]
+    fn sinpi_integers_are_zero() {
+        for n in -5..=5 {
+            let x = n as f64;
+            assert_eq!(sinpi(x), 0.0, "sinpi({x}) should be exactly 0");
+        }
+    }
+
+    #[test]
+    fn sinpi_half_integers() {
+        // sinpi(0.5) = 1, sinpi(1.5) = -1, sinpi(2.5) = 1, ...
+        assert_eq!(sinpi(0.5_f64), 1.0);
+        assert_eq!(sinpi(1.5_f64), -1.0);
+        assert_eq!(sinpi(2.5_f64), 1.0);
+        assert_eq!(sinpi(-0.5_f64), -1.0);
+        assert_eq!(sinpi(-1.5_f64), 1.0);
+    }
+
+    #[test]
+    fn sinpi_quarter() {
+        let val = sinpi(0.25_f64);
+        let expected = core::f64::consts::FRAC_1_SQRT_2;
+        assert!((val - expected).abs() < 1e-15);
+    }
+
+    #[test]
+    fn sinpi_general_values() {
+        // sinpi(1/6) = sin(π/6) = 0.5
+        let val = sinpi(1.0_f64 / 6.0);
+        assert!((val - 0.5).abs() < 1e-15);
+
+        // sinpi(1/3) = sin(π/3) = sqrt(3)/2
+        let val = sinpi(1.0_f64 / 3.0);
+        assert!((val - 3.0_f64.sqrt() / 2.0).abs() < 1e-15);
+    }
+
+    #[test]
+    fn sinpi_large_argument() {
+        // Large integer: sinpi(1e15) = 0
+        assert_eq!(sinpi(1e15_f64), 0.0);
+        // Large half-integer: sinpi(1e15 + 0.5) = ±1
+        assert!(sinpi(1e15_f64 + 0.5).abs() == 1.0);
+    }
+
+    #[test]
+    fn sinpi_f32() {
+        assert_eq!(sinpi(0.0_f32), 0.0);
+        assert_eq!(sinpi(0.5_f32), 1.0);
+        assert_eq!(sinpi(1.0_f32), 0.0);
+        assert_eq!(sinpi(1.5_f32), -1.0);
+    }
+
+    // ── cospi tests ──
+
+    #[test]
+    fn cospi_integers() {
+        // cospi(0) = 1, cospi(1) = -1, cospi(2) = 1, ...
+        assert_eq!(cospi(0.0_f64), 1.0);
+        assert_eq!(cospi(1.0_f64), -1.0);
+        assert_eq!(cospi(2.0_f64), 1.0);
+        assert_eq!(cospi(-1.0_f64), -1.0);
+        assert_eq!(cospi(-2.0_f64), 1.0);
+    }
+
+    #[test]
+    fn cospi_half_integers_are_zero() {
+        for n in -5..=5 {
+            let x = n as f64 + 0.5;
+            assert_eq!(cospi(x), 0.0, "cospi({x}) should be exactly 0");
+        }
+    }
+
+    #[test]
+    fn cospi_quarter() {
+        let val = cospi(0.25_f64);
+        let expected = core::f64::consts::FRAC_1_SQRT_2;
+        assert!((val - expected).abs() < 1e-15);
+    }
+
+    #[test]
+    fn cospi_general_values() {
+        // cospi(1/3) = cos(π/3) = 0.5
+        let val = cospi(1.0_f64 / 3.0);
+        assert!((val - 0.5).abs() < 1e-15);
+
+        // cospi(1/6) = cos(π/6) = sqrt(3)/2
+        let val = cospi(1.0_f64 / 6.0);
+        assert!((val - 3.0_f64.sqrt() / 2.0).abs() < 1e-15);
+    }
+
+    #[test]
+    fn cospi_large_argument() {
+        // Large even integer: cospi(1e15) = ±1 (1e15 is even)
+        assert!(cospi(1e15_f64).abs() == 1.0);
+        // Large half-integer: cospi(1e15 + 0.5) = 0
+        assert_eq!(cospi(1e15_f64 + 0.5), 0.0);
+    }
+
+    #[test]
+    fn cospi_f32() {
+        assert_eq!(cospi(0.0_f32), 1.0);
+        assert_eq!(cospi(0.5_f32), 0.0);
+        assert_eq!(cospi(1.0_f32), -1.0);
+        assert_eq!(cospi(1.5_f32), 0.0);
     }
 }
