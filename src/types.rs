@@ -30,14 +30,14 @@ pub struct BesselResult<T: BesselFloat> {
 
 /// Scaling option for Bessel function computation.
 ///
-/// The `_scaled` function returns `factor * f(z)`, where factor is:
+/// The `_scaled` variant returns `factor · f(z)`, where factor is:
 /// - J, Y: `exp(-|Im(z)|)`
 /// - I: `exp(-|Re(z)|)`
 /// - K: `exp(z)`
 /// - H^(1): `exp(-iz)`
 /// - H^(2): `exp(iz)`
-/// - Ai: `exp(zta)` where `zta = (2/3) * z * sqrt(z)`
-/// - Bi: `exp(-|Re(zta)|)` where `zta = (2/3) * z * sqrt(z)`
+/// - Ai, Ai': `exp(ζ)` where `ζ = (2/3) · z · √z`
+/// - Bi, Bi': `exp(-|Re(ζ)|)` where `ζ = (2/3) · z · √z`
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Scaling {
     /// No scaling applied.

@@ -142,8 +142,12 @@ pub(crate) fn zbesh<T: BesselFloat>(
                 nz += nuf as usize;
                 nn_eff -= nuf as usize;
                 if nn_eff == 0 {
-                    // All underflowed — still need phase post-processing
-                    // Return zero values; the phase code below is a no-op
+                    // Fortran zbsubs.f lines 249, 338-344:
+                    // IF(NN.EQ.0) GO TO 140 → IF(ZNR.LT.0) GO TO 230 (IERR=2)
+                    if znr < zero {
+                        return Err(BesselError::Overflow);
+                    }
+                    // All underflowed — return zero values
                     let cy_zero = vec![Complex::new(zero, zero); nn];
                     let status = if precision_warning {
                         BesselStatus::ReducedPrecision
@@ -172,10 +176,10 @@ pub(crate) fn zbesh<T: BesselFloat>(
         // ── Main dispatch (Fortran label 70, lines 251-268) ──
         if znr < zero || (znr == zero && zni < zero && m == 2) {
             // Left half-plane of rotated argument: analytic continuation (ZACON)
-            let mr = if zni < zero { -1i32 } else { 1i32 };
+            let mr = -mm; // Fortran: MR = -MM (zbsubs.f line 263)
             let rl = T::rl();
             let (y_acon, nw) = zacon(zn, fnu, scaling, mr, nn_eff, rl, fnul, tol, elim, alim)?;
-            nz += nw;
+            nz = nw; // Fortran: NZ=NW (zbsubs.f line 267, assignment not accumulation)
             y_acon
         } else {
             // Right half-plane: direct zbknu on rotated argument

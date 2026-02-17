@@ -9,7 +9,7 @@ Pure Rust implementation of complex Bessel functions based on **Amos Algorithm 6
 ## Features
 
 - **Dual precision** — all functions accept `Complex<f64>` or `Complex<f32>`
-- **Complete function set** — J, Y, I, K, H<sup>(1)</sup>, H<sup>(2)</sup>, Ai, Bi
+- **Full TOMS 644 coverage** — J, Y, I, K, H<sup>(1)</sup>, H<sup>(2)</sup>, Ai, Bi
 - **Consecutive orders** — `_seq` variants return ν, ν+1, …, ν+n−1 in one call
 - **Exponential scaling** — `_scaled` variants prevent overflow/underflow
 - **Negative orders** — single-value functions accept ν < 0 via reflection formulas
@@ -59,8 +59,7 @@ where ζ = (2/3) z√z.
 
 ## Accuracy
 
-Results match the original Fortran TOMS 644 to ~14 significant digits (f64).
-The `f32` generic implementation provides ~6–7 digit accuracy.
+Results agree with the original Fortran TOMS 644 to ~14 significant digits (f64).
 Comprehensive accuracy analysis is maintained in a [separate repository](https://github.com/elgar328/complex-bessel-accuracy).
 
 ## License

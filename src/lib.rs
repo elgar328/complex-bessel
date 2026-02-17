@@ -6,7 +6,7 @@
 //! # Features
 //!
 //! - **Dual precision** — all functions accept `Complex<f64>` or `Complex<f32>`
-//! - **Complete function set** — J, Y, I, K, H⁽¹⁾, H⁽²⁾, Ai, Bi
+//! - **Full TOMS 644 coverage** — J, Y, I, K, H⁽¹⁾, H⁽²⁾, Ai, Bi
 //! - **Consecutive orders** — `_seq` variants return ν, ν+1, …, ν+n−1 in one call
 //! - **Exponential scaling** — `_scaled` variants prevent overflow/underflow
 //! - **Negative orders** — single-value functions accept ν < 0 via reflection formulas
@@ -67,7 +67,7 @@
 //! ```
 //!
 //! Sequence results include a [`BesselStatus`] field:
-//! - [`BesselStatus::Normal`] — full precision (~14 digits for f64, ~6–7 for f32)
+//! - [`BesselStatus::Normal`] — full precision (~14 digits for f64)
 //! - [`BesselStatus::ReducedPrecision`] — some precision lost (|z| or ν very large)
 //!
 //! Single-value functions silently return the best available result.
@@ -95,7 +95,7 @@
 //!
 //! | Function | Scaled variant returns |
 //! |----------|-----------------------|
-//! | J, Y | exp(−\|Im(z)\|) · f(z) |
+//! | J, Y | exp(−\|Im(z)\|) · J(z), Y(z) |
 //! | I | exp(−\|Re(z)\|) · I(z) |
 //! | K | exp(z) · K(z) |
 //! | H<sup>(1)</sup> | exp(−iz) · H<sup>(1)</sup>(z) |
@@ -268,7 +268,22 @@ fn besseli_internal<T: BesselFloat>(
     let k_result = besk::zbesk(z, abs_nu, scaling, 1)?;
 
     let i_val = i_result.values[0];
-    let k_val = k_result.values[0];
+    let mut k_val = k_result.values[0];
+
+    // Scaling correction: I_scaled = exp(-|Re(z)|)*I, K_scaled = exp(z)*K.
+    // To combine them we must convert K to the same scaling as I:
+    //   factor = exp(-|Re(z)|) / exp(z) = exp(-i*Im(z)) * [exp(-2*Re(z)) if Re(z)>0]
+    if scaling == Scaling::Exponential {
+        let (sin_a, cos_a) = (-z.im).sin_cos();
+        k_val = Complex::new(
+            k_val.re * cos_a - k_val.im * sin_a,
+            k_val.re * sin_a + k_val.im * cos_a,
+        );
+        if z.re > T::zero() {
+            let scale = (-two * z.re).exp();
+            k_val = k_val * scale;
+        }
+    }
 
     Ok(i_val + k_val * (two / pi * sin_nu_pi))
 }
