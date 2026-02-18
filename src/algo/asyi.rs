@@ -55,16 +55,14 @@ pub(crate) fn zasyi<T: BesselFloat>(
     let raz = one / az;
     let str = z.re * raz;
     let sti = -z.im * raz;
-    let mut ak1r = rtpi * str * raz;
-    let mut ak1i = rtpi * sti * raz;
+    let mut ak1 = Complex::new(rtpi * str * raz, rtpi * sti * raz);
     // zsqrt(ak1) - use standard formula
-    let ak1_abs = zabs(Complex::new(ak1r, ak1i));
+    let ak1_abs = zabs(ak1);
     if ak1_abs > zero {
-        let ak1_arg = ak1i.atan2(ak1r);
+        let ak1_arg = ak1.im.atan2(ak1.re);
         let sqrt_abs = ak1_abs.sqrt();
         let half_arg = ak1_arg * T::from_f64(0.5);
-        ak1r = sqrt_abs * half_arg.cos();
-        ak1i = sqrt_abs * half_arg.sin();
+        ak1 = Complex::new(sqrt_abs * half_arg.cos(), sqrt_abs * half_arg.sin());
     }
 
     let mut czr = z.re;
@@ -84,13 +82,8 @@ pub(crate) fn zasyi<T: BesselFloat>(
         koded = 0;
         // zexp(cz) and multiply ak1
         let exp_r = czr.exp();
-        let str_e = exp_r * czi.cos();
-        let sti_e = exp_r * czi.sin();
-        // zmlt(ak1, exp(cz))
-        let new_r = ak1r * str_e - ak1i * sti_e;
-        let new_i = ak1r * sti_e + ak1i * str_e;
-        ak1r = new_r;
-        ak1i = new_i;
+        let cz_exp = Complex::new(exp_r * czi.cos(), exp_r * czi.sin());
+        ak1 = ak1 * cz_exp;
     }
 
     let mut fdn = if dnu2 > rtr1 { dnu2 * dnu2 } else { zero };
@@ -103,8 +96,7 @@ pub(crate) fn zasyi<T: BesselFloat>(
     let jl = (rl + rl).to_i32().unwrap() + 2;
 
     // Phase factor P1 (Fortran lines 3878-3895)
-    let mut p1r = zero;
-    let mut p1i = zero;
+    let mut p1 = czero;
     if z.im != zero {
         // Compute exp(pi*(0.5+fnu+n-il)*i) minimizing precision loss
         let inu = fnu.to_i32().unwrap();
@@ -115,11 +107,9 @@ pub(crate) fn zasyi<T: BesselFloat>(
         if z.im < zero {
             bk_sign = -bk_sign;
         }
-        p1r = ak_sign;
-        p1i = bk_sign;
+        p1 = Complex::new(ak_sign, bk_sign);
         if inu_adj % 2 != 0 {
-            p1r = -p1r;
-            p1i = -p1i;
+            p1 = -p1;
         }
     }
 
@@ -129,32 +119,22 @@ pub(crate) fn zasyi<T: BesselFloat>(
         let sqk0 = fdn - one;
         let atol = s * sqk0.abs();
         let mut sgn = one;
-        let mut cs1r = one;
-        let mut cs1i = zero;
-        let mut cs2r = one;
-        let mut cs2i = zero;
-        let mut ckr = one;
-        let mut cki = zero;
+        let mut cs1 = Complex::new(one, zero);
+        let mut cs2 = Complex::new(one, zero);
+        let mut ck = Complex::new(one, zero);
         let mut ak_val = zero;
         let mut aa = one;
         let mut bb = aez;
-        let mut dkr = ezr;
-        let mut dki = ezi;
+        let mut dk = Complex::new(ezr, ezi);
         let mut sqk = sqk0;
 
         let mut converged = false;
         for _j in 1..=jl {
-            // zdiv(ck, dk)
-            let st = zdiv(Complex::new(ckr, cki), Complex::new(dkr, dki));
-            ckr = st.re * sqk;
-            cki = st.im * sqk;
-            cs2r = cs2r + ckr;
-            cs2i = cs2i + cki;
+            ck = zdiv(ck, dk) * sqk;
+            cs2 = cs2 + ck;
             sgn = -sgn;
-            cs1r = cs1r + ckr * sgn;
-            cs1i = cs1i + cki * sgn;
-            dkr = dkr + ezr;
-            dki = dki + ezi;
+            cs1 = cs1 + ck * sgn;
+            dk = dk + Complex::new(ezr, ezi);
             aa = aa * sqk.abs() / bb;
             bb = bb + aez;
             ak_val = ak_val + eight;
@@ -171,34 +151,22 @@ pub(crate) fn zasyi<T: BesselFloat>(
         }
 
         // Label 50: combine CS1 and CS2 (Fortran lines 3931-3947)
-        let mut s2r = cs1r;
-        let mut s2i = cs1i;
+        let mut s2 = cs1;
         if z.re + z.re < elim {
             let tzr = z.re + z.re;
             let tzi = z.im + z.im;
-            // zexp(-2z)
+            // zexp(-2z) * p1 * cs2
             let exp_r = (-tzr).exp();
-            let mut str_e = exp_r * (-tzi).cos();
-            let mut sti_e = exp_r * (-tzi).sin();
-            // zmlt(exp(-2z), p1)
-            let new_r = str_e * p1r - sti_e * p1i;
-            let new_i = str_e * p1i + sti_e * p1r;
-            str_e = new_r;
-            sti_e = new_i;
-            // zmlt(str, cs2)
-            let new_r2 = str_e * cs2r - sti_e * cs2i;
-            let new_i2 = str_e * cs2i + sti_e * cs2r;
-            s2r = s2r + new_r2;
-            s2i = s2i + new_i2;
+            let exp_2z = Complex::new(exp_r * (-tzi).cos(), exp_r * (-tzi).sin());
+            s2 = s2 + exp_2z * p1 * cs2;
         }
 
         // Update fdn, negate p1, store result (Fortran lines 3942-3947)
         fdn = fdn + eight * dfnu_val + T::from_f64(4.0);
-        p1r = -p1r;
-        p1i = -p1i;
+        p1 = -p1;
         // M = N - IL + K + 1 (Fortran 1-based) → 0-based: n - il + k
         let m = n - il + k;
-        y[m] = Complex::new(s2r * ak1r - s2i * ak1i, s2r * ak1i + s2i * ak1r);
+        y[m] = s2 * ak1;
 
         if k == 0 {
             dfnu_val = dfnu_val + one; // For next iteration (il=2)
@@ -215,15 +183,11 @@ pub(crate) fn zasyi<T: BesselFloat>(
     let mut ak_rec = T::from_f64((nn - 2) as f64);
     let str2 = z.re * raz;
     let sti2 = -z.im * raz;
-    let rzr = (str2 + str2) * raz;
-    let rzi = (sti2 + sti2) * raz;
+    let rz = Complex::new((str2 + str2) * raz, (sti2 + sti2) * raz);
 
     for _ in 2..nn {
         let ki = k_idx as usize;
-        y[ki] = Complex::new(
-            (ak_rec + fnu) * (rzr * y[ki + 1].re - rzi * y[ki + 1].im) + y[ki + 2].re,
-            (ak_rec + fnu) * (rzr * y[ki + 1].im + rzi * y[ki + 1].re) + y[ki + 2].im,
-        );
+        y[ki] = rz * y[ki + 1] * (ak_rec + fnu) + y[ki + 2];
         ak_rec = ak_rec - one;
         k_idx -= 1;
     }
@@ -231,12 +195,9 @@ pub(crate) fn zasyi<T: BesselFloat>(
     if koded != 0 {
         // Multiply by exp(cz) (Fortran lines 3964-3970)
         let exp_r2 = czr.exp();
-        let ckr_e = exp_r2 * czi.cos();
-        let cki_e = exp_r2 * czi.sin();
+        let cz_exp = Complex::new(exp_r2 * czi.cos(), exp_r2 * czi.sin());
         for y_item in y.iter_mut().take(nn) {
-            let str_val = y_item.re * ckr_e - y_item.im * cki_e;
-            let sti_val = y_item.re * cki_e + y_item.im * ckr_e;
-            *y_item = Complex::new(str_val, sti_val);
+            *y_item = *y_item * cz_exp;
         }
     }
 

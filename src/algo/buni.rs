@@ -132,49 +132,43 @@ pub(crate) fn zbuni<T: BesselFloat>(
     }
 
     let mut cscrr = one / csclr;
-    let mut s1 = Complex::new(cy[1].re * csclr, cy[1].im * csclr);
-    let mut s2 = Complex::new(cy[0].re * csclr, cy[0].im * csclr);
+    let mut s1 = cy[1] * csclr;
+    let mut s2 = cy[0] * csclr;
 
     let raz = one / zabs(z);
     let str2 = z.re * raz;
     let sti2 = -z.im * raz;
-    let rzr = (str2 + str2) * raz;
-    let rzi = (sti2 + sti2) * raz;
+    let rz = Complex::new((str2 + str2) * raz, (sti2 + sti2) * raz);
 
     // Backward recurrence for NUI steps (Fortran DO 30)
     let mut fnui_val = fnui;
     for _i in 0..nui {
-        let str = s2.re;
-        let sti = s2.im;
+        let prev = s2;
         let cfn = dfnu + fnui_val;
-        s2 = Complex::new(
-            cfn * (rzr * str - rzi * sti) + s1.re,
-            cfn * (rzr * sti + rzi * str) + s1.im,
-        );
-        s1 = Complex::new(str, sti);
+        s2 = rz * prev * cfn + s1;
+        s1 = prev;
         fnui_val = fnui_val - one;
 
         if iflag >= 3 {
             continue;
         }
-        let str_s = s2.re * cscrr;
-        let sti_s = s2.im * cscrr;
-        let c1m = str_s.abs().max(sti_s.abs());
+        let c2_scaled = s2 * cscrr;
+        let c1m = c2_scaled.re.abs().max(c2_scaled.im.abs());
         if c1m <= ascle {
             continue;
         }
         iflag += 1;
         ascle = bry1; // BRY(2)=BRY(3) in Fortran
-        s1 = Complex::new(s1.re * cscrr, s1.im * cscrr);
-        s2 = Complex::new(str_s, sti_s);
+        s1 = s1 * cscrr;
+        s2 = c2_scaled;
         csclr = csclr * tol;
         cscrr = one / csclr;
-        s1 = Complex::new(s1.re * csclr, s1.im * csclr);
-        s2 = Complex::new(s2.re * csclr, s2.im * csclr);
+        s1 = s1 * csclr;
+        s2 = s2 * csclr;
     }
 
     // Store Y(N) (Fortran line 6773)
-    y[n - 1] = Complex::new(s2.re * cscrr, s2.im * cscrr);
+    y[n - 1] = s2 * cscrr;
     if n == 1 {
         return BuniOutput { nz, nlast: 0 };
     }
@@ -184,35 +178,29 @@ pub(crate) fn zbuni<T: BesselFloat>(
     let mut fnui_val = T::from_f64(nl as f64);
     let mut k = nl; // 1-based index counting down
     for _i in 0..nl {
-        let str = s2.re;
-        let sti = s2.im;
+        let prev = s2;
         let cfn = fnu + fnui_val;
-        s2 = Complex::new(
-            cfn * (rzr * str - rzi * sti) + s1.re,
-            cfn * (rzr * sti + rzi * str) + s1.im,
-        );
-        s1 = Complex::new(str, sti);
-        let str_s = s2.re * cscrr;
-        let sti_s = s2.im * cscrr;
-        y[k - 1] = Complex::new(str_s, sti_s);
+        s2 = rz * prev * cfn + s1;
+        s1 = prev;
+        let c2_scaled = s2 * cscrr;
+        y[k - 1] = c2_scaled;
         fnui_val = fnui_val - one;
         k -= 1;
 
         if iflag >= 3 {
             continue;
         }
-        let c1m = str_s.abs().max(sti_s.abs());
+        let c1m = c2_scaled.re.abs().max(c2_scaled.im.abs());
         if c1m <= ascle {
             continue;
         }
         iflag += 1;
         ascle = bry1; // BRY(2)=BRY(3) in Fortran
-        s1 = Complex::new(s1.re * cscrr, s1.im * cscrr);
-        s2 = Complex::new(str_s * csclr, sti_s * csclr); // Note: s2 = scaled * csclr
+        s1 = s1 * cscrr;
+        s2 = c2_scaled * csclr;
         csclr = csclr * tol;
         cscrr = one / csclr;
-        s1 = Complex::new(s1.re * csclr, s1.im * csclr);
-        s2 = Complex::new(s2.re, s2.im); // already rescaled above
+        s1 = s1 * csclr;
     }
 
     BuniOutput { nz, nlast: 0 }

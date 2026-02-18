@@ -49,49 +49,38 @@ pub(crate) fn zrati<T: BesselFloat>(z: Complex<T>, fnu: T, cy: &mut [Complex<T>]
 
     // RZ = 2/z (overflow-safe, Fortran lines 3137-3139)
     let ptr = one / az;
-    let rzr = ptr * (z.re + z.re) * ptr;
-    let rzi = -ptr * (z.im + z.im) * ptr;
+    let rz = Complex::new(ptr * (z.re + z.re) * ptr, -ptr * (z.im + z.im) * ptr);
 
     // T1 = RZ * FNUP (Fortran lines 3140-3141)
-    let mut t1r = rzr * fnup;
-    let mut t1i = rzi * fnup;
+    let mut t1 = rz * fnup;
     // P2 = -T1 (Fortran lines 3142-3143)
-    let mut p2r = -t1r;
-    let mut p2i = -t1i;
+    let mut p2 = -t1;
     // P1 = CONE (Fortran lines 3144-3145)
-    let mut p1r = one;
-    let mut p1i = zero;
+    let mut p1 = Complex::new(one, zero);
     // T1 += RZ (Fortran lines 3146-3147)
-    t1r = t1r + rzr;
-    t1i = t1i + rzi;
+    t1 = t1 + rz;
 
-    let mut ap2 = zabs(Complex::new(p2r, p2i));
-    let mut ap1 = zabs(Complex::new(p1r, p1i));
+    let mut ap2 = zabs(p2);
+    let mut ap1 = zabs(p1);
 
     // Scale test to prevent premature overflow (Fortran lines 3157-3165)
     let arg = (ap2 + ap2) / (ap1 * tol);
     let test1 = arg.sqrt();
     let mut test = test1;
     let rap1 = one / ap1;
-    p1r = p1r * rap1;
-    p1i = p1i * rap1;
-    p2r = p2r * rap1;
-    p2i = p2i * rap1;
+    p1 = p1 * rap1;
+    p2 = p2 * rap1;
     ap2 = ap2 * rap1;
 
     // ── Stage 1: Forward recurrence for starting index (Fortran label 10) ──
     loop {
         k += 1;
         ap1 = ap2;
-        let pt_r = p2r;
-        let pt_i = p2i;
-        p2r = p1r - (t1r * pt_r - t1i * pt_i);
-        p2i = p1i - (t1r * pt_i + t1i * pt_r);
-        p1r = pt_r;
-        p1i = pt_i;
-        t1r = t1r + rzr;
-        t1i = t1i + rzi;
-        ap2 = zabs(Complex::new(p2r, p2i));
+        let pt = p2;
+        p2 = p1 - t1 * pt;
+        p1 = pt;
+        t1 = t1 + rz;
+        ap2 = zabs(p2);
 
         if ap1 <= test {
             continue;
@@ -100,7 +89,7 @@ pub(crate) fn zrati<T: BesselFloat>(z: Complex<T>, fnu: T, cy: &mut [Complex<T>]
             break;
         }
         // First pass: refine convergence test (Fortran lines 3180-3184)
-        let ak = zabs(Complex::new(t1r, t1i)) * T::from_f64(0.5);
+        let ak = zabs(t1) * T::from_f64(0.5);
         let flam = ak + (ak * ak - one).sqrt();
         let rho = (ap2 / ap1).min(flam);
         test = test1 * (rho / (rho * rho - one)).sqrt();
@@ -110,57 +99,46 @@ pub(crate) fn zrati<T: BesselFloat>(z: Complex<T>, fnu: T, cy: &mut [Complex<T>]
     // ── Stage 2: Backward recurrence (Fortran label 20, lines 3186-3212) ──
     let kk = (k + 1 - id) as usize;
     let dfnu = fnu + T::from_f64((n - 1) as f64);
-    let mut p1r = one / ap2;
-    let mut p1i = zero;
-    let mut p2r = zero;
-    let mut p2i = zero;
+    let mut p1 = Complex::new(one / ap2, zero);
+    let mut p2 = Complex::new(zero, zero);
     let mut t1r_bk = T::from_f64(kk as f64);
 
     for _ in 0..kk {
-        let pt_r = p1r;
-        let pt_i = p1i;
+        let pt = p1;
         let rap1 = dfnu + t1r_bk;
-        let ttr = rzr * rap1;
-        let tti = rzi * rap1;
-        p1r = (pt_r * ttr - pt_i * tti) + p2r;
-        p1i = (pt_r * tti + pt_i * ttr) + p2i;
-        p2r = pt_r;
-        p2i = pt_i;
+        let tt = rz * rap1;
+        p1 = pt * tt + p2;
+        p2 = pt;
         t1r_bk = t1r_bk - one;
     }
 
     // Protect against zero denominator (Fortran lines 3208-3210)
-    if p1r == zero && p1i == zero {
-        p1r = tol;
-        p1i = tol;
+    if p1.re == zero && p1.im == zero {
+        p1 = Complex::new(tol, tol);
     }
 
     // CY(N) = P2 / P1 (Fortran line 3212)
-    cy[n - 1] = zdiv(Complex::new(p2r, p2i), Complex::new(p1r, p1i));
+    cy[n - 1] = zdiv(p2, p1);
 
     if n == 1 {
         return;
     }
 
     // ── Stage 3: Forward ratio computation (Fortran lines 3214-3234) ──
-    let cdfnur = fnu * rzr;
-    let cdfnui = fnu * rzi;
+    let cdfnu = rz * fnu;
 
     for k_idx in (0..=(n - 2)).rev() {
         // T1R = k_idx + 1 corresponds to Fortran K (1-based)
         let t1r_val = T::from_f64((k_idx + 1) as f64);
-        let mut pt_r = cdfnur + (t1r_val * rzr) + cy[k_idx + 1].re;
-        let mut pt_i = cdfnui + (t1r_val * rzi) + cy[k_idx + 1].im;
-        let mut ak = zabs(Complex::new(pt_r, pt_i));
+        let mut pt = cdfnu + rz * t1r_val + cy[k_idx + 1];
+        let mut ak = zabs(pt);
 
         if ak == zero {
-            pt_r = tol;
-            pt_i = tol;
+            pt = Complex::new(tol, tol);
             ak = tol * rt2;
         }
         // CY(K) = conj(PT)/|PT|^2 = 1/PT (Fortran lines 3229-3231)
-        let rak = one / ak;
-        cy[k_idx] = Complex::new(rak * pt_r * rak, -rak * pt_i * rak);
+        cy[k_idx] = zdiv(Complex::new(one, zero), pt);
     }
 }
 

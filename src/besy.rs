@@ -60,29 +60,27 @@ pub(crate) fn zbesy<T: BesselFloat>(
     let zn = Complex::new(znr, zni);
 
     // Compute coefficients CC and CSPN (Fortran lines 1359-1373)
-    // CIPR = [1, 0, -1, 0], CIPI = [0, 1, 0, -1] (powers of i)
-    let cipr: [T; 4] = [one, zero, -one, zero];
-    let cipi: [T; 4] = [zero, one, zero, -one];
+    // Powers of i: [1, i, -1, -i]
+    let cip_table: [Complex<T>; 4] = [
+        Complex::new(one, zero),
+        Complex::new(zero, one),
+        Complex::new(-one, zero),
+        Complex::new(zero, -one),
+    ];
 
     let ifnu = fnu.to_i32().unwrap();
     let ffnu = fnu - T::from_f64(ifnu as f64);
     let arg = hpi_t * ffnu;
-    let mut csgnr = arg.cos();
-    let mut csgni = arg.sin();
+    let mut csgn = Complex::new(arg.cos(), arg.sin());
 
     // Multiply by i^(ifnu mod 4) (Fortran lines 1364-1367)
     let i4 = (ifnu % 4) as usize;
-    let str = csgnr * cipr[i4] - csgni * cipi[i4];
-    csgni = csgnr * cipi[i4] + csgni * cipr[i4];
-    csgnr = str;
+    csgn = csgn * cip_table[i4];
 
     let rhpi = one / hpi_t;
-    let mut cspnr = csgnr * rhpi;
-    let mut cspni = -csgni * rhpi;
+    let mut cspn = Complex::new(csgn.re * rhpi, -csgn.im * rhpi);
     // CSGN *= i (Fortran lines 1371-1373)
-    let str2 = -csgni;
-    csgni = csgnr;
-    csgnr = str2;
+    csgn = csgn * Complex::new(zero, one);
 
     // For n == 1: use stack arrays (no alloc needed)
     if n == 1 {
@@ -97,18 +95,10 @@ pub(crate) fn zbesy<T: BesselFloat>(
 
         if scaling == Scaling::Unscaled {
             // KODE=1: simple combination (Fortran DO 50, lines 1375-1394)
-            let str_val = csgnr * i_buf[0].re
-                - csgni * i_buf[0].im
-                - (cspnr * k_buf[0].re - cspni * k_buf[0].im);
-            let sti_val = csgnr * i_buf[0].im + csgni * i_buf[0].re
-                - (cspnr * k_buf[0].im + cspni * k_buf[0].re);
+            let cy_val = csgn * i_buf[0] - cspn * k_buf[0];
 
             // Conjugate if original Im(z) < 0 (Fortran lines 1390-1394)
-            y[0] = if z.im < zero {
-                Complex::new(str_val, -sti_val)
-            } else {
-                Complex::new(str_val, sti_val)
-            };
+            y[0] = if z.im < zero { cy_val.conj() } else { cy_val };
 
             return Ok((nz, BesselStatus::Normal));
         }
@@ -126,9 +116,7 @@ pub(crate) fn zbesy<T: BesselFloat>(
         }
 
         // Apply exponential scaling to CSPN (Fortran lines 1411-1413)
-        let str_ex = (exr * cspnr - exi * cspni) * ey;
-        cspni = (exr * cspni + exi * cspnr) * ey;
-        cspnr = str_ex;
+        cspn = Complex::new(exr, exi) * cspn * ey;
 
         let rtol = one / tol;
         let ascle = T::MACH_TINY * rtol * T::from_f64(1.0e3);
@@ -142,10 +130,9 @@ pub(crate) fn zbesy<T: BesselFloat>(
             zvi = zvi * rtol;
             atol = tol;
         }
-        let str_zv = (zvr * cspnr - zvi * cspni) * atol;
-        let zvi_new = (zvr * cspni + zvi * cspnr) * atol;
-        zvr = str_zv;
-        zvi = zvi_new;
+        let zv_result = Complex::new(zvr, zvi) * cspn * atol;
+        zvr = zv_result.re;
+        zvi = zv_result.im;
 
         // Scale I values if near underflow (Fortran lines 1434-1444)
         let mut zur = i_buf[0].re;
@@ -156,10 +143,9 @@ pub(crate) fn zbesy<T: BesselFloat>(
             zui = zui * rtol;
             atol = tol;
         }
-        let str_zu = (zur * csgnr - zui * csgni) * atol;
-        let zui_new = (zur * csgni + zui * csgnr) * atol;
-        zur = str_zu;
-        zui = zui_new;
+        let zu_result = Complex::new(zur, zui) * csgn * atol;
+        zur = zu_result.re;
+        zui = zu_result.im;
 
         // CY(I) = ZU - ZV (Fortran lines 1445-1449)
         let cyr = zur - zvr;
@@ -196,27 +182,19 @@ pub(crate) fn zbesy<T: BesselFloat>(
             // KODE=1: simple combination (Fortran DO 50, lines 1375-1394)
             for i in 0..n {
                 // CY(I) = CSGN*I(I) - CSPN*K(I)
-                let str_val = csgnr * i_buf[i].re
-                    - csgni * i_buf[i].im
-                    - (cspnr * k_buf[i].re - cspni * k_buf[i].im);
-                let sti_val = csgnr * i_buf[i].im + csgni * i_buf[i].re
-                    - (cspnr * k_buf[i].im + cspni * k_buf[i].re);
-                y[i] = Complex::new(str_val, sti_val);
+                let cy_val = csgn * i_buf[i] - cspn * k_buf[i];
+                y[i] = cy_val;
 
                 // Advance CSGN *= i (rotate by pi/2) (Fortran lines 1383-1385)
-                let str_csgn = -csgni;
-                csgni = csgnr;
-                csgnr = str_csgn;
+                csgn = csgn * Complex::new(zero, one);
                 // Advance CSPN *= -i (rotate by -pi/2) (Fortran lines 1386-1388)
-                let str_cspn = cspni;
-                cspni = -cspnr;
-                cspnr = str_cspn;
+                cspn = cspn * Complex::new(zero, -one);
             }
 
             // Conjugate if original Im(z) < 0 (Fortran lines 1390-1394)
             if z.im < zero {
                 for yi in y.iter_mut().take(n) {
-                    *yi = Complex::new(yi.re, -yi.im);
+                    *yi = yi.conj();
                 }
             }
 
@@ -236,9 +214,7 @@ pub(crate) fn zbesy<T: BesselFloat>(
         }
 
         // Apply exponential scaling to CSPN (Fortran lines 1411-1413)
-        let str_ex = (exr * cspnr - exi * cspni) * ey;
-        cspni = (exr * cspni + exi * cspnr) * ey;
-        cspnr = str_ex;
+        cspn = Complex::new(exr, exi) * cspn * ey;
 
         let mut nz_out: usize = 0;
         let rtol = one / tol;
@@ -254,10 +230,9 @@ pub(crate) fn zbesy<T: BesselFloat>(
                 zvi = zvi * rtol;
                 atol = tol;
             }
-            let str_zv = (zvr * cspnr - zvi * cspni) * atol;
-            let zvi_new = (zvr * cspni + zvi * cspnr) * atol;
-            zvr = str_zv;
-            zvi = zvi_new;
+            let zv_result = Complex::new(zvr, zvi) * cspn * atol;
+            zvr = zv_result.re;
+            zvi = zv_result.im;
 
             // Scale I values if near underflow (Fortran lines 1434-1444)
             let mut zur = i_buf[i].re;
@@ -268,10 +243,9 @@ pub(crate) fn zbesy<T: BesselFloat>(
                 zui = zui * rtol;
                 atol = tol;
             }
-            let str_zu = (zur * csgnr - zui * csgni) * atol;
-            let zui_new = (zur * csgni + zui * csgnr) * atol;
-            zur = str_zu;
-            zui = zui_new;
+            let zu_result = Complex::new(zur, zui) * csgn * atol;
+            zur = zu_result.re;
+            zui = zu_result.im;
 
             // CY(I) = ZU - ZV (Fortran lines 1445-1449)
             let cyr = zur - zvr;
@@ -288,12 +262,8 @@ pub(crate) fn zbesy<T: BesselFloat>(
             }
 
             // Advance CSGN *= i, CSPN *= -i (Fortran lines 1450-1455)
-            let str_csgn = -csgni;
-            csgni = csgnr;
-            csgnr = str_csgn;
-            let str_cspn = cspni;
-            cspni = -cspnr;
-            cspnr = str_cspn;
+            csgn = csgn * Complex::new(zero, one);
+            cspn = cspn * Complex::new(zero, -one);
         }
 
         Ok((nz_out, BesselStatus::Normal))

@@ -125,8 +125,7 @@ pub(crate) fn zseri<T: BesselFloat>(
         if iflag == 1 {
             aa = aa * ss;
         }
-        let mut coefr = aa * ak1i.cos();
-        let mut coefi = aa * ak1i.sin();
+        let mut coef = Complex::new(aa * ak1i.cos(), aa * ak1i.sin());
         let atol = tol * acz / fnup;
 
         let il = if nn < 2 { nn } else { 2 };
@@ -150,10 +149,8 @@ pub(crate) fn zseri<T: BesselFloat>(
 
                 loop {
                     let rs = one / s;
-                    let str = ak1.re * cz.re - ak1.im * cz.im;
-                    let sti = ak1.re * cz.im + ak1.im * cz.re;
-                    ak1 = Complex::new(str * rs, sti * rs);
-                    s1 = Complex::new(s1.re + ak1.re, s1.im + ak1.im);
+                    ak1 = ak1 * cz * rs;
+                    s1 = s1 + ak1;
                     s = s + ak_val;
                     ak_val = ak_val + two;
                     aa_val = aa_val * acz * rs;
@@ -164,7 +161,7 @@ pub(crate) fn zseri<T: BesselFloat>(
             }
 
             // s2 = s1 * coef (Fortran lines 3723-3724)
-            let s2 = Complex::new(s1.re * coefr - s1.im * coefi, s1.re * coefi + s1.im * coefr);
+            let s2 = s1 * coef;
             *w_item = s2;
 
             if iflag != 0 {
@@ -189,13 +186,11 @@ pub(crate) fn zseri<T: BesselFloat>(
 
             // M = NN - I + 1 (Fortran 1-based) → 0-based: nn - 1 - i
             let m = nn - 1 - i;
-            y[m] = Complex::new(s2.re * crscr, s2.im * crscr);
+            y[m] = s2 * crscr;
 
             if i < il - 1 {
                 // Update coefficient (Fortran lines 3735-3737)
-                let st = zdiv(Complex::new(coefr, coefi), hz);
-                coefr = st.re * dfnu;
-                coefi = st.im * dfnu;
+                coef = zdiv(coef, hz) * dfnu;
             }
         }
 
@@ -213,8 +208,7 @@ pub(crate) fn zseri<T: BesselFloat>(
         let raz = one / az;
         let str = z.re * raz;
         let sti = -z.im * raz;
-        let rzr = (str + str) * raz;
-        let rzi = (sti + sti) * raz;
+        let rz = Complex::new((str + str) * raz, (sti + sti) * raz);
 
         if iflag == 1 {
             // Scaled recurrence (Fortran label 120, lines 3760-3788)
@@ -224,12 +218,9 @@ pub(crate) fn zseri<T: BesselFloat>(
             let mut l = 2usize; // iteration index (Fortran L=3..NN, we use 2..nn-1)
             while l < nn {
                 let ck_val = s2;
-                s2 = Complex::new(
-                    s1.re + (ak_val + fnu) * (rzr * ck_val.re - rzi * ck_val.im),
-                    s1.im + (ak_val + fnu) * (rzr * ck_val.im + rzi * ck_val.re),
-                );
+                s2 = s1 + rz * ck_val * (ak_val + fnu);
                 s1 = ck_val;
-                let ck_scaled = Complex::new(s2.re * crscr, s2.im * crscr);
+                let ck_scaled = s2 * crscr;
                 y[k as usize] = ck_scaled;
                 ak_val = ak_val - one;
                 k -= 1;
@@ -240,12 +231,7 @@ pub(crate) fn zseri<T: BesselFloat>(
                     // IB = L + 1 in Fortran; remaining iterations continue unscaled
                     while l < nn {
                         let ki = k as usize;
-                        y[ki] = Complex::new(
-                            (ak_val + fnu) * (rzr * y[ki + 1].re - rzi * y[ki + 1].im)
-                                + y[ki + 2].re,
-                            (ak_val + fnu) * (rzr * y[ki + 1].im + rzi * y[ki + 1].re)
-                                + y[ki + 2].im,
-                        );
+                        y[ki] = rz * y[ki + 1] * (ak_val + fnu) + y[ki + 2];
                         ak_val = ak_val - one;
                         k -= 1;
                         l += 1;
@@ -259,10 +245,7 @@ pub(crate) fn zseri<T: BesselFloat>(
         // Unscaled recurrence (Fortran label 100, lines 3749-3756)
         for _ in 2..nn {
             let ki = k as usize;
-            y[ki] = Complex::new(
-                (ak_val + fnu) * (rzr * y[ki + 1].re - rzi * y[ki + 1].im) + y[ki + 2].re,
-                (ak_val + fnu) * (rzr * y[ki + 1].im + rzi * y[ki + 1].re) + y[ki + 2].im,
-            );
+            y[ki] = rz * y[ki + 1] * (ak_val + fnu) + y[ki + 2];
             ak_val = ak_val - one;
             k -= 1;
         }

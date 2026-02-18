@@ -38,14 +38,10 @@ pub(crate) fn zmlri<T: BesselFloat>(
     let raz = one / az;
     let str = z.re * raz;
     let sti = -z.im * raz;
-    let mut ckr = str * at * raz;
-    let mut cki = sti * at * raz;
-    let rzr = (str + str) * raz;
-    let rzi = (sti + sti) * raz;
-    let mut p1r = zero;
-    let mut p1i = zero;
-    let mut p2r = one;
-    let mut p2i = zero;
+    let mut ck = Complex::new(str * at * raz, sti * at * raz);
+    let rz = Complex::new((str + str) * raz, (sti + sti) * raz);
+    let mut p1 = czero;
+    let mut p2 = Complex::new(one, zero);
     let ack = (at + one) * raz;
     let rho = ack + (ack * ack - one).sqrt();
     let rho2 = rho * rho;
@@ -56,15 +52,11 @@ pub(crate) fn zmlri<T: BesselFloat>(
     let mut ak = at;
     let mut i_val: i32 = 0;
     for i in 1..=80 {
-        let ptr = p2r;
-        let pti = p2i;
-        p2r = p1r - (ckr * ptr - cki * pti);
-        p2i = p1i - (cki * ptr + ckr * pti);
-        p1r = ptr;
-        p1i = pti;
-        ckr = ckr + rzr;
-        cki = cki + rzi;
-        let ap = zabs(Complex::new(p2r, p2i));
+        let pt = p2;
+        p2 = p1 - ck * pt;
+        p1 = pt;
+        ck = ck + rz;
+        let ap = zabs(p2);
         if ap > tst * ak * ak {
             i_val = i;
             break;
@@ -81,39 +73,32 @@ pub(crate) fn zmlri<T: BesselFloat>(
 
     if inu >= iaz {
         // Compute relative truncation error for ratios (Fortran lines 3388-3420)
-        p1r = zero;
-        p1i = zero;
-        p2r = one;
-        p2i = zero;
+        p1 = czero;
+        p2 = Complex::new(one, zero);
         let at2 = T::from_f64(inu as f64 + 1.0);
         let str2 = z.re * raz;
         let sti2 = -z.im * raz;
-        ckr = str2 * at2 * raz;
-        cki = sti2 * at2 * raz;
+        ck = Complex::new(str2 * at2 * raz, sti2 * at2 * raz);
         let ack2 = at2 * raz;
         tst = (ack2 / tol).sqrt();
         let mut itime = 1;
 
         let mut found = false;
         for kk in 1..=80 {
-            let ptr = p2r;
-            let pti = p2i;
-            p2r = p1r - (ckr * ptr - cki * pti);
-            p2i = p1i - (ckr * pti + cki * ptr);
-            p1r = ptr;
-            p1i = pti;
-            ckr = ckr + rzr;
-            cki = cki + rzi;
-            let ap = zabs(Complex::new(p2r, p2i));
+            let pt = p2;
+            p2 = p1 - ck * pt;
+            p1 = pt;
+            ck = ck + rz;
+            let ap = zabs(p2);
             if ap >= tst {
                 if itime == 2 {
                     k = kk;
                     found = true;
                     break;
                 }
-                let ack3 = zabs(Complex::new(ckr, cki));
+                let ack3 = zabs(ck);
                 let flam = ack3 + (ack3 * ack3 - one).sqrt();
-                let fkap = ap / zabs(Complex::new(p1r, p1i));
+                let fkap = ap / zabs(p1);
                 let rho_new = flam.min(fkap);
                 tst = tst * (rho_new / (rho_new * rho_new - one)).sqrt();
                 itime = 2;
@@ -130,72 +115,57 @@ pub(crate) fn zmlri<T: BesselFloat>(
     k += 1;
     let kk = (i_val + iaz).max(k + inu);
     let mut fkk = T::from_f64(kk as f64);
-    p1r = zero;
-    p1i = zero;
-    p2r = scle;
-    p2i = zero;
+    p1 = czero;
+    p2 = Complex::new(scle, zero);
     let fnf = fnu - T::from_f64(ifnu as f64);
     let tfnf = fnf + fnf;
     let bk_ln =
         gamln(fkk + tfnf + one).unwrap() - gamln(fkk + one).unwrap() - gamln(tfnf + one).unwrap();
     let mut bk = bk_ln.exp();
-    let mut sumr = zero;
-    let mut sumi = zero;
+    let mut sum = czero;
     let km = kk - inu;
 
     // Backward recurrence: first phase (kk down to inu+1) — Fortran DO 50
     for _i in 1..=km {
-        let ptr = p2r;
-        let pti = p2i;
-        p2r = p1r + (fkk + fnf) * (rzr * ptr - rzi * pti);
-        p2i = p1i + (fkk + fnf) * (rzi * ptr + rzr * pti);
-        p1r = ptr;
-        p1i = pti;
+        let pt = p2;
+        p2 = p1 + rz * pt * (fkk + fnf);
+        p1 = pt;
         ak = one - tfnf / (fkk + tfnf);
         let ack_val = bk * ak;
-        sumr = sumr + (ack_val + bk) * p1r;
-        sumi = sumi + (ack_val + bk) * p1i;
+        sum = sum + p1 * (ack_val + bk);
         bk = ack_val;
         fkk = fkk - one;
     }
 
     // Store Y(N) (Fortran line 3457-3458)
-    y[n - 1] = Complex::new(p2r, p2i);
+    y[n - 1] = p2;
 
     // Continue backward recurrence storing Y values (Fortran DO 60)
     if n > 1 {
         for i in 2..=n {
-            let ptr = p2r;
-            let pti = p2i;
-            p2r = p1r + (fkk + fnf) * (rzr * ptr - rzi * pti);
-            p2i = p1i + (fkk + fnf) * (rzi * ptr + rzr * pti);
-            p1r = ptr;
-            p1i = pti;
+            let pt = p2;
+            p2 = p1 + rz * pt * (fkk + fnf);
+            p1 = pt;
             ak = one - tfnf / (fkk + tfnf);
             let ack_val = bk * ak;
-            sumr = sumr + (ack_val + bk) * p1r;
-            sumi = sumi + (ack_val + bk) * p1i;
+            sum = sum + p1 * (ack_val + bk);
             bk = ack_val;
             fkk = fkk - one;
             // M = N - I + 1 (Fortran 1-based) → 0-based: n - i
             let m = n - i;
-            y[m] = Complex::new(p2r, p2i);
+            y[m] = p2;
         }
     }
 
     // Continue backward recurrence for normalization (Fortran DO 80)
     if ifnu > 0 {
         for _i in 1..=ifnu {
-            let ptr = p2r;
-            let pti = p2i;
-            p2r = p1r + (fkk + fnf) * (rzr * ptr - rzi * pti);
-            p2i = p1i + (fkk + fnf) * (rzr * pti + rzi * ptr);
-            p1r = ptr;
-            p1i = pti;
+            let pt = p2;
+            p2 = p1 + rz * pt * (fkk + fnf);
+            p1 = pt;
             ak = one - tfnf / (fkk + tfnf);
             let ack_val = bk * ak;
-            sumr = sumr + (ack_val + bk) * p1r;
-            sumi = sumi + (ack_val + bk) * p1i;
+            sum = sum + p1 * (ack_val + bk);
             bk = ack_val;
             fkk = fkk - one;
         }
@@ -208,9 +178,9 @@ pub(crate) fn zmlri<T: BesselFloat>(
         ptr = zero;
     }
     // zlog(rz)
-    let rz_abs = zabs(Complex::new(rzr, rzi));
+    let rz_abs = zabs(rz);
     let str_log = rz_abs.ln();
-    let sti_log = rzi.atan2(rzr);
+    let sti_log = rz.im.atan2(rz.re);
     let p1r_norm = -fnf * str_log + ptr;
     let p1i_norm = -fnf * sti_log + pti;
     let ap = gamln(one + fnf).unwrap();
@@ -218,27 +188,19 @@ pub(crate) fn zmlri<T: BesselFloat>(
     let pti_norm = p1i_norm;
 
     // Division cexp(pt)/(sum+p2) avoiding overflow (Fortran lines 3507-3521)
-    p2r = p2r + sumr;
-    p2i = p2i + sumi;
-    let ap2 = zabs(Complex::new(p2r, p2i));
+    p2 = p2 + sum;
+    let ap2 = zabs(p2);
     let p1_inv = one / ap2;
     // zexp(ptr_norm, pti_norm)
     let exp_r = ptr_norm.exp();
-    let str_e = exp_r * pti_norm.cos();
-    let sti_e = exp_r * pti_norm.sin();
-    let ck_nr = str_e * p1_inv;
-    let ck_ni = sti_e * p1_inv;
-    let pt_nr = p2r * p1_inv;
-    let pt_ni = -p2i * p1_inv;
+    let ck_n = Complex::new(exp_r * pti_norm.cos(), exp_r * pti_norm.sin()) * p1_inv;
+    let pt_n = Complex::new(p2.re * p1_inv, -p2.im * p1_inv);
     // zmlt(ck, pt) → cnorm
-    let cnormr = ck_nr * pt_nr - ck_ni * pt_ni;
-    let cnormi = ck_nr * pt_ni + ck_ni * pt_nr;
+    let cnorm = ck_n * pt_n;
 
     // Normalize all Y values (Fortran DO 100)
     for y_item in y.iter_mut().take(n) {
-        let str_val = y_item.re * cnormr - y_item.im * cnormi;
-        let sti_val = y_item.re * cnormi + y_item.im * cnormr;
-        *y_item = Complex::new(str_val, sti_val);
+        *y_item = *y_item * cnorm;
     }
 
     nz
