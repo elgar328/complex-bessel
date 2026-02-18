@@ -42,8 +42,8 @@ pub(crate) fn zacai<T: BesselFloat>(
 ) -> Result<i32, BesselError> {
     let zero = T::zero();
     let one = T::one();
-    let two = T::from(2.0).unwrap();
-    let pi_t = T::from(PI).unwrap();
+    let two = T::from_f64(2.0);
+    let pi_t = T::from_f64(PI);
     let czero = Complex::new(zero, zero);
 
     let mut nz: i32 = 0;
@@ -55,13 +55,13 @@ pub(crate) fn zacai<T: BesselFloat>(
     // ZN = -Z (Fortran line 4703-4704)
     let zn = Complex::new(-z.re, -z.im);
     let az = zabs(z);
-    let dfnu = fnu + T::from((n - 1) as f64).unwrap();
+    let dfnu = fnu + T::from_f64((n - 1) as f64);
 
     // I function dispatch (Fortran lines 4706-4731)
     // Direct calls to avoid ZBINU → ZBUNI → ZUNI2 → ZAIRY recursion
     // N is always 1 for acai, so use stack buffer
     let mut i_buf = [czero];
-    if az <= two || az * az * T::from(0.25).unwrap() <= dfnu + one {
+    if az <= two || az * az * T::from_f64(0.25) <= dfnu + one {
         // Label 10: power series (Fortran line 4710)
         zseri(zn, fnu, kode, &mut i_buf, tol, elim, alim);
     } else if az >= rl {
@@ -95,7 +95,7 @@ pub(crate) fn zacai<T: BesselFloat>(
         return Err(BesselError::Overflow);
     }
 
-    let fmr = T::from(mr as f64).unwrap();
+    let fmr = T::from_f64(mr as f64);
     let sgn = -pi_t.copysign(fmr); // SGN = -DSIGN(PI, FMR) (Fortran line 4739)
 
     // CSGN = (0, sgn) (Fortran lines 4740-4741)
@@ -113,7 +113,7 @@ pub(crate) fn zacai<T: BesselFloat>(
 
     // CSPN = exp(FNU*PI*I) with precision preservation (Fortran lines 4751-4758)
     let inu = fnu.to_i32().unwrap();
-    let arg = (fnu - T::from(inu as f64).unwrap()) * sgn;
+    let arg = (fnu - T::from_f64(inu as f64)) * sgn;
     let mut cspnr = arg.cos();
     let mut cspni = arg.sin();
     if inu % 2 != 0 {
@@ -130,7 +130,7 @@ pub(crate) fn zacai<T: BesselFloat>(
     if kode == Scaling::Exponential {
         // Fortran lines 4765-4769: ZS1S2 call for KODE=2
         let iuf: i32 = 0;
-        let ascle = T::from(1.0e3).unwrap() * T::MACH_TINY / tol;
+        let ascle = T::from_f64(1.0e3) * T::MACH_TINY / tol;
         let s1s2_out = zs1s2(
             zn,
             Complex::new(c1r, c1i),

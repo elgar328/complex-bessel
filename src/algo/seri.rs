@@ -28,8 +28,8 @@ pub(crate) fn zseri<T: BesselFloat>(
 ) -> i32 {
     let zero = T::zero();
     let one = T::one();
-    let two = T::from(2.0).unwrap();
-    let half = T::from(0.5).unwrap();
+    let two = T::from_f64(2.0);
+    let half = T::from_f64(0.5);
     let czero = Complex::new(zero, zero);
     let cone = Complex::new(one, zero);
 
@@ -51,7 +51,7 @@ pub(crate) fn zseri<T: BesselFloat>(
     }
 
     // Fortran lines 3651-3654
-    let arm = T::from(1.0e3).unwrap() * T::MACH_TINY;
+    let arm = T::from_f64(1.0e3) * T::MACH_TINY;
     let rtr1 = arm.sqrt();
     let mut crscr = one;
     let mut iflag: i32 = 0;
@@ -82,7 +82,7 @@ pub(crate) fn zseri<T: BesselFloat>(
 
     // Outer loop: underflow scan (Fortran labels 20-30)
     'outer: loop {
-        let mut dfnu = fnu + T::from((nn - 1) as f64).unwrap();
+        let mut dfnu = fnu + T::from_f64((nn - 1) as f64);
         let fnup = dfnu + one;
 
         // Underflow test (Fortran lines 3672-3677)
@@ -137,7 +137,7 @@ pub(crate) fn zseri<T: BesselFloat>(
         // Series computation loop (Fortran DO 90, lines 3699-3738)
         let mut went_to_30 = false;
         for (i, w_item) in w.iter_mut().enumerate().take(il) {
-            dfnu = fnu + T::from((nn - 1 - i) as f64).unwrap();
+            dfnu = fnu + T::from_f64((nn - 1 - i) as f64);
             let fnup_i = dfnu + one;
             let mut s1 = cone;
 
@@ -209,7 +209,7 @@ pub(crate) fn zseri<T: BesselFloat>(
         }
 
         let mut k: isize = nn as isize - 3; // 0-based (Fortran K=NN-2 → k=NN-3)
-        let mut ak_val = T::from((nn - 2) as f64).unwrap();
+        let mut ak_val = T::from_f64((nn - 2) as f64);
         let raz = one / az;
         let str = z.re * raz;
         let sti = -z.im * raz;

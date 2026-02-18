@@ -12,7 +12,7 @@ use crate::algo::uchk::zuchk;
 use crate::algo::unik::zunik;
 use crate::algo::uoik::zuoik;
 use crate::machine::BesselFloat;
-use crate::types::Scaling;
+use crate::types::{IkFlag, Scaling, SumOption};
 use crate::utils::zabs;
 
 /// Output of ZUNI1.
@@ -67,11 +67,11 @@ pub(crate) fn zuni1<T: BesselFloat>(
     let crsc = tol;
     let cssr = [cscl, one, crsc];
     let csrr = [crsc, one, cscl];
-    let bry0 = T::from(1.0e3).unwrap() * T::MACH_TINY / tol;
+    let bry0 = T::from_f64(1.0e3) * T::MACH_TINY / tol;
 
     // ── Check first member for underflow/overflow (Fortran lines 6889-6907) ──
     let fn_val = fnu.max(one);
-    let result0 = zunik(z, fn_val, 1, 1, tol, None);
+    let result0 = zunik(z, fn_val, IkFlag::I, SumOption::SkipSum, tol, None);
 
     let (s1r, _s1i) = if kode == Scaling::Exponential {
         // KODE=2 (Fortran lines 6894-6900)
@@ -112,8 +112,8 @@ pub(crate) fn zuni1<T: BesselFloat>(
         #[allow(clippy::needless_range_loop)]
         for i in 0..nn {
             // fn = fnu + (nd - 1 - i) (Fortran: FN = FNU + FLOAT(ND-I), with Fortran I=1..NN)
-            let fn_val = fnu + T::from((nd - 1 - i) as f64).unwrap();
-            let result = zunik(z, fn_val, 1, 0, tol, None);
+            let fn_val = fnu + T::from_f64((nd - 1 - i) as f64);
+            let result = zunik(z, fn_val, IkFlag::I, SumOption::Full, tol, None);
 
             let (s1r, s1i) = if kode == Scaling::Exponential {
                 // KODE=2 (Fortran lines 6916-6922)
@@ -147,7 +147,7 @@ pub(crate) fn zuni1<T: BesselFloat>(
                     return Uni1Output { nz, nlast: 0 };
                 }
                 // ZUOIK additional check
-                let nuf = zuoik(z, fnu, kode, 1, &mut y[..nd], tol, elim, alim);
+                let nuf = zuoik(z, fnu, kode, IkFlag::I, &mut y[..nd], tol, elim, alim);
                 if nuf < 0 {
                     return Uni1Output { nz: -1, nlast: 0 };
                 }
@@ -156,7 +156,7 @@ pub(crate) fn zuni1<T: BesselFloat>(
                 if nd == 0 {
                     return Uni1Output { nz, nlast: 0 };
                 }
-                let fn_check = fnu + T::from((nd - 1) as f64).unwrap();
+                let fn_check = fnu + T::from_f64((nd - 1) as f64);
                 if fn_check >= fnul {
                     continue 'label30; // retry with reduced nd
                 }
@@ -182,7 +182,7 @@ pub(crate) fn zuni1<T: BesselFloat>(
                     if nd == 0 {
                         return Uni1Output { nz, nlast: 0 };
                     }
-                    let nuf = zuoik(z, fnu, kode, 1, &mut y[..nd], tol, elim, alim);
+                    let nuf = zuoik(z, fnu, kode, IkFlag::I, &mut y[..nd], tol, elim, alim);
                     if nuf < 0 {
                         return Uni1Output { nz: -1, nlast: 0 };
                     }
@@ -191,7 +191,7 @@ pub(crate) fn zuni1<T: BesselFloat>(
                     if nd == 0 {
                         return Uni1Output { nz, nlast: 0 };
                     }
-                    let fn_check = fnu + T::from((nd - 1) as f64).unwrap();
+                    let fn_check = fnu + T::from_f64((nd - 1) as f64);
                     if fn_check >= fnul {
                         continue 'label30;
                     }
@@ -225,7 +225,7 @@ pub(crate) fn zuni1<T: BesselFloat>(
                 if nd == 0 {
                     return Uni1Output { nz, nlast: 0 };
                 }
-                let nuf = zuoik(z, fnu, kode, 1, &mut y[..nd], tol, elim, alim);
+                let nuf = zuoik(z, fnu, kode, IkFlag::I, &mut y[..nd], tol, elim, alim);
                 if nuf < 0 {
                     return Uni1Output { nz: -1, nlast: 0 };
                 }
@@ -234,7 +234,7 @@ pub(crate) fn zuni1<T: BesselFloat>(
                 if nd == 0 {
                     return Uni1Output { nz, nlast: 0 };
                 }
-                let fn_check = fnu + T::from((nd - 1) as f64).unwrap();
+                let fn_check = fnu + T::from_f64((nd - 1) as f64);
                 if fn_check >= fnul {
                     computed_ok = false;
                     break;
@@ -280,7 +280,7 @@ pub(crate) fn zuni1<T: BesselFloat>(
         };
 
         let mut k = nd - 2; // 0-based index into y (Fortran K = ND - 2, 1-based)
-        let mut fn_rec = T::from(k as f64).unwrap(); // Fortran: FN = FLOAT(K), where K starts at ND-2
+        let mut fn_rec = T::from_f64(k as f64); // Fortran: FN = FLOAT(K), where K starts at ND-2
 
         // Fortran DO 90 I=3,ND
         for _i in 2..nd {

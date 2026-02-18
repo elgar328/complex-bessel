@@ -58,7 +58,7 @@ pub(crate) fn zwrsk<T: BesselFloat>(
 
     // 3-level scaling to prevent under/overflow (Fortran lines 3569-3579)
     let acw = zabs(cw[1]);
-    let ascle = T::from(1.0e3).unwrap() * T::MACH_TINY / tol;
+    let ascle = T::from_f64(1.0e3) * T::MACH_TINY / tol;
     let csclr;
     if acw <= ascle {
         csclr = one / tol; // scale up: K is very small

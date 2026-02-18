@@ -59,6 +59,30 @@ pub(crate) enum HankelKind {
     Second,
 }
 
+/// Selects I or K function path in uniform asymptotic expansion.
+///
+/// Controls the prefactor (1/sqrt(2π) vs sqrt(π/2)) and whether the
+/// asymptotic sum uses straight or alternating signs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum IkFlag {
+    /// I function (Fortran ikflg=1): straight sum, sqrt(1/2π) prefactor.
+    I,
+    /// K function (Fortran ikflg=2): alternating sum, sqrt(π/2) prefactor.
+    K,
+}
+
+/// Controls whether the full asymptotic sum is computed or only phi/zeta.
+///
+/// When only the leading-order overflow/underflow test is needed (e.g. in
+/// ZUOIK), the expensive sum computation can be skipped.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SumOption {
+    /// Compute all parameters including the asymptotic sum (Fortran ipmtr=0).
+    Full,
+    /// Compute phi/zeta only, skip the sum (Fortran ipmtr=1, for overflow pre-check).
+    SkipSum,
+}
+
 /// Selects Airy function value or its derivative.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum AiryDerivative {

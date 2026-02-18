@@ -22,6 +22,13 @@ pub trait BesselFloat: Float + core::fmt::Debug + 'static {
     /// Maximum binary exponent (I1MACH(11)).
     const MACH_MAX_EXP: i32;
 
+    /// Infallible conversion from f64.
+    ///
+    /// For f64 this is the identity; for f32 it truncates via `as f32`.
+    /// All Amos algorithm constants originate as f64 literals, so this
+    /// conversion always succeeds for the supported types.
+    fn from_f64(x: f64) -> Self;
+
     /// Tolerance: max(MACH_EPSILON, 1e-18).
     fn tol() -> Self;
     /// Decimal digits: log10(2) * (DIGITS - 1).
@@ -44,6 +51,10 @@ impl BesselFloat for f64 {
     const MACH_MIN_EXP: i32 = -1021;
     const MACH_MAX_EXP: i32 = 1024;
 
+    #[inline]
+    fn from_f64(x: f64) -> f64 {
+        x
+    }
     #[inline]
     fn tol() -> f64 {
         2.220446049250313e-16
@@ -81,6 +92,10 @@ impl BesselFloat for f32 {
     const MACH_MIN_EXP: i32 = -125;
     const MACH_MAX_EXP: i32 = 128;
 
+    #[inline]
+    fn from_f64(x: f64) -> f32 {
+        x as f32
+    }
     #[inline]
     fn tol() -> f32 {
         1.1920929e-7

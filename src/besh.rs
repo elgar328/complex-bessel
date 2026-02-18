@@ -16,7 +16,7 @@ use crate::algo::bunk::zbunk;
 use crate::algo::constants::HPI;
 use crate::algo::uoik::zuoik;
 use crate::machine::BesselFloat;
-use crate::types::{BesselError, BesselStatus, HankelKind, Scaling};
+use crate::types::{BesselError, BesselStatus, HankelKind, IkFlag, Scaling};
 use crate::utils::zabs;
 
 /// Compute H_{fnu+j}^(m)(z) for j = 0, 1, ..., n-1.
@@ -42,7 +42,7 @@ pub(crate) fn zbesh<T: BesselFloat>(
 ) -> Result<(usize, BesselStatus), BesselError> {
     let zero = T::zero();
     let one = T::one();
-    let two = T::from(2.0).unwrap();
+    let two = T::from_f64(2.0);
 
     let n = y.len();
 
@@ -65,7 +65,7 @@ pub(crate) fn zbesh<T: BesselFloat>(
     let alim = T::alim();
     let fnul = T::fnul();
 
-    let fn_val = fnu + T::from((nn - 1) as f64).unwrap();
+    let fn_val = fnu + T::from_f64((nn - 1) as f64);
 
     // M = 1 or 2, MM = 3 - 2*M, FMM = float(MM)
     let m: i32 = match kind {
@@ -73,7 +73,7 @@ pub(crate) fn zbesh<T: BesselFloat>(
         HankelKind::Second => 2,
     };
     let mm = 3 - 2 * m; // +1 for m=1, -1 for m=2
-    let fmm = T::from(mm as f64).unwrap();
+    let fmm = T::from_f64(mm as f64);
 
     // Rotated argument: ZN = z * exp(-mp) where mp = mm*HPI*i
     // ZNR = FMM * ZI, ZNI = -FMM * ZR (Fortran lines 212-213)
@@ -83,8 +83,8 @@ pub(crate) fn zbesh<T: BesselFloat>(
 
     // ── Range check (Fortran lines 217-225) ──
     let az = zabs(z);
-    let aa_tol = T::from(0.5).unwrap() / tol;
-    let bb = T::from(2147483647.0 * 0.5).unwrap();
+    let aa_tol = T::from_f64(0.5) / tol;
+    let bb = T::from_f64(2147483647.0 * 0.5);
     let aa = aa_tol.min(bb);
 
     if az > aa || fn_val > aa {
@@ -98,7 +98,7 @@ pub(crate) fn zbesh<T: BesselFloat>(
     }
 
     // ── Underflow limit (Fortran line 229-230) ──
-    let ufl = T::MACH_TINY * T::from(1.0e3).unwrap();
+    let ufl = T::MACH_TINY * T::from_f64(1.0e3);
     if az < ufl {
         return Err(BesselError::Overflow);
     }
@@ -139,7 +139,16 @@ pub(crate) fn zbesh<T: BesselFloat>(
         if fn_val > one {
             if fn_val > two {
                 // fn > 2: ZUOIK overflow/underflow pre-check (Fortran lines 238-248)
-                let nuf = zuoik(zn, fnu, scaling, 2, &mut y[..nn_eff], tol, elim, alim);
+                let nuf = zuoik(
+                    zn,
+                    fnu,
+                    scaling,
+                    IkFlag::K,
+                    &mut y[..nn_eff],
+                    tol,
+                    elim,
+                    alim,
+                );
                 if nuf < 0 {
                     return Err(BesselError::Overflow);
                 }
@@ -163,7 +172,7 @@ pub(crate) fn zbesh<T: BesselFloat>(
 
             // Check for overflow when az is very small (Fortran lines 234-237)
             if fn_val <= two && az <= tol {
-                let half = T::from(0.5).unwrap();
+                let half = T::from_f64(0.5);
                 let arg = half * az;
                 let aln = -fn_val * arg.ln();
                 if aln > elim {
@@ -199,14 +208,14 @@ pub(crate) fn zbesh<T: BesselFloat>(
 
     // ── Phase post-processing (Fortran label 110, lines 285-336) ──
     // H(m, fnu, z) = -FMM*(i/HPI)*exp(-FMM*fnu*HPI*i)*K(fnu, zn)
-    let hpi_t = T::from(HPI).unwrap();
+    let hpi_t = T::from_f64(HPI);
     let sgn = hpi_t.copysign(-fmm); // sign(HPI, -FMM)
 
     // Decompose FNU for precision: inu, inuh, ir (Fortran lines 296-299)
     let inu = fnu.to_i32().unwrap();
     let inuh = inu / 2;
     let ir = inu - 2 * inuh; // 0 or 1
-    let arg = (fnu - T::from((inu - ir) as f64).unwrap()) * sgn;
+    let arg = (fnu - T::from_f64((inu - ir) as f64)) * sgn;
     let rhpi = one / sgn;
 
     // CSGN = RHPI * (-sin(arg) + i*cos(arg)) (Fortran lines 303-304)

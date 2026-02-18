@@ -33,7 +33,7 @@ pub(crate) fn zbesy<T: BesselFloat>(
     let zero = T::zero();
     let one = T::one();
     let czero = Complex::new(zero, zero);
-    let hpi_t = T::from(HPI).unwrap();
+    let hpi_t = T::from_f64(HPI);
 
     // Zero the output buffer
     for yi in y.iter_mut() {
@@ -65,7 +65,7 @@ pub(crate) fn zbesy<T: BesselFloat>(
     let cipi: [T; 4] = [zero, one, zero, -one];
 
     let ifnu = fnu.to_i32().unwrap();
-    let ffnu = fnu - T::from(ifnu as f64).unwrap();
+    let ffnu = fnu - T::from_f64(ifnu as f64);
     let arg = hpi_t * ffnu;
     let mut csgnr = arg.cos();
     let mut csgni = arg.sin();
@@ -131,7 +131,7 @@ pub(crate) fn zbesy<T: BesselFloat>(
         cspnr = str_ex;
 
         let rtol = one / tol;
-        let ascle = T::MACH_TINY * rtol * T::from(1.0e3).unwrap();
+        let ascle = T::MACH_TINY * rtol * T::from_f64(1.0e3);
 
         // Scale K values if near underflow (Fortran lines 1423-1433)
         let mut zvr = k_buf[0].re;
@@ -242,7 +242,7 @@ pub(crate) fn zbesy<T: BesselFloat>(
 
         let mut nz_out: usize = 0;
         let rtol = one / tol;
-        let ascle = T::MACH_TINY * rtol * T::from(1.0e3).unwrap();
+        let ascle = T::MACH_TINY * rtol * T::from_f64(1.0e3);
 
         for i in 0..n {
             // Scale K values if near underflow (Fortran lines 1423-1433)

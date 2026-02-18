@@ -37,7 +37,7 @@ pub(crate) fn zacon<T: BesselFloat>(
 ) -> Result<usize, BesselError> {
     let zero = T::zero();
     let one = T::one();
-    let pi_t = T::from(PI).unwrap();
+    let pi_t = T::from_f64(PI);
     let czero = Complex::new(zero, zero);
 
     let n = y.len();
@@ -59,7 +59,7 @@ pub(crate) fn zacon<T: BesselFloat>(
 
     // Analytic continuation formula (Fortran lines 4214-4276)
     let s1 = k_buf[0];
-    let fmr = T::from(mr as f64).unwrap();
+    let fmr = T::from_f64(mr as f64);
     let sgn = -pi_t.copysign(fmr); // -sign(pi, fmr)
 
     // CSGN = (0, sgn) (Fortran lines 4219-4220)
@@ -79,7 +79,7 @@ pub(crate) fn zacon<T: BesselFloat>(
 
     // CSPN = exp(fnu*pi*i) with precision preservation (Fortran lines 4231-4239)
     let inu = fnu.to_i32().unwrap();
-    let arg = (fnu - T::from(inu as f64).unwrap()) * sgn;
+    let arg = (fnu - T::from_f64(inu as f64)) * sgn;
     let cpn = arg.cos();
     let spn = arg.sin();
     let mut cspnr = cpn;
@@ -91,7 +91,7 @@ pub(crate) fn zacon<T: BesselFloat>(
 
     // First two terms (Fortran lines 4241-4276)
     let mut iuf: i32 = 0;
-    let ascle = T::from(1.0e3).unwrap() * T::MACH_TINY / tol;
+    let ascle = T::from_f64(1.0e3) * T::MACH_TINY / tol;
 
     let mut c1r = s1.re;
     let mut c1i = s1.im;

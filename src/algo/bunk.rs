@@ -28,7 +28,7 @@ pub(crate) fn zbunk<T: BesselFloat>(
     elim: T,
     alim: T,
 ) -> i32 {
-    let ax = z.re.abs() * T::from(1.7321).unwrap();
+    let ax = z.re.abs() * T::from_f64(1.7321);
     let ay = z.im.abs();
 
     if ay > ax {

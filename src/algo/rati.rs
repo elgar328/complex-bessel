@@ -28,7 +28,7 @@ pub(crate) fn zrati<T: BesselFloat>(z: Complex<T>, fnu: T, cy: &mut [Complex<T>]
     let zero = T::zero();
     let one = T::one();
     // sqrt(2), Fortran DATA constant (zbsubs.f line 3126)
-    let rt2 = T::from(1.41421356237309505).unwrap();
+    let rt2 = T::from_f64(1.41421356237309505);
 
     let n = cy.len();
 
@@ -37,8 +37,8 @@ pub(crate) fn zrati<T: BesselFloat>(z: Complex<T>, fnu: T, cy: &mut [Complex<T>]
     let inu = fnu.to_i32().unwrap();
     let idnu = inu + n as i32 - 1;
     let magz = az.to_i32().unwrap();
-    let amagz = T::from((magz + 1) as f64).unwrap();
-    let fdnu = T::from(idnu as f64).unwrap();
+    let amagz = T::from_f64((magz + 1) as f64);
+    let fdnu = T::from_f64(idnu as f64);
     let fnup = amagz.max(fdnu);
     let mut id = idnu - magz - 1;
     if id > 0 {
@@ -100,7 +100,7 @@ pub(crate) fn zrati<T: BesselFloat>(z: Complex<T>, fnu: T, cy: &mut [Complex<T>]
             break;
         }
         // First pass: refine convergence test (Fortran lines 3180-3184)
-        let ak = zabs(Complex::new(t1r, t1i)) * T::from(0.5).unwrap();
+        let ak = zabs(Complex::new(t1r, t1i)) * T::from_f64(0.5);
         let flam = ak + (ak * ak - one).sqrt();
         let rho = (ap2 / ap1).min(flam);
         test = test1 * (rho / (rho * rho - one)).sqrt();
@@ -109,12 +109,12 @@ pub(crate) fn zrati<T: BesselFloat>(z: Complex<T>, fnu: T, cy: &mut [Complex<T>]
 
     // ── Stage 2: Backward recurrence (Fortran label 20, lines 3186-3212) ──
     let kk = (k + 1 - id) as usize;
-    let dfnu = fnu + T::from((n - 1) as f64).unwrap();
+    let dfnu = fnu + T::from_f64((n - 1) as f64);
     let mut p1r = one / ap2;
     let mut p1i = zero;
     let mut p2r = zero;
     let mut p2i = zero;
-    let mut t1r_bk = T::from(kk as f64).unwrap();
+    let mut t1r_bk = T::from_f64(kk as f64);
 
     for _ in 0..kk {
         let pt_r = p1r;
@@ -148,7 +148,7 @@ pub(crate) fn zrati<T: BesselFloat>(z: Complex<T>, fnu: T, cy: &mut [Complex<T>]
 
     for k_idx in (0..=(n - 2)).rev() {
         // T1R = k_idx + 1 corresponds to Fortran K (1-based)
-        let t1r_val = T::from((k_idx + 1) as f64).unwrap();
+        let t1r_val = T::from_f64((k_idx + 1) as f64);
         let mut pt_r = cdfnur + (t1r_val * rzr) + cy[k_idx + 1].re;
         let mut pt_i = cdfnui + (t1r_val * rzi) + cy[k_idx + 1].im;
         let mut ak = zabs(Complex::new(pt_r, pt_i));

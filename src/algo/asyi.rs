@@ -32,12 +32,12 @@ pub(crate) fn zasyi<T: BesselFloat>(
 ) -> i32 {
     let zero = T::zero();
     let one = T::one();
-    let eight = T::from(8.0).unwrap();
+    let eight = T::from_f64(8.0);
     let czero = Complex::new(zero, zero);
 
     // Fortran DATA constants (line 3834)
-    let pi = T::from(PI).unwrap();
-    let rtpi = T::from(0.159154943091895336).unwrap(); // 1/(2*pi)
+    let pi = T::from_f64(PI);
+    let rtpi = T::from_f64(0.159154943091895336); // 1/(2*pi)
 
     let n = y.len();
     for v in y.iter_mut() {
@@ -46,10 +46,10 @@ pub(crate) fn zasyi<T: BesselFloat>(
     let nz: i32 = 0;
 
     let az = zabs(z);
-    let arm = T::from(1.0e3).unwrap() * T::MACH_TINY;
+    let arm = T::from_f64(1.0e3) * T::MACH_TINY;
     let rtr1 = arm.sqrt();
     let il = if n < 2 { n } else { 2 };
-    let dfnu0 = fnu + T::from((n - il) as f64).unwrap();
+    let dfnu0 = fnu + T::from_f64((n - il) as f64);
 
     // Overflow test (Fortran lines 3846-3858)
     let raz = one / az;
@@ -62,7 +62,7 @@ pub(crate) fn zasyi<T: BesselFloat>(
     if ak1_abs > zero {
         let ak1_arg = ak1i.atan2(ak1r);
         let sqrt_abs = ak1_abs.sqrt();
-        let half_arg = ak1_arg * T::from(0.5).unwrap();
+        let half_arg = ak1_arg * T::from_f64(0.5);
         ak1r = sqrt_abs * half_arg.cos();
         ak1i = sqrt_abs * half_arg.sin();
     }
@@ -108,7 +108,7 @@ pub(crate) fn zasyi<T: BesselFloat>(
     if z.im != zero {
         // Compute exp(pi*(0.5+fnu+n-il)*i) minimizing precision loss
         let inu = fnu.to_i32().unwrap();
-        let arg = (fnu - T::from(inu as f64).unwrap()) * pi;
+        let arg = (fnu - T::from_f64(inu as f64)) * pi;
         let inu_adj = inu + n as i32 - il as i32;
         let ak_sign = -arg.sin();
         let mut bk_sign = arg.cos();
@@ -193,7 +193,7 @@ pub(crate) fn zasyi<T: BesselFloat>(
         }
 
         // Update fdn, negate p1, store result (Fortran lines 3942-3947)
-        fdn = fdn + eight * dfnu_val + T::from(4.0).unwrap();
+        fdn = fdn + eight * dfnu_val + T::from_f64(4.0);
         p1r = -p1r;
         p1i = -p1i;
         // M = N - IL + K + 1 (Fortran 1-based) → 0-based: n - il + k
@@ -212,7 +212,7 @@ pub(crate) fn zasyi<T: BesselFloat>(
 
     let nn = n;
     let mut k_idx: isize = nn as isize - 3;
-    let mut ak_rec = T::from((nn - 2) as f64).unwrap();
+    let mut ak_rec = T::from_f64((nn - 2) as f64);
     let str2 = z.re * raz;
     let sti2 = -z.im * raz;
     let rzr = (str2 + str2) * raz;

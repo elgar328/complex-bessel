@@ -61,13 +61,13 @@ fn airy_power_series<T: BesselFloat>(
     let az3 = az * aa;
 
     // Divisor coefficients (Fortran lines 1634-1642)
-    let two = T::from(2.0).unwrap();
-    let three = T::from(3.0).unwrap();
-    let four = T::from(4.0).unwrap();
-    let nine = T::from(9.0).unwrap();
-    let eighteen = T::from(18.0).unwrap();
-    let twenty_four = T::from(24.0).unwrap();
-    let thirty = T::from(30.0).unwrap();
+    let two = T::from_f64(2.0);
+    let three = T::from_f64(3.0);
+    let four = T::from_f64(4.0);
+    let nine = T::from_f64(9.0);
+    let eighteen = T::from_f64(18.0);
+    let twenty_four = T::from_f64(24.0);
+    let thirty = T::from_f64(30.0);
 
     let mut ak = two + fid;
     let mut bk = three - fid - fid;
@@ -116,10 +116,10 @@ pub(crate) fn zairy<T: BesselFloat>(
 ) -> Result<(Complex<T>, i32), BesselError> {
     let zero = T::zero();
     let one = T::one();
-    let tth = T::from(TTH).unwrap();
-    let c1 = T::from(AI_C1).unwrap();
-    let c2 = T::from(AI_C2).unwrap();
-    let coef = T::from(AI_COEF).unwrap();
+    let tth = T::from_f64(TTH);
+    let c1 = T::from_f64(AI_C1);
+    let c2 = T::from_f64(AI_C2);
+    let coef = T::from_f64(AI_COEF);
     let czero = Complex::new(zero, zero);
 
     let az = zabs(z);
@@ -139,7 +139,7 @@ pub(crate) fn zairy<T: BesselFloat>(
 
     if az < tol {
         // Tiny z (Fortran label 170, lines 1815-1837)
-        let aa = T::from(1.0e3).unwrap() * T::MACH_TINY;
+        let aa = T::from_f64(1.0e3) * T::MACH_TINY;
 
         if id == AiryDerivative::Value {
             // Ai(z) ≈ C1 - C2*z (Fortran lines 1819-1826)
@@ -158,10 +158,7 @@ pub(crate) fn zairy<T: BesselFloat>(
             let mut ai = Complex::new(-c2, zero);
             let aa_sqrt = aa.sqrt();
             if az > aa_sqrt {
-                let s1 = Complex::new(
-                    T::from(0.5).unwrap() * (z.re * z.re - z.im * z.im),
-                    z.re * z.im,
-                );
+                let s1 = Complex::new(T::from_f64(0.5) * (z.re * z.re - z.im * z.im), z.re * z.im);
                 ai = Complex::new(ai.re + c1 * s1.re, ai.im + c1 * s1.im);
             }
             return if kode == Scaling::Exponential {
@@ -231,7 +228,7 @@ fn zairy_large_z<T: BesselFloat>(
     let one = T::one();
     let czero = Complex::new(zero, zero);
 
-    let fnu = (one + fid) / T::from(3.0).unwrap();
+    let fnu = (one + fid) / T::from_f64(3.0);
 
     // Machine constants (Fortran lines 1709-1720)
     let elim = T::elim();
@@ -242,12 +239,12 @@ fn zairy_large_z<T: BesselFloat>(
     let mut nz: i32 = 0;
 
     // Range test (Fortran lines 1724-1728)
-    let half = T::from(0.5).unwrap();
+    let half = T::from_f64(0.5);
     // Fortran: 0.5D0/TOL is capped at R1M5*(K1-1) where K1=I1MACH(15)
     // For IEEE 754 f64: R1M5*(1023) = 307.95..., AA = 10^307.95 ≈ 8.9e307
     // The literal 1073741823.5 = 2^30 - 0.5, used as a machine-safe upper bound
     // (Fortran ZAIRY line 1724 / ZBIRY line 2116)
-    let mut aa = (half / tol).min(T::from(1073741823.5).unwrap());
+    let mut aa = (half / tol).min(T::from_f64(1073741823.5));
     aa = aa.powf(tth);
     if az > aa {
         return Err(BesselError::TotalPrecisionLoss);
@@ -281,7 +278,7 @@ fn zairy_large_z<T: BesselFloat>(
         // Label 110: direct ZBKNU path (right half plane)
         // Underflow test (Fortran lines 1774-1782)
         if kode != Scaling::Exponential && aa_zta >= alim {
-            let test_val = -aa_zta - T::from(0.25).unwrap() * alaz;
+            let test_val = -aa_zta - T::from_f64(0.25) * alaz;
             iflag = 2;
             sfac = one / tol;
             if test_val < -elim {
@@ -304,7 +301,7 @@ fn zairy_large_z<T: BesselFloat>(
     if kode != Scaling::Exponential {
         // Overflow test (Fortran lines 1757-1761)
         if -aa_zta > alim {
-            let test_val = -aa_zta + T::from(0.25).unwrap() * alaz;
+            let test_val = -aa_zta + T::from_f64(0.25) * alaz;
             iflag = 1;
             sfac = tol;
             if test_val > elim {
@@ -393,11 +390,11 @@ pub(crate) fn zbiry<T: BesselFloat>(
 ) -> Result<Complex<T>, BesselError> {
     let zero = T::zero();
     let one = T::one();
-    let tth = T::from(TTH).unwrap();
-    let c1 = T::from(BI_C1).unwrap();
-    let c2 = T::from(BI_C2).unwrap();
-    let coef = T::from(BI_COEF).unwrap();
-    let pi_t = T::from(PI).unwrap();
+    let tth = T::from_f64(TTH);
+    let c1 = T::from_f64(BI_C1);
+    let c2 = T::from_f64(BI_C2);
+    let coef = T::from_f64(BI_COEF);
+    let pi_t = T::from_f64(PI);
 
     let az = zabs(z);
     let tol = T::tol();
@@ -476,9 +473,9 @@ fn zbiry_large_z<T: BesselFloat>(
 ) -> Result<Complex<T>, BesselError> {
     let zero = T::zero();
     let one = T::one();
-    let two = T::from(2.0).unwrap();
-    let three = T::from(3.0).unwrap();
-    let half = T::from(0.5).unwrap();
+    let two = T::from_f64(2.0);
+    let three = T::from_f64(3.0);
+    let half = T::from_f64(0.5);
 
     let fnu = (one + fid) / three;
 
@@ -493,7 +490,7 @@ fn zbiry_large_z<T: BesselFloat>(
     // For IEEE 754 f64: R1M5*(1023) = 307.95..., AA = 10^307.95 ≈ 8.9e307
     // The literal 1073741823.5 = 2^30 - 0.5, used as a machine-safe upper bound
     // (Fortran ZAIRY line 1724 / ZBIRY line 2116)
-    let mut aa = (half / tol).min(T::from(1073741823.5).unwrap());
+    let mut aa = (half / tol).min(T::from_f64(1073741823.5));
     aa = aa.powf(tth);
     if az > aa {
         return Err(BesselError::TotalPrecisionLoss);
@@ -522,7 +519,7 @@ fn zbiry_large_z<T: BesselFloat>(
     if kode != Scaling::Exponential {
         let bb_abs = aa_zta.abs();
         if bb_abs >= alim {
-            let bb_test = bb_abs + T::from(0.25).unwrap() * az.ln();
+            let bb_test = bb_abs + T::from_f64(0.25) * az.ln();
             sfac = tol;
             if bb_test > elim {
                 return Err(BesselError::Overflow);

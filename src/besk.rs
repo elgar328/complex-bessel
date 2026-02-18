@@ -11,7 +11,7 @@ use crate::algo::bknu::zbknu;
 use crate::algo::bunk::zbunk;
 use crate::algo::uoik::zuoik;
 use crate::machine::BesselFloat;
-use crate::types::{BesselError, BesselStatus, Scaling};
+use crate::types::{BesselError, BesselStatus, IkFlag, Scaling};
 use crate::utils::zabs;
 
 /// Compute K_{ν+j}(z) for j = 0, 1, ..., n-1 into the provided slice.
@@ -63,12 +63,12 @@ pub(crate) fn zbesk<T: BesselFloat>(
 
     // AA = min(0.5/TOL, I1MACH(9)*0.5) — upper bound for range checks
     // I1MACH(9) = largest machine integer = 2147483647 for 32-bit
-    let aa_tol = T::from(0.5).unwrap() / tol;
-    let bb = T::from(2147483647.0 * 0.5).unwrap();
+    let aa_tol = T::from_f64(0.5) / tol;
+    let bb = T::from_f64(2147483647.0 * 0.5);
     let aa = aa_tol.min(bb);
 
     let az = zabs(z);
-    let fn_val = fnu + T::from(n as f64 - 1.0).unwrap(); // FN = FNU + N - 1
+    let fn_val = fnu + T::from_f64(n as f64 - 1.0); // FN = FNU + N - 1
 
     // ── Range check: total precision loss (IERR=4) ──
     if az > aa || fn_val > aa {
@@ -83,7 +83,7 @@ pub(crate) fn zbesk<T: BesselFloat>(
     }
 
     // ── Underflow limit: |z| too small ──
-    let ufl = T::MACH_TINY * T::from(1.0e3).unwrap();
+    let ufl = T::MACH_TINY * T::from_f64(1.0e3);
     if az < ufl {
         return Err(BesselError::Overflow);
     }
@@ -124,10 +124,10 @@ pub(crate) fn zbesk<T: BesselFloat>(
     let rl = T::rl();
 
     if fn_val > T::one() {
-        if fn_val > T::from(2.0).unwrap() {
+        if fn_val > T::from_f64(2.0) {
             // FN > 2: ZUOIK overflow/underflow pre-check (Fortran lines 89-95)
             // zuoik zeros the buffer; y[..nn] will be overwritten by actual computation later.
-            let nuf = zuoik(z, fnu, scaling, 2, &mut y[..nn], tol, elim, alim);
+            let nuf = zuoik(z, fnu, scaling, IkFlag::K, &mut y[..nn], tol, elim, alim);
             if nuf < 0 {
                 return Err(BesselError::Overflow);
             }
@@ -146,7 +146,7 @@ pub(crate) fn zbesk<T: BesselFloat>(
 
         // Check for overflow: -FN * ln(0.5 * |z|) > ELIM
         if az <= tol {
-            let half = T::from(0.5).unwrap();
+            let half = T::from_f64(0.5);
             let aln = -(fn_val * (half * az).ln());
             if aln > elim {
                 return Err(BesselError::Overflow);

@@ -16,7 +16,7 @@ use crate::algo::uchk::zuchk;
 use crate::algo::unhj::zunhj;
 use crate::algo::unik::zunik;
 use crate::machine::BesselFloat;
-use crate::types::Scaling;
+use crate::types::{IkFlag, Scaling, SumOption};
 use crate::utils::zabs;
 
 /// Overflow/underflow pre-check using uniform asymptotic leading terms.
@@ -28,13 +28,13 @@ use crate::utils::zabs;
 /// - `nuf = n` (ikflg=2): all Y values set to zero (underflow)
 ///
 /// # Parameters
-/// - `ikflg`: 1 for I function test, 2 for K function test
+/// - `ikflg`: `IkFlag::I` for I function test, `IkFlag::K` for K function test
 /// - `y`: output slice (length determines number of sequence members)
 pub(crate) fn zuoik<T: BesselFloat>(
     z: Complex<T>,
     fnu: T,
     kode: Scaling,
-    ikflg: i32,
+    ikflg: IkFlag,
     y: &mut [Complex<T>],
     tol: T,
     elim: T,
@@ -51,7 +51,7 @@ pub(crate) fn zuoik<T: BesselFloat>(
     let mut nn = n;
 
     // AIC = ln(sqrt(pi/2)) = 0.5*ln(pi/2) (Fortran line 4017)
-    let aic = T::from(AIC).unwrap();
+    let aic = T::from_f64(AIC);
 
     // Reflect to right half plane (Fortran lines 4020-4026)
     let (zrr, zri) = if z.re >= zero {
@@ -63,14 +63,14 @@ pub(crate) fn zuoik<T: BesselFloat>(
     let zbi = zri;
 
     // Determine form (Fortran lines 4028-4031)
-    let ax = z.re.abs() * T::from(1.7321).unwrap();
+    let ax = z.re.abs() * T::from_f64(1.7321);
     let ay = z.im.abs();
     let iform: i32 = if ay > ax { 2 } else { 1 };
 
     // Determine order for test (Fortran lines 4032-4036)
     let mut gnu = fnu.max(one);
-    if ikflg == 2 {
-        let fnn = T::from(nn as f64).unwrap();
+    if ikflg == IkFlag::K {
+        let fnn = T::from_f64(nn as f64);
         let gnn = fnu + fnn - one;
         gnu = gnn.max(fnn);
     }
@@ -92,14 +92,14 @@ pub(crate) fn zuoik<T: BesselFloat>(
     let zr_arg = Complex::new(zrr, zri);
     let (mut czr, mut czi, phi, aarg) = if iform == 1 {
         // ZUNIK path (Fortran lines 4044-4048)
-        let result = zunik(zr_arg, gnu, ikflg, 1, tol, None);
+        let result = zunik(zr_arg, gnu, ikflg, SumOption::SkipSum, tol, None);
         let czr_val = -result.zeta1.re + result.zeta2.re;
         let czi_val = -result.zeta1.im + result.zeta2.im;
         (czr_val, czi_val, result.phi, zero)
     } else {
         // ZUNHJ path (Fortran lines 4056-4060)
         let zn = Complex::new(znr, zni);
-        let result = zunhj(zn, gnu, 1, tol);
+        let result = zunhj(zn, gnu, SumOption::SkipSum, tol);
         let czr_val = -result.zeta1.re + result.zeta2.re;
         let czi_val = -result.zeta1.im + result.zeta2.im;
         let aarg_val = zabs(result.arg);
@@ -111,7 +111,7 @@ pub(crate) fn zuoik<T: BesselFloat>(
         czr = czr - zbr;
         czi = czi - zbi;
     }
-    if ikflg == 2 {
+    if ikflg == IkFlag::K {
         czr = -czr;
         czi = -czi;
     }
@@ -126,7 +126,7 @@ pub(crate) fn zuoik<T: BesselFloat>(
         // Between ALIM and ELIM: refine (Fortran lines 4077-4079)
         rcz = rcz + aphi.ln();
         if iform == 2 {
-            rcz = rcz - T::from(0.25).unwrap() * aarg.ln() - aic;
+            rcz = rcz - T::from_f64(0.25) * aarg.ln() - aic;
         }
         if rcz > elim {
             return -1; // label 210
@@ -145,7 +145,7 @@ pub(crate) fn zuoik<T: BesselFloat>(
             // Between -ELIM and -ALIM: refine (Fortran lines 4087-4089)
             rcz = rcz + aphi.ln();
             if iform == 2 {
-                rcz = rcz - T::from(0.25).unwrap() * aarg.ln() - aic;
+                rcz = rcz - T::from_f64(0.25) * aarg.ln() - aic;
             }
             if rcz <= -elim {
                 // Complete underflow (label 90)
@@ -155,15 +155,15 @@ pub(crate) fn zuoik<T: BesselFloat>(
                 return nn as i32;
             }
             // Refined check with ZUCHK (label 110, Fortran lines 4098-4112)
-            let ascle = T::from(1.0e3).unwrap() * T::MACH_TINY / tol;
+            let ascle = T::from_f64(1.0e3) * T::MACH_TINY / tol;
             let log_phi = phi.ln();
             czr = czr + log_phi.re;
             czi = czi + log_phi.im;
             if iform == 2 {
                 // Fortran lines 4103-4105: subtract 0.25*ln(arg) + AIC
                 let log_arg = Complex::new(aarg, zero).ln();
-                czr = czr - T::from(0.25).unwrap() * log_arg.re - aic;
-                czi = czi - T::from(0.25).unwrap() * log_arg.im;
+                czr = czr - T::from_f64(0.25) * log_arg.re - aic;
+                czi = czi - T::from_f64(0.25) * log_arg.im;
             }
             // label 120 (Fortran lines 4107-4111)
             let ax_val = rcz.exp() / tol;
@@ -180,7 +180,7 @@ pub(crate) fn zuoik<T: BesselFloat>(
     }
 
     // ── Label 130: on scale (Fortran lines 4114-4115) ──
-    if ikflg == 2 {
+    if ikflg == IkFlag::K {
         return nuf;
     }
     if n == 1 {
@@ -189,12 +189,12 @@ pub(crate) fn zuoik<T: BesselFloat>(
 
     // ── I function per-member underflow chain (label 140, Fortran lines 4119-4168) ──
     loop {
-        gnu = fnu + T::from((nn - 1) as f64).unwrap();
+        gnu = fnu + T::from_f64((nn - 1) as f64);
 
         let (phi2, aarg2);
         if iform == 1 {
             // ZUNIK call (Fortran lines 4122-4126)
-            let result2 = zunik(zr_arg, gnu, ikflg, 1, tol, None);
+            let result2 = zunik(zr_arg, gnu, ikflg, SumOption::SkipSum, tol, None);
             czr = -result2.zeta1.re + result2.zeta2.re;
             czi = -result2.zeta1.im + result2.zeta2.im;
             phi2 = result2.phi;
@@ -202,7 +202,7 @@ pub(crate) fn zuoik<T: BesselFloat>(
         } else {
             // ZUNHJ call (Fortran lines 4129-4133)
             let zn = Complex::new(znr, zni);
-            let result2 = zunhj(zn, gnu, 1, tol);
+            let result2 = zunhj(zn, gnu, SumOption::SkipSum, tol);
             czr = -result2.zeta1.re + result2.zeta2.re;
             czi = -result2.zeta1.im + result2.zeta2.im;
             phi2 = result2.phi;
@@ -237,7 +237,7 @@ pub(crate) fn zuoik<T: BesselFloat>(
         // Between -ELIM and -ALIM: refine (Fortran lines 4143-4145)
         rcz = rcz + aphi2.ln();
         if iform == 2 {
-            rcz = rcz - T::from(0.25).unwrap() * aarg2.ln() - aic;
+            rcz = rcz - T::from_f64(0.25) * aarg2.ln() - aic;
         }
         if rcz <= -elim {
             // label 180: underflow this member
@@ -251,15 +251,15 @@ pub(crate) fn zuoik<T: BesselFloat>(
         }
 
         // Refined check with ZUCHK (label 190, Fortran lines 4154-4168)
-        let ascle = T::from(1.0e3).unwrap() * T::MACH_TINY / tol;
+        let ascle = T::from_f64(1.0e3) * T::MACH_TINY / tol;
         let log_phi2 = phi2.ln();
         czr = czr + log_phi2.re;
         czi = czi + log_phi2.im;
         if iform == 2 {
             // Fortran lines 4159-4161
             let log_arg2 = Complex::new(aarg2, zero).ln();
-            czr = czr - T::from(0.25).unwrap() * log_arg2.re - aic;
-            czi = czi - T::from(0.25).unwrap() * log_arg2.im;
+            czr = czr - T::from_f64(0.25) * log_arg2.re - aic;
+            czi = czi - T::from_f64(0.25) * log_arg2.im;
         }
         // label 200 (Fortran lines 4163-4167)
         let ax_val = rcz.exp() / tol;

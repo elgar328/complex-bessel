@@ -56,7 +56,7 @@ pub(crate) fn zbuni<T: BesselFloat>(
     let nz: i32 = 0;
 
     // Region select (Fortran lines 6687-6690)
-    let ax = z.re.abs() * T::from(1.7321).unwrap();
+    let ax = z.re.abs() * T::from_f64(1.7321);
     let ay = z.im.abs();
     let iform: i32 = if ay > ax { 2 } else { 1 };
 
@@ -80,8 +80,8 @@ pub(crate) fn zbuni<T: BesselFloat>(
     }
 
     // ── NUI > 0: boost order and recur backward (Fortran lines 6692-6809) ──
-    let fnui = T::from(nui as f64).unwrap();
-    let dfnu = fnu + T::from((n - 1) as f64).unwrap();
+    let fnui = T::from_f64(nui as f64);
+    let dfnu = fnu + T::from_f64((n - 1) as f64);
     let gnu = dfnu + fnui;
 
     // Compute 2 values at boosted order (Fortran lines 6700-6711)
@@ -108,7 +108,7 @@ pub(crate) fn zbuni<T: BesselFloat>(
 
     // ── Scale backward recurrence (Fortran lines 6714-6772) ──
     let str_val = zabs(Complex::new(cy[0].re, cy[0].im));
-    let bry0 = T::from(1.0e3).unwrap() * T::MACH_TINY / tol;
+    let bry0 = T::from_f64(1.0e3) * T::MACH_TINY / tol;
     let bry1 = one / bry0;
 
     let mut iflag: usize;
@@ -181,7 +181,7 @@ pub(crate) fn zbuni<T: BesselFloat>(
 
     // Backward recurrence for remaining N-1 orders (Fortran DO 40, lines 6779-6809)
     let nl = n - 1;
-    let mut fnui_val = T::from(nl as f64).unwrap();
+    let mut fnui_val = T::from_f64(nl as f64);
     let mut k = nl; // 1-based index counting down
     for _i in 0..nl {
         let str = s2.re;

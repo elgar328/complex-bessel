@@ -13,7 +13,7 @@ use crate::algo::uchk::zuchk;
 use crate::algo::unhj::zunhj;
 use crate::algo::uoik::zuoik;
 use crate::machine::BesselFloat;
-use crate::types::{AiryDerivative, Scaling};
+use crate::types::{AiryDerivative, IkFlag, Scaling, SumOption};
 use crate::utils::zabs;
 
 use crate::algo::constants::{AIC, HPI};
@@ -64,7 +64,7 @@ pub(crate) fn zuni2<T: BesselFloat>(
     let crsc = tol;
     let cssr = [cscl, one, crsc];
     let csrr = [crsc, one, cscl];
-    let bry0 = T::from(1.0e3).unwrap() * T::MACH_TINY / tol;
+    let bry0 = T::from_f64(1.0e3) * T::MACH_TINY / tol;
 
     // ── Rotate z to right half plane (Fortran lines 7102-7106) ──
     let mut znr = z.im; // ZNR = ZI
@@ -74,7 +74,7 @@ pub(crate) fn zuni2<T: BesselFloat>(
     let mut cidi = -one; // CIDI = -1
 
     let inu = fnu.to_i32().unwrap() as usize;
-    let ang = T::from(HPI).unwrap() * (fnu - T::from(inu as f64).unwrap());
+    let ang = T::from_f64(HPI) * (fnu - T::from_f64(inu as f64));
     let c2r_init = ang.cos();
     let c2i_init = ang.sin();
     let car = c2r_init;
@@ -82,10 +82,8 @@ pub(crate) fn zuni2<T: BesselFloat>(
 
     // IN = (INU + N - 1) mod 4 (0-based)
     let in_idx = (inu + n - 1) % 4;
-    let mut c2r =
-        c2r_init * T::from(CIPR[in_idx]).unwrap() - c2i_init * T::from(CIPI[in_idx]).unwrap();
-    let mut c2i =
-        c2r_init * T::from(CIPI[in_idx]).unwrap() + c2i_init * T::from(CIPR[in_idx]).unwrap();
+    let mut c2r = c2r_init * T::from_f64(CIPR[in_idx]) - c2i_init * T::from_f64(CIPI[in_idx]);
+    let mut c2i = c2r_init * T::from_f64(CIPI[in_idx]) + c2i_init * T::from_f64(CIPR[in_idx]);
 
     if z.im <= zero {
         // Fortran lines 7119-7122
@@ -97,7 +95,7 @@ pub(crate) fn zuni2<T: BesselFloat>(
 
     // ── Check first member for overflow/underflow (Fortran lines 7127-7144) ──
     let fn_val = fnu.max(one);
-    let result0 = zunhj(Complex::new(znr, zni), fn_val, 1, tol);
+    let result0 = zunhj(Complex::new(znr, zni), fn_val, SumOption::SkipSum, tol);
 
     let rs1 = if kode == Scaling::Exponential {
         let str = zbr + result0.zeta2.re;
@@ -131,8 +129,8 @@ pub(crate) fn zuni2<T: BesselFloat>(
 
         #[allow(clippy::needless_range_loop)]
         for i in 0..nn {
-            let fn_val = fnu + T::from((nd - 1 - i) as f64).unwrap();
-            let result = zunhj(Complex::new(znr, zni), fn_val, 0, tol);
+            let fn_val = fnu + T::from_f64((nd - 1 - i) as f64);
+            let result = zunhj(Complex::new(znr, zni), fn_val, SumOption::Full, tol);
 
             let (s1r, s1i) = if kode == Scaling::Exponential {
                 // KODE=2 path (Fortran lines 7151-7158)
@@ -166,7 +164,7 @@ pub(crate) fn zuni2<T: BesselFloat>(
                 if nd == 0 {
                     return Uni2Output { nz, nlast: 0 };
                 }
-                let nuf = zuoik(z, fnu, kode, 1, &mut y[..nd], tol, elim, alim);
+                let nuf = zuoik(z, fnu, kode, IkFlag::I, &mut y[..nd], tol, elim, alim);
                 if nuf < 0 {
                     return Uni2Output { nz: -1, nlast: 0 };
                 }
@@ -175,14 +173,12 @@ pub(crate) fn zuni2<T: BesselFloat>(
                 if nd == 0 {
                     return Uni2Output { nz, nlast: 0 };
                 }
-                let fn_check = fnu + T::from((nd - 1) as f64).unwrap();
+                let fn_check = fnu + T::from_f64((nd - 1) as f64);
                 if fn_check >= fnul {
                     // Recalculate C2 (Fortran lines 7292-7296)
                     let in_idx2 = (inu + nd - 1) % 4;
-                    c2r = car * T::from(CIPR[in_idx2]).unwrap()
-                        - sar * T::from(CIPI[in_idx2]).unwrap();
-                    c2i = car * T::from(CIPI[in_idx2]).unwrap()
-                        + sar * T::from(CIPR[in_idx2]).unwrap();
+                    c2r = car * T::from_f64(CIPR[in_idx2]) - sar * T::from_f64(CIPI[in_idx2]);
+                    c2i = car * T::from_f64(CIPI[in_idx2]) + sar * T::from_f64(CIPR[in_idx2]);
                     if z.im <= zero {
                         c2i = -c2i;
                     }
@@ -200,7 +196,7 @@ pub(crate) fn zuni2<T: BesselFloat>(
                 // Refine test (Fortran lines 7175-7181)
                 let aphi = zabs(result.phi);
                 let aarg = zabs(result.arg);
-                rs1 = rs1 + aphi.ln() - T::from(0.25).unwrap() * aarg.ln() - T::from(AIC).unwrap();
+                rs1 = rs1 + aphi.ln() - T::from_f64(0.25) * aarg.ln() - T::from_f64(AIC);
                 if rs1.abs() > elim {
                     if rs1 > zero {
                         return Uni2Output { nz: -1, nlast: 0 };
@@ -211,7 +207,7 @@ pub(crate) fn zuni2<T: BesselFloat>(
                     if nd == 0 {
                         return Uni2Output { nz, nlast: 0 };
                     }
-                    let nuf = zuoik(z, fnu, kode, 1, &mut y[..nd], tol, elim, alim);
+                    let nuf = zuoik(z, fnu, kode, IkFlag::I, &mut y[..nd], tol, elim, alim);
                     if nuf < 0 {
                         return Uni2Output { nz: -1, nlast: 0 };
                     }
@@ -220,13 +216,11 @@ pub(crate) fn zuni2<T: BesselFloat>(
                     if nd == 0 {
                         return Uni2Output { nz, nlast: 0 };
                     }
-                    let fn_check = fnu + T::from((nd - 1) as f64).unwrap();
+                    let fn_check = fnu + T::from_f64((nd - 1) as f64);
                     if fn_check >= fnul {
                         let in_idx2 = (inu + nd - 1) % 4;
-                        c2r = car * T::from(CIPR[in_idx2]).unwrap()
-                            - sar * T::from(CIPI[in_idx2]).unwrap();
-                        c2i = car * T::from(CIPI[in_idx2]).unwrap()
-                            + sar * T::from(CIPR[in_idx2]).unwrap();
+                        c2r = car * T::from_f64(CIPR[in_idx2]) - sar * T::from_f64(CIPI[in_idx2]);
+                        c2i = car * T::from_f64(CIPI[in_idx2]) + sar * T::from_f64(CIPR[in_idx2]);
                         if z.im <= zero {
                             c2i = -c2i;
                         }
@@ -274,7 +268,7 @@ pub(crate) fn zuni2<T: BesselFloat>(
                 if nd == 0 {
                     return Uni2Output { nz, nlast: 0 };
                 }
-                let nuf = zuoik(z, fnu, kode, 1, &mut y[..nd], tol, elim, alim);
+                let nuf = zuoik(z, fnu, kode, IkFlag::I, &mut y[..nd], tol, elim, alim);
                 if nuf < 0 {
                     return Uni2Output { nz: -1, nlast: 0 };
                 }
@@ -283,13 +277,11 @@ pub(crate) fn zuni2<T: BesselFloat>(
                 if nd == 0 {
                     return Uni2Output { nz, nlast: 0 };
                 }
-                let fn_check = fnu + T::from((nd - 1) as f64).unwrap();
+                let fn_check = fnu + T::from_f64((nd - 1) as f64);
                 if fn_check >= fnul {
                     let in_idx2 = (inu + nd - 1) % 4;
-                    c2r = car * T::from(CIPR[in_idx2]).unwrap()
-                        - sar * T::from(CIPI[in_idx2]).unwrap();
-                    c2i = car * T::from(CIPI[in_idx2]).unwrap()
-                        + sar * T::from(CIPR[in_idx2]).unwrap();
+                    c2r = car * T::from_f64(CIPR[in_idx2]) - sar * T::from_f64(CIPI[in_idx2]);
+                    c2i = car * T::from_f64(CIPI[in_idx2]) + sar * T::from_f64(CIPR[in_idx2]);
                     if z.im <= zero {
                         c2i = -c2i;
                     }
@@ -352,7 +344,7 @@ pub(crate) fn zuni2<T: BesselFloat>(
         };
 
         let mut k = nd - 2;
-        let mut fn_rec = T::from(k as f64).unwrap();
+        let mut fn_rec = T::from_f64(k as f64);
 
         for _i in 2..nd {
             let c2 = s2;

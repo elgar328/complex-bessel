@@ -21,7 +21,7 @@ pub(crate) fn zbesi<T: BesselFloat>(
 ) -> Result<(usize, BesselStatus), BesselError> {
     let zero = T::zero();
     let one = T::one();
-    let pi_t = T::from(PI).unwrap();
+    let pi_t = T::from_f64(PI);
     let czero = Complex::new(zero, zero);
 
     let n = y.len();
@@ -48,9 +48,9 @@ pub(crate) fn zbesi<T: BesselFloat>(
 
     // Range check (Fortran lines 551-560)
     let az = zabs(z);
-    let fn_val = fnu + T::from((n - 1) as f64).unwrap();
-    let aa_tol = T::from(0.5).unwrap() / tol;
-    let bb = T::from(2147483647.0 * 0.5).unwrap();
+    let fn_val = fnu + T::from_f64((n - 1) as f64);
+    let aa_tol = T::from_f64(0.5) / tol;
+    let bb = T::from_f64(2147483647.0 * 0.5);
     let aa = aa_tol.min(bb);
 
     if az > aa || fn_val > aa {
@@ -77,7 +77,7 @@ pub(crate) fn zbesi<T: BesselFloat>(
 
         // CSGN = exp(fnu*pi*i) with precision preservation (Fortran lines 572-579)
         let inu = fnu.to_i32().unwrap();
-        let mut arg = (fnu - T::from(inu as f64).unwrap()) * pi_t;
+        let mut arg = (fnu - T::from_f64(inu as f64)) * pi_t;
         if z.im < zero {
             arg = -arg;
         }
@@ -112,7 +112,7 @@ pub(crate) fn zbesi<T: BesselFloat>(
     }
 
     let rtol = one / tol;
-    let ascle = T::MACH_TINY * rtol * T::from(1.0e3).unwrap();
+    let ascle = T::MACH_TINY * rtol * T::from_f64(1.0e3);
 
     for cy_item in y.iter_mut().take(nn) {
         let mut aa_val = cy_item.re;

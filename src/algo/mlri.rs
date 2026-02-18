@@ -34,7 +34,7 @@ pub(crate) fn zmlri<T: BesselFloat>(
     let iaz = az.to_i32().unwrap();
     let ifnu = fnu.to_i32().unwrap();
     let inu = ifnu + n as i32 - 1;
-    let at = T::from(iaz as f64 + 1.0).unwrap();
+    let at = T::from_f64(iaz as f64 + 1.0);
     let raz = one / az;
     let str = z.re * raz;
     let sti = -z.im * raz;
@@ -85,7 +85,7 @@ pub(crate) fn zmlri<T: BesselFloat>(
         p1i = zero;
         p2r = one;
         p2i = zero;
-        let at2 = T::from(inu as f64 + 1.0).unwrap();
+        let at2 = T::from_f64(inu as f64 + 1.0);
         let str2 = z.re * raz;
         let sti2 = -z.im * raz;
         ckr = str2 * at2 * raz;
@@ -129,12 +129,12 @@ pub(crate) fn zmlri<T: BesselFloat>(
     // (Fortran lines 3421-3526)
     k += 1;
     let kk = (i_val + iaz).max(k + inu);
-    let mut fkk = T::from(kk as f64).unwrap();
+    let mut fkk = T::from_f64(kk as f64);
     p1r = zero;
     p1i = zero;
     p2r = scle;
     p2i = zero;
-    let fnf = fnu - T::from(ifnu as f64).unwrap();
+    let fnf = fnu - T::from_f64(ifnu as f64);
     let tfnf = fnf + fnf;
     let bk_ln =
         gamln(fkk + tfnf + one).unwrap() - gamln(fkk + one).unwrap() - gamln(tfnf + one).unwrap();

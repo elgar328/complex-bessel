@@ -14,7 +14,7 @@ use crate::algo::seri::zseri;
 use crate::algo::uoik::zuoik;
 use crate::algo::wrsk::zwrsk;
 use crate::machine::BesselFloat;
-use crate::types::{BesselError, Scaling};
+use crate::types::{BesselError, IkFlag, Scaling};
 use crate::utils::zabs;
 
 /// Compute I Bessel function in the right half z-plane.
@@ -34,7 +34,7 @@ pub(crate) fn zbinu<T: BesselFloat>(
 ) -> Result<usize, BesselError> {
     let zero = T::zero();
     let one = T::one();
-    let two = T::from(2.0).unwrap();
+    let two = T::from_f64(2.0);
     let czero = Complex::new(zero, zero);
 
     let n = cy.len();
@@ -45,10 +45,10 @@ pub(crate) fn zbinu<T: BesselFloat>(
     let mut nz: usize = 0;
     let az = zabs(z);
     let mut nn = n;
-    let mut dfnu = fnu + T::from((n - 1) as f64).unwrap();
+    let mut dfnu = fnu + T::from_f64((n - 1) as f64);
 
     // Dispatch: power series first (Fortran lines 4398-4411)
-    if az <= two || az * az * T::from(0.25).unwrap() <= dfnu + one {
+    if az <= two || az * az * T::from_f64(0.25) <= dfnu + one {
         // Label 10: power series (ZSERI)
         let nw = zseri(z, fnu, kode, &mut cy[..nn], tol, elim, alim);
         let inw = nw.unsigned_abs() as usize;
@@ -62,7 +62,7 @@ pub(crate) fn zbinu<T: BesselFloat>(
             return Ok(nz);
         }
         // nw < 0: need to continue with remaining terms
-        dfnu = fnu + T::from((nn - 1) as f64).unwrap();
+        dfnu = fnu + T::from_f64((nn - 1) as f64);
         // Fall through to label 20
     }
 
@@ -113,7 +113,7 @@ fn dispatch_20<T: BesselFloat>(
 
     // Label 50: overflow/underflow test on I sequence for Miller algorithm
     // (Fortran lines 4429-4437)
-    let nw = zuoik(z, fnu, kode, 1, &mut cy[..*nn], tol, elim, alim);
+    let nw = zuoik(z, fnu, kode, IkFlag::I, &mut cy[..*nn], tol, elim, alim);
     if nw < 0 {
         return handle_error(nw);
     }
@@ -122,7 +122,7 @@ fn dispatch_20<T: BesselFloat>(
     if *nn == 0 {
         return Ok(*nz);
     }
-    *dfnu = fnu + T::from((*nn - 1) as f64).unwrap();
+    *dfnu = fnu + T::from_f64((*nn - 1) as f64);
 
     if *dfnu > fnul || az > fnul {
         // Label 110: increment fnu+nn-1 up to fnul, compute and recur backward
@@ -146,7 +146,7 @@ fn dispatch_20<T: BesselFloat>(
         // Label 80: Miller algorithm normalized by Wronskian
         // Overflow test on K functions used in Wronskian (Fortran lines 4454-4456)
         let mut cw_buf = [czero; 2];
-        let nw = zuoik(z, fnu, kode, 2, &mut cw_buf, tol, elim, alim);
+        let nw = zuoik(z, fnu, kode, IkFlag::K, &mut cw_buf, tol, elim, alim);
         if nw < 0 {
             // All values underflow to zero (Fortran lines 4457-4462)
             *nz = *nn;

@@ -13,7 +13,7 @@ use crate::algo::s1s2::zs1s2;
 use crate::algo::uchk::zuchk;
 use crate::algo::unik::{UnikCache, zunik};
 use crate::machine::BesselFloat;
-use crate::types::Scaling;
+use crate::types::{IkFlag, Scaling, SumOption};
 use crate::utils::zabs;
 
 /// Compute K(fnu,z) via Region 1 uniform asymptotic expansion + analytic continuation.
@@ -44,7 +44,7 @@ pub(crate) fn zunk1<T: BesselFloat>(
     let zero = T::zero();
     let one = T::one();
     let czero = Complex::new(zero, zero);
-    let pi_t = T::from(PI).unwrap();
+    let pi_t = T::from_f64(PI);
 
     for v in y.iter_mut() {
         *v = czero;
@@ -58,8 +58,8 @@ pub(crate) fn zunk1<T: BesselFloat>(
     let cssr = [cscl, one, crsc];
     let csrr = [crsc, one, cscl];
     let bry = [
-        T::from(1.0e3).unwrap() * T::MACH_TINY / tol,
-        one / (T::from(1.0e3).unwrap() * T::MACH_TINY / tol),
+        T::from_f64(1.0e3) * T::MACH_TINY / tol,
+        one / (T::from_f64(1.0e3) * T::MACH_TINY / tol),
         T::MACH_HUGE,
     ];
 
@@ -88,10 +88,10 @@ pub(crate) fn zunk1<T: BesselFloat>(
     for i in 0..n {
         // J flip-flop (Fortran: J = 3 - J) -> Rust: j = 1 - j
         j = 1 - j;
-        let fn_val = fnu + T::from(i as f64).unwrap();
+        let fn_val = fnu + T::from_f64(i as f64);
 
         // Fresh ZUNIK call with IKFLG=2 (K function), IPMTR=0
-        let result = zunik(zr_arg, fn_val, 2, 0, tol, None);
+        let result = zunik(zr_arg, fn_val, IkFlag::K, SumOption::Full, tol, None);
         phi_arr[j] = result.phi;
         zeta1_arr[j] = result.zeta1;
         zeta2_arr[j] = result.zeta2;
@@ -210,7 +210,7 @@ pub(crate) fn zunk1<T: BesselFloat>(
     // If loop completed without early exit: i_exit = N (Fortran), fn_at_exit = fnu + N - 1
 
     if i_exit == n {
-        fn_at_exit = fnu + T::from((n - 1) as f64).unwrap();
+        fn_at_exit = fnu + T::from_f64((n - 1) as f64);
     }
 
     // -- Compute RZ and CK (Fortran lines 5868-5874) --
@@ -227,9 +227,13 @@ pub(crate) fn zunk1<T: BesselFloat>(
     // -- Test last member and forward recurrence (Fortran lines 5876-5961) --
     if ib <= n {
         // Test last member for underflow (Fortran lines 5881-5921)
-        let fn_last = fnu + T::from((n - 1) as f64).unwrap();
-        let ipard = if mr != 0 { 0 } else { 1 };
-        let result_last = zunik(zr_arg, fn_last, 2, ipard, tol, None);
+        let fn_last = fnu + T::from_f64((n - 1) as f64);
+        let ipard = if mr != 0 {
+            SumOption::Full
+        } else {
+            SumOption::SkipSum
+        };
+        let result_last = zunik(zr_arg, fn_last, IkFlag::K, ipard, tol, None);
         caches[2] = Some(result_last.cache);
 
         let (s1r_last, _s1i_last) = if kode == Scaling::Exponential {
@@ -320,12 +324,12 @@ pub(crate) fn zunk1<T: BesselFloat>(
     }
 
     nz = 0;
-    let fmr = T::from(mr as f64).unwrap();
+    let fmr = T::from_f64(mr as f64);
     let sgn = if fmr < zero { pi_t } else { -pi_t };
     let csgni = sgn;
 
     let inu = fnu.to_i32().unwrap() as usize;
-    let fnf = fnu - T::from(inu as f64).unwrap();
+    let fnf = fnu - T::from_f64(inu as f64);
     let ifn = inu + n - 1;
     let ang = fnf * sgn;
     let mut cspnr = ang.cos();
@@ -347,7 +351,7 @@ pub(crate) fn zunk1<T: BesselFloat>(
     // Phase 2 loop: K=1..N (Fortran labels 172-270)
     let mut k_exit = n; // Fortran K at loop exit
     for k in 0..n {
-        let fn_val = fnu + T::from((kk - 1) as f64).unwrap();
+        let fn_val = fnu + T::from_f64((kk - 1) as f64);
 
         // -- Cache reuse logic (Fortran labels 172/175/180) --
         let mut m: usize = 2; // workspace slot (0-based), default = slot 2 (Fortran M=3)
@@ -374,7 +378,7 @@ pub(crate) fn zunk1<T: BesselFloat>(
         }
 
         // label 180: call ZUNIK with IKFLG=1 (I function)
-        let result_i = zunik(zr_arg, fn_val, 1, 0, tol, use_cache);
+        let result_i = zunik(zr_arg, fn_val, IkFlag::I, SumOption::Full, tol, use_cache);
         let phid = result_i.phi;
         let zet1d = result_i.zeta1;
         let zet2d = result_i.zeta2;
@@ -557,7 +561,7 @@ pub(crate) fn zunk1<T: BesselFloat>(
     let mut s2 = cy[1];
     let mut csr = csrr[iflag - 1];
     let mut ascle = bry[iflag - 1];
-    let mut fn_rec = T::from((inu + il) as f64).unwrap();
+    let mut fn_rec = T::from_f64((inu + il) as f64);
 
     for _i in 0..il {
         let c2 = s2;

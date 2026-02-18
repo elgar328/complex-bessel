@@ -271,8 +271,8 @@ fn besseli_internal<T: BesselFloat>(
     }
 
     // General case: need both I and K at positive |ν|
-    let pi = T::from(core::f64::consts::PI).unwrap();
-    let two = T::from(2.0).unwrap();
+    let pi = T::from_f64(core::f64::consts::PI);
+    let two = T::from_f64(2.0);
     let sin_nu_pi = utils::sinpi(abs_nu);
 
     let mut i_buf = [czero];

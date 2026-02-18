@@ -73,8 +73,8 @@ pub(crate) fn zbknu<T: BesselFloat>(
     // Convenience conversions
     let zero = T::zero();
     let one = T::one();
-    let two = T::from(2.0).unwrap();
-    let half = T::from(0.5).unwrap();
+    let two = T::from_f64(2.0);
+    let half = T::from_f64(0.5);
     let czero = Complex::new(zero, zero);
 
     let n = y.len();
@@ -92,8 +92,8 @@ pub(crate) fn zbknu<T: BesselFloat>(
 
     // D1MACH(1) = MACH_TINY, D1MACH(2) = MACH_HUGE
     let bry = [
-        T::from(1.0e3).unwrap() * T::MACH_TINY / tol,
-        one / (T::from(1.0e3).unwrap() * T::MACH_TINY / tol),
+        T::from_f64(1.0e3) * T::MACH_TINY / tol,
+        one / (T::from_f64(1.0e3) * T::MACH_TINY / tol),
         T::MACH_HUGE,
     ];
     let mut nz: usize = 0;
@@ -107,11 +107,11 @@ pub(crate) fn zbknu<T: BesselFloat>(
     let rz = Complex::new(rzr, rzi);
 
     let inu = (fnu + half).floor().to_i32().unwrap();
-    let dnu = fnu - T::from(inu).unwrap();
+    let dnu = fnu - T::from_f64(inu as f64);
     let dnu2 = if dnu.abs() > tol { dnu * dnu } else { zero };
 
     // ── Branch: series (|z| ≤ R1) vs Miller/asymptotic (|z| > R1) ──
-    if dnu.abs() != half && caz <= T::from(R1).unwrap() {
+    if dnu.abs() != half && caz <= T::from_f64(R1) {
         // ══════════════════════════════════════════════════════════════
         // SERIES FOR |Z| ≤ R1  (Fortran lines 82-216)
         // ══════════════════════════════════════════════════════════════
@@ -122,7 +122,7 @@ pub(crate) fn zbknu<T: BesselFloat>(
 
         let smu;
         if dnu != zero {
-            fc = dnu * T::from(PI).unwrap();
+            fc = dnu * T::from_f64(PI);
             fc = fc / fc.sin();
             smu = Complex::new(csh.re / dnu, csh.im / dnu);
         } else {
@@ -138,16 +138,16 @@ pub(crate) fn zbknu<T: BesselFloat>(
 
         // Compute G1 and G2
         let g1;
-        if dnu.abs() > T::from(0.1).unwrap() {
+        if dnu.abs() > T::from_f64(0.1) {
             // Large |DNU|: direct formula
             g1 = (t1 - t2) / (dnu + dnu);
         } else {
             // Small |DNU|: Chebyshev series for f_0
             let mut ak = one;
-            let mut s = T::from(CC[0]).unwrap();
+            let mut s = T::from_f64(CC[0]);
             for cc_k in &CC[1..] {
                 ak = ak * dnu2;
-                let tm = T::from(*cc_k).unwrap() * ak;
+                let tm = T::from_f64(*cc_k) * ak;
                 s = s + tm;
                 if tm.abs() < tol {
                     break;
@@ -184,8 +184,8 @@ pub(crate) fn zbknu<T: BesselFloat>(
             // ── Generate K(DNU,Z) and K(DNU+1,Z) for forward recurrence ──
             // (Fortran label 80-100)
             if caz >= tol {
-                let cz = z * z * T::from(0.25).unwrap();
-                let t1_sq = T::from(0.25).unwrap() * caz * caz;
+                let cz = z * z * T::from_f64(0.25);
+                let t1_sq = T::from_f64(0.25) * caz * caz;
                 loop {
                     fr = (fr * ak + pr + qr) / bk;
                     fi = (fi * ak + pi_val + qi) / bk;
@@ -238,8 +238,8 @@ pub(crate) fn zbknu<T: BesselFloat>(
             // ── Generate K(FNU,Z), 0 ≤ FNU < 0.5 and N=1 ──
             // (Fortran label 60-70)
             if caz >= tol {
-                let cz = z * z * T::from(0.25).unwrap();
-                let t1_sq = T::from(0.25).unwrap() * caz * caz;
+                let cz = z * z * T::from_f64(0.25);
+                let t1_sq = T::from_f64(0.25) * caz * caz;
                 loop {
                     fr = (fr * ak + pr + qr) / bk;
                     fi = (fi * ak + pi_val + qi) / bk;
@@ -287,7 +287,7 @@ pub(crate) fn zbknu<T: BesselFloat>(
 
     // COEF = RTHPI / sqrt(z) = sqrt(π/2) / sqrt(z) = sqrt(π/(2z))
     let sz = z.sqrt();
-    let coef_base = zdiv(Complex::new(T::from(RTHPI).unwrap(), zero), sz);
+    let coef_base = zdiv(Complex::new(T::from_f64(RTHPI), zero), sz);
 
     let mut kflag: usize = 1; // KFLAG=2 in Fortran
 
@@ -325,9 +325,9 @@ pub(crate) fn zbknu<T: BesselFloat>(
     }
 
     // Check if cos(π·DNU) == 0 or FHS == 0
-    let ak_cos = T::from(PI).unwrap() * dnu;
+    let ak_cos = T::from_f64(PI) * dnu;
     let ak_val = ak_cos.cos().abs();
-    let fhs = (T::from(0.25).unwrap() - dnu2).abs();
+    let fhs = (T::from_f64(0.25) - dnu2).abs();
     if ak_val == zero || fhs == zero {
         // DNU = ±0.5 effective (label 300)
         let s1 = coef;
@@ -341,17 +341,15 @@ pub(crate) fn zbknu<T: BesselFloat>(
     // ── Compute R2 = F(E) for determining backward index K ──
     // T1 = (I1MACH(14) - 1) * D1MACH(5) * 3.321928094
     // D1MACH(5) = log10(2) for binary
-    let r1m5 = T::from(R1M5).unwrap();
-    let t1_raw = T::from(T::MACH_DIGITS - 1).unwrap() * r1m5 * T::from(3.321928094).unwrap();
-    let t1_clamped = t1_raw
-        .max(T::from(12.0).unwrap())
-        .min(T::from(60.0).unwrap());
-    let t2_miller = T::from(TTH).unwrap() * t1_clamped - T::from(6.0).unwrap();
+    let r1m5 = T::from_f64(R1M5);
+    let t1_raw = T::from_f64((T::MACH_DIGITS - 1) as f64) * r1m5 * T::from_f64(3.321928094);
+    let t1_clamped = t1_raw.max(T::from_f64(12.0)).min(T::from_f64(60.0));
+    let t2_miller = T::from_f64(TTH) * t1_clamped - T::from_f64(6.0);
 
     let t1_angle = if z.re != zero {
         (z.im / z.re).abs().atan()
     } else {
-        T::from(HPI).unwrap()
+        T::from_f64(HPI)
     };
 
     let fk: T;
@@ -359,7 +357,7 @@ pub(crate) fn zbknu<T: BesselFloat>(
 
     if t2_miller <= caz {
         // ── Forward recurrence to find backward index K (label 150) ──
-        let etest = ak_val / (T::from(PI).unwrap() * caz * tol);
+        let etest = ak_val / (T::from_f64(PI) * caz * tol);
         let mut fk_val = one;
         if etest >= one {
             let mut fks = two;
@@ -389,25 +387,24 @@ pub(crate) fn zbknu<T: BesselFloat>(
                 return Err(BesselError::ConvergenceFailure);
             }
             // Label 160
-            fk_val = fk_val + T::from(SPI).unwrap() * t1_angle * (t2_miller / caz).sqrt();
-            fhs_miller = (T::from(0.25).unwrap() - dnu2).abs();
+            fk_val = fk_val + T::from_f64(SPI) * t1_angle * (t2_miller / caz).sqrt();
+            fhs_miller = (T::from_f64(0.25) - dnu2).abs();
         }
         fk = fk_val;
     } else {
         // ── Compute backward index K for |z| < R2 (label 170) ──
         let a2 = caz.sqrt();
-        let ak_inner = T::from(FPI).unwrap() * ak_val / (tol * a2.sqrt());
-        let three = T::from(3.0).unwrap();
+        let ak_inner = T::from_f64(FPI) * ak_val / (tol * a2.sqrt());
+        let three = T::from_f64(3.0);
         let aa = three * t1_angle / (one + caz);
-        let bb = T::from(14.7).unwrap() * t1_angle / (T::from(28.0).unwrap() + caz);
-        let ak_log =
-            (ak_inner.ln() + caz * aa.cos() / (one + T::from(0.008).unwrap() * caz)) / bb.cos();
-        fk = T::from(0.12125).unwrap() * ak_log * ak_log / caz + T::from(1.5).unwrap();
+        let bb = T::from_f64(14.7) * t1_angle / (T::from_f64(28.0) + caz);
+        let ak_log = (ak_inner.ln() + caz * aa.cos() / (one + T::from_f64(0.008) * caz)) / bb.cos();
+        fk = T::from_f64(0.12125) * ak_log * ak_log / caz + T::from_f64(1.5);
     }
 
     // ── Backward recurrence loop (Miller algorithm, label 180-190) ──
     let k = fk.floor().to_i32().unwrap();
-    let fk_int = T::from(k).unwrap();
+    let fk_int = T::from_f64(k as f64);
     let mut fks = fk_int * fk_int;
     let mut p1 = czero;
     let mut p2 = Complex::new(tol, zero);
@@ -519,7 +516,7 @@ fn forward_recurrence<T: BesselFloat>(
     let one = T::one();
 
     // CK = (DNU + 1) * RZ
-    let str_init = fnu - T::from(inu).unwrap() + one;
+    let str_init = fnu - T::from_f64(inu as f64) + one;
     let mut ck = Complex::new(str_init * rz.re, str_init * rz.im);
 
     let mut inu_adj = inu;
@@ -663,7 +660,7 @@ fn iflag1_recurrence<T: BesselFloat>(
 ) -> Result<usize, BesselError> {
     let zero = T::zero();
     let czero = Complex::new(zero, zero);
-    let half = T::from(0.5).unwrap();
+    let half = T::from_f64(0.5);
 
     let helim = half * elim;
     let elm = (-elim).exp();
@@ -774,7 +771,7 @@ fn iflag1_recurrence<T: BesselFloat>(
             }
 
             // Continue with label 250-260 recurrence (with KFLAG tracking)
-            let t2_val = fnu + T::from(2).unwrap(); // FNU + (KK-1) where KK=3
+            let t2_val = fnu + T::from_f64(2.0); // FNU + (KK-1) where KK=3
             ck = Complex::new(t2_val * rz.re, t2_val * rz.im);
             let mut kk_idx = 2_usize;
             loop {
@@ -894,7 +891,7 @@ fn handle_iflag1_final<T: BesselFloat>(
     }
 
     // Continue recurrence for remaining values (label 250-260 with KFLAG tracking)
-    let t2_val = fnu + T::from(kk2).unwrap();
+    let t2_val = fnu + T::from_f64(kk2 as f64);
     let mut ck = Complex::new(t2_val * rz.re, t2_val * rz.im);
     let mut kflag: usize = 0; // KFLAG=1 in Fortran
 

@@ -58,10 +58,10 @@ pub(crate) fn zdiv<T: BesselFloat>(a: Complex<T>, b: Complex<T>) -> Complex<T> {
 pub(crate) fn sinpi<T: BesselFloat>(x: T) -> T {
     let zero = T::zero();
     let one = T::one();
-    let two = T::from(2.0).unwrap();
-    let half = T::from(0.5).unwrap();
-    let one_half = T::from(1.5).unwrap();
-    let pi = T::from(core::f64::consts::PI).unwrap();
+    let two = T::from_f64(2.0);
+    let half = T::from_f64(0.5);
+    let one_half = T::from_f64(1.5);
+    let pi = T::from_f64(core::f64::consts::PI);
 
     // sinpi is odd: sinpi(-x) = -sinpi(x)
     let (ax, sign) = if x < zero { (-x, -one) } else { (x, one) };
@@ -106,10 +106,10 @@ pub(crate) fn sinpi<T: BesselFloat>(x: T) -> T {
 pub(crate) fn cospi<T: BesselFloat>(x: T) -> T {
     let zero = T::zero();
     let one = T::one();
-    let two = T::from(2.0).unwrap();
-    let half = T::from(0.5).unwrap();
-    let one_half = T::from(1.5).unwrap();
-    let pi = T::from(core::f64::consts::PI).unwrap();
+    let two = T::from_f64(2.0);
+    let half = T::from_f64(0.5);
+    let one_half = T::from_f64(1.5);
+    let pi = T::from_f64(core::f64::consts::PI);
 
     // cospi is even: cospi(-x) = cospi(x)
     let ax = x.abs();

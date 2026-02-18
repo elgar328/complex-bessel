@@ -96,7 +96,7 @@ pub(crate) fn zkscl<T: BesselFloat>(
     let mut ck = Complex::new(fn_val * rz.re, fn_val * rz.im);
     let mut s1 = cy[0];
     let mut s2 = cy[1];
-    let helim = T::from(0.5).unwrap() * elim;
+    let helim = T::from_f64(0.5) * elim;
     let celmr = (-elim).exp();
     let mut zd = zr;
 

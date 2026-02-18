@@ -10,6 +10,7 @@
 use num_complex::Complex;
 
 use crate::machine::BesselFloat;
+use crate::types::{IkFlag, SumOption};
 use crate::utils::zdiv;
 
 // CON(1) = 1/sqrt(2*pi), CON(2) = sqrt(pi/2)
@@ -112,33 +113,36 @@ pub(crate) struct UnikOutput<T: BesselFloat> {
 
 /// Compute the sum from cached coefficients (Fortran label 40).
 ///
-/// For I function (ikflg=1): straight sum of cwrk[0..init].
-/// For K function (ikflg=2): alternating sum of cwrk[0..init].
-fn compute_sum<T: BesselFloat>(ikflg: i32, cache: &UnikCache<T>) -> UnikOutput<T> {
+/// For I function: straight sum of cwrk[0..init].
+/// For K function: alternating sum of cwrk[0..init].
+fn compute_sum<T: BesselFloat>(ikflg: IkFlag, cache: &UnikCache<T>) -> UnikOutput<T> {
     let zero = T::zero();
     let one = T::one();
     let czero = Complex::new(zero, zero);
 
-    let (sum, con_idx) = if ikflg == 1 {
-        // I function: straight sum (Fortran lines 4988-4993)
-        let mut sr = czero;
-        for i in 0..cache.init {
-            sr = sr + cache.cwrk[i];
+    let (sum, con_idx) = match ikflg {
+        IkFlag::I => {
+            // I function: straight sum (Fortran lines 4988-4993)
+            let mut sr = czero;
+            for i in 0..cache.init {
+                sr = sr + cache.cwrk[i];
+            }
+            (sr, 0usize)
         }
-        (sr, 0usize)
-    } else {
-        // K function: alternating sum (Fortran lines 5003-5010)
-        let mut sr = czero;
-        let mut tr = one;
-        for i in 0..cache.init {
-            sr.re = sr.re + tr * cache.cwrk[i].re;
-            sr.im = sr.im + tr * cache.cwrk[i].im;
-            tr = -tr;
+        IkFlag::K => {
+            // K function: alternating sum (Fortran lines 5003-5010)
+            let mut sr = czero;
+            let mut tr = one;
+            for i in 0..cache.init {
+                sr.re = sr.re + tr * cache.cwrk[i].re;
+                sr.im = sr.im + tr * cache.cwrk[i].im;
+                tr = -tr;
+            }
+            (sr, 1usize)
         }
-        (sr, 1usize)
     };
 
-    let con_val = T::from(CON[con_idx]).unwrap();
+    let con_val = T::from_f64(CON[con_idx]);
     let phi = Complex::new(cache.cwrk[15].re * con_val, cache.cwrk[15].im * con_val);
 
     UnikOutput {
@@ -157,15 +161,15 @@ fn compute_sum<T: BesselFloat>(ikflg: i32, cache: &UnikCache<T>) -> UnikOutput<T
 /// # Parameters
 /// - `zr`: complex argument (with Re(z) >= 0 for standard use)
 /// - `fnu`: order ν > 0
-/// - `ikflg`: 1 for I function, 2 for K function
-/// - `ipmtr`: 0 = compute all parameters, 1 = compute phi/zeta1/zeta2 only
+/// - `ikflg`: `IkFlag::I` for I function, `IkFlag::K` for K function
+/// - `ipmtr`: `SumOption::Full` = compute all, `SumOption::SkipSum` = phi/zeta only
 /// - `tol`: tolerance for convergence
 /// - `cache`: optional cache from a previous call with the same (z, fnu)
 pub(crate) fn zunik<T: BesselFloat>(
     zr: Complex<T>,
     fnu: T,
-    ikflg: i32,
-    ipmtr: i32,
+    ikflg: IkFlag,
+    ipmtr: SumOption,
     tol: T,
     cache: Option<UnikCache<T>>,
 ) -> UnikOutput<T> {
@@ -186,11 +190,11 @@ pub(crate) fn zunik<T: BesselFloat>(
     let rfn = one / fnu;
 
     // Overflow test: z/fnu too small (Fortran lines 4924-4933)
-    let test = T::MACH_TINY * T::from(1.0e3).unwrap();
+    let test = T::MACH_TINY * T::from_f64(1.0e3);
     let ac = fnu * test;
     if zr.re.abs() <= ac && zr.im.abs() <= ac {
         // Early return with special values
-        let zeta1 = Complex::new(T::from(2.0).unwrap() * test.ln().abs() + fnu, zero);
+        let zeta1 = Complex::new(T::from_f64(2.0) * test.ln().abs() + fnu, zero);
         let zeta2 = Complex::new(fnu, zero);
         return UnikOutput {
             phi: cone,
@@ -234,11 +238,14 @@ pub(crate) fn zunik<T: BesselFloat>(
     cwrk[15] = sr_new.sqrt();
 
     // phi = cwrk[15] * CON[ikflg-1] (Fortran lines 4952-4953)
-    let con_val = T::from(CON[(ikflg - 1) as usize]).unwrap();
+    let con_val = T::from_f64(match ikflg {
+        IkFlag::I => CON[0],
+        IkFlag::K => CON[1],
+    });
     let phi = Complex::new(cwrk[15].re * con_val, cwrk[15].im * con_val);
 
-    // If ipmtr != 0, return phi/zeta1/zeta2 only (Fortran line 4954)
-    if ipmtr != 0 {
+    // If ipmtr == SkipSum, return phi/zeta1/zeta2 only (Fortran line 4954)
+    if ipmtr == SumOption::SkipSum {
         return UnikOutput {
             phi,
             zeta1,
@@ -275,7 +282,7 @@ pub(crate) fn zunik<T: BesselFloat>(
         let mut s_sum = czero;
         for _j in 0..=k {
             l += 1;
-            let c_val = T::from(C_COEFFS[l]).unwrap();
+            let c_val = T::from_f64(C_COEFFS[l]);
             // s = s * t2 + c[l] (Fortran lines 4967-4969)
             s_sum = s_sum * t2 + Complex::new(c_val, zero);
         }
@@ -308,16 +315,24 @@ pub(crate) fn zunik<T: BesselFloat>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::{IkFlag, SumOption};
     use num_complex::Complex64;
 
     const TOL: f64 = 2.220446049250313e-16;
 
     #[test]
     fn zunik_cache_reuse() {
-        // First call with ikflg=2 (K), then reuse cache with ikflg=1 (I)
+        // First call with IkFlag::K, then reuse cache with IkFlag::I
         let zr = Complex64::new(3.0, 1.0);
-        let result_k = zunik(zr, 15.0, 2, 0, TOL, None);
-        let result_i = zunik(zr, 15.0, 1, 0, TOL, Some(result_k.cache));
+        let result_k = zunik(zr, 15.0, IkFlag::K, SumOption::Full, TOL, None);
+        let result_i = zunik(
+            zr,
+            15.0,
+            IkFlag::I,
+            SumOption::Full,
+            TOL,
+            Some(result_k.cache),
+        );
 
         // zeta1, zeta2 should be identical (from cache)
         assert_eq!(result_i.zeta1.re, result_k.zeta1.re);
@@ -340,15 +355,15 @@ mod tests {
         );
 
         // Sum should differ (I: straight sum, K: alternating sum)
-        let result_i_fresh = zunik(zr, 15.0, 1, 0, TOL, None);
+        let result_i_fresh = zunik(zr, 15.0, IkFlag::I, SumOption::Full, TOL, None);
         assert!((result_i.sum.re - result_i_fresh.sum.re).abs() < 1e-14);
     }
 
     #[test]
     fn zunik_ipmtr_1() {
-        // ipmtr=1: compute only phi, zeta1, zeta2 (no sum)
+        // SumOption::SkipSum: compute only phi, zeta1, zeta2 (no sum)
         let zr = Complex64::new(4.0, 2.0);
-        let result = zunik(zr, 12.0, 1, 1, TOL, None);
+        let result = zunik(zr, 12.0, IkFlag::I, SumOption::SkipSum, TOL, None);
 
         // phi should be nonzero
         assert!(result.phi.re.abs() > 1e-10 || result.phi.im.abs() > 1e-10);
@@ -361,7 +376,7 @@ mod tests {
     fn zunik_overflow_precheck() {
         // Very small z relative to fnu → overflow pre-check path
         let zr = Complex64::new(1e-310, 1e-310);
-        let result = zunik(zr, 1.0, 1, 0, TOL, None);
+        let result = zunik(zr, 1.0, IkFlag::I, SumOption::Full, TOL, None);
 
         // Should return special values
         assert_eq!(result.phi.re, 1.0);

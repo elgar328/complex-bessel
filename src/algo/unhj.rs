@@ -12,6 +12,7 @@
 use num_complex::Complex;
 
 use crate::machine::BesselFloat;
+use crate::types::SumOption;
 use crate::utils::{zabs, zdiv};
 
 // ── Coefficient tables (Fortran DATA blocks, zbsubs.f lines 5068-5442) ──
@@ -347,9 +348,14 @@ pub(crate) struct UnhjOutput<T: BesselFloat> {
 /// # Parameters
 /// - `z`: complex argument
 /// - `fnu`: order ν > 0
-/// - `ipmtr`: 0 = compute all parameters, 1 = skip asum/bsum
+/// - `ipmtr`: `SumOption::Full` = compute all, `SumOption::SkipSum` = skip asum/bsum
 /// - `tol`: tolerance for convergence
-pub(crate) fn zunhj<T: BesselFloat>(z: Complex<T>, fnu: T, ipmtr: i32, tol: T) -> UnhjOutput<T> {
+pub(crate) fn zunhj<T: BesselFloat>(
+    z: Complex<T>,
+    fnu: T,
+    ipmtr: SumOption,
+    tol: T,
+) -> UnhjOutput<T> {
     let zero = T::zero();
     let one = T::one();
     let czero = Complex::new(zero, zero);
@@ -358,10 +364,10 @@ pub(crate) fn zunhj<T: BesselFloat>(z: Complex<T>, fnu: T, ipmtr: i32, tol: T) -
     let rfnu = one / fnu;
 
     // ── Overflow test: z/fnu too small (Fortran lines 5449-5464) ──
-    let test = T::MACH_TINY * T::from(1.0e3).unwrap();
+    let test = T::MACH_TINY * T::from_f64(1.0e3);
     let ac = fnu * test;
     if z.re.abs() <= ac && z.im.abs() <= ac {
-        let zeta1 = Complex::new(T::from(2.0).unwrap() * test.ln().abs() + fnu, zero);
+        let zeta1 = Complex::new(T::from_f64(2.0) * test.ln().abs() + fnu, zero);
         let zeta2 = Complex::new(fnu, zero);
         return UnhjOutput {
             phi: cone,
@@ -377,7 +383,7 @@ pub(crate) fn zunhj<T: BesselFloat>(z: Complex<T>, fnu: T, ipmtr: i32, tol: T) -
     let zbr = z.re * rfnu;
     let zbi = z.im * rfnu;
     let rfnu2 = rfnu * rfnu;
-    let fn13 = fnu.powf(T::from(EX1).unwrap()); // fnu^(1/3)
+    let fn13 = fnu.powf(T::from_f64(EX1)); // fnu^(1/3)
     let fn23 = fn13 * fn13; // fnu^(2/3)
     let rfn13 = one / fn13;
 
@@ -386,7 +392,7 @@ pub(crate) fn zunhj<T: BesselFloat>(z: Complex<T>, fnu: T, ipmtr: i32, tol: T) -
     let w2i = -(zbr * zbi + zbr * zbi);
     let aw2 = zabs(Complex::new(w2r, w2i));
 
-    if aw2 <= T::from(0.25).unwrap() {
+    if aw2 <= T::from_f64(0.25) {
         // ── Power series for |W2| <= 0.25 (Fortran lines 5482-5579) ──
         return small_w2_branch(w2r, w2i, aw2, fnu, fn23, rfn13, rfnu, rfnu2, ipmtr, tol);
     }
@@ -407,7 +413,7 @@ fn small_w2_branch<T: BesselFloat>(
     rfn13: T,
     rfnu: T,
     rfnu2: T,
-    ipmtr: i32,
+    ipmtr: SumOption,
     tol: T,
 ) -> UnhjOutput<T> {
     let zero = T::zero();
@@ -421,7 +427,7 @@ fn small_w2_branch<T: BesselFloat>(
 
     pr[0] = one;
     pi_arr[0] = zero;
-    let mut sumar = T::from(GAMA[0]).unwrap();
+    let mut sumar = T::from_f64(GAMA[0]);
     let mut sumai = zero;
     ap[0] = one;
 
@@ -430,8 +436,8 @@ fn small_w2_branch<T: BesselFloat>(
         for k in 1..30 {
             pr[k] = pr[k - 1] * w2r - pi_arr[k - 1] * w2i;
             pi_arr[k] = pr[k - 1] * w2i + pi_arr[k - 1] * w2r;
-            sumar = sumar + pr[k] * T::from(GAMA[k]).unwrap();
-            sumai = sumai + pi_arr[k] * T::from(GAMA[k]).unwrap();
+            sumar = sumar + pr[k] * T::from_f64(GAMA[k]);
+            sumai = sumai + pi_arr[k] * T::from_f64(GAMA[k]);
             ap[k] = ap[k - 1] * aw2;
             if ap[k] < tol {
                 kmax = k + 1;
@@ -456,7 +462,7 @@ fn small_w2_branch<T: BesselFloat>(
 
     // ZETA1 = (1 + EX2*(ZETA*SUMA_sqrt)) * ZETA2 (Fortran lines 5504-5511)
     let za = Complex::new(sumar, sumai).sqrt();
-    let ex2_t = T::from(EX2).unwrap();
+    let ex2_t = T::from_f64(EX2);
     let str = one + ex2_t * (zetar * za.re - zetai * za.im);
     let sti = ex2_t * (zetar * za.im + zetai * za.re);
     let zeta1 = Complex::new(
@@ -469,7 +475,7 @@ fn small_w2_branch<T: BesselFloat>(
     let phi_sqrt = za2.sqrt();
     let phi = Complex::new(phi_sqrt.re * rfn13, phi_sqrt.im * rfn13);
 
-    if ipmtr == 1 {
+    if ipmtr == SumOption::SkipSum {
         return UnhjOutput {
             phi,
             arg,
@@ -484,8 +490,8 @@ fn small_w2_branch<T: BesselFloat>(
     let mut bsumr = zero;
     let mut bsumi = zero;
     for k in 0..kmax {
-        bsumr = bsumr + pr[k] * T::from(BETA[k]).unwrap();
-        bsumi = bsumi + pi_arr[k] * T::from(BETA[k]).unwrap();
+        bsumr = bsumr + pr[k] * T::from_f64(BETA[k]);
+        bsumi = bsumi + pi_arr[k] * T::from_f64(BETA[k]);
     }
 
     let mut asumr = zero;
@@ -508,8 +514,8 @@ fn small_w2_branch<T: BesselFloat>(
                 let mut sumai_a = zero;
                 for k in 0..kmax {
                     let m = l1 + k;
-                    sumar_a = sumar_a + pr[k] * T::from(ALFA[m]).unwrap();
-                    sumai_a = sumai_a + pi_arr[k] * T::from(ALFA[m]).unwrap();
+                    sumar_a = sumar_a + pr[k] * T::from_f64(ALFA[m]);
+                    sumai_a = sumai_a + pi_arr[k] * T::from_f64(ALFA[m]);
                     if ap[k] < atol_val {
                         break;
                     }
@@ -526,8 +532,8 @@ fn small_w2_branch<T: BesselFloat>(
                 let mut sumbi_b = zero;
                 for k in 0..kmax {
                     let m = l2 + k;
-                    sumbr_b = sumbr_b + pr[k] * T::from(BETA[m]).unwrap();
-                    sumbi_b = sumbi_b + pi_arr[k] * T::from(BETA[m]).unwrap();
+                    sumbr_b = sumbr_b + pr[k] * T::from_f64(BETA[m]);
+                    sumbi_b = sumbi_b + pi_arr[k] * T::from_f64(BETA[m]);
                     if ap[k] < atol_val {
                         break;
                     }
@@ -576,7 +582,7 @@ fn large_w2_branch<T: BesselFloat>(
     rfn13: T,
     rfnu: T,
     rfnu2: T,
-    ipmtr: i32,
+    ipmtr: SumOption,
     tol: T,
 ) -> UnhjOutput<T> {
     let zero = T::zero();
@@ -606,16 +612,16 @@ fn large_w2_branch<T: BesselFloat>(
     if zci < zero {
         zci = zero;
     }
-    if zci > T::from(HPI).unwrap() {
-        zci = T::from(HPI).unwrap();
+    if zci > T::from_f64(HPI) {
+        zci = T::from_f64(HPI);
     }
     if zcr < zero {
         zcr = zero;
     }
 
     // ZTH = 1.5*(ZC - W) (Fortran lines 5595-5596)
-    let zthr = (zcr - wr) * T::from(1.5).unwrap();
-    let zthi = (zci - wi) * T::from(1.5).unwrap();
+    let zthr = (zcr - wr) * T::from_f64(1.5);
+    let zthi = (zci - wi) * T::from_f64(1.5);
 
     // ZETA1 = ZC * FNU, ZETA2 = W * FNU (Fortran lines 5597-5600)
     let zeta1 = Complex::new(zcr * fnu, zci * fnu);
@@ -624,9 +630,9 @@ fn large_w2_branch<T: BesselFloat>(
     // Compute AZTH, ANG for ZTH^(2/3) (Fortran lines 5601-5612)
     let azth = zabs(Complex::new(zthr, zthi));
     let ang = {
-        let thpi_t = T::from(THPI).unwrap();
-        let hpi_t = T::from(HPI).unwrap();
-        let gpi_t = T::from(PI).unwrap();
+        let thpi_t = T::from_f64(THPI);
+        let hpi_t = T::from_f64(HPI);
+        let gpi_t = T::from_f64(PI);
         if zthr >= zero && zthi < zero {
             thpi_t
         } else if zthr == zero {
@@ -637,7 +643,7 @@ fn large_w2_branch<T: BesselFloat>(
         }
     };
 
-    let ex2_t = T::from(EX2).unwrap();
+    let ex2_t = T::from_f64(EX2);
     let pp = azth.powf(ex2_t);
     let ang_scaled = ang * ex2_t;
     let zetar = pp * ang_scaled.cos();
@@ -662,7 +668,7 @@ fn large_w2_branch<T: BesselFloat>(
     let phi_sqrt = Complex::new(tzar, tzai).sqrt();
     let phi = Complex::new(phi_sqrt.re * rfn13, phi_sqrt.im * rfn13);
 
-    if ipmtr == 1 {
+    if ipmtr == SumOption::SkipSum {
         return UnhjOutput {
             phi,
             arg,
@@ -685,8 +691,8 @@ fn large_w2_branch<T: BesselFloat>(
     let rzthr = str2 * razth * rfnu;
     let rzthi = sti2 * razth * rfnu;
 
-    let zcr_init = rzthr * T::from(AR[1]).unwrap(); // AR(2), 0-based [1]
-    let zci_init = rzthi * T::from(AR[1]).unwrap();
+    let zcr_init = rzthr * T::from_f64(AR[1]); // AR(2), 0-based [1]
+    let zci_init = rzthi * T::from_f64(AR[1]);
 
     let raw2 = one / aw2;
     let str3 = w2r * raw2;
@@ -695,8 +701,8 @@ fn large_w2_branch<T: BesselFloat>(
     let t2i = sti3 * raw2;
 
     // UP(2) (Fortran lines 5641-5644, 0-based index 1)
-    let c2_val = T::from(C_COEFFS[1]).unwrap(); // C(2)
-    let c3_val = T::from(C_COEFFS[2]).unwrap(); // C(3)
+    let c2_val = T::from_f64(C_COEFFS[1]); // C(2)
+    let c3_val = T::from_f64(C_COEFFS[2]); // C(3)
     let str4 = t2r * c2_val + c3_val;
     let sti4 = t2i * c2_val;
     let upr1_re = str4 * tfnr - sti4 * tfni;
@@ -760,11 +766,11 @@ fn large_w2_branch<T: BesselFloat>(
             kp1 += 1;
             l += 1;
             // l is now 1-based Fortran index; convert to 0-based for C_COEFFS
-            let mut zar = T::from(C_COEFFS[l - 1]).unwrap();
+            let mut zar = T::from_f64(C_COEFFS[l - 1]);
             let mut zai = zero;
             for _j in 1..kp1 {
                 l += 1;
-                let str5 = zar * t2r - t2i * zai + T::from(C_COEFFS[l - 1]).unwrap();
+                let str5 = zar * t2r - t2i * zai + T::from_f64(C_COEFFS[l - 1]);
                 zai = zar * t2i + zai * t2r;
                 zar = str5;
             }
@@ -776,15 +782,15 @@ fn large_w2_branch<T: BesselFloat>(
             upr[kp1 - 1] = ptfnr * zar - ptfni * zai;
             upi[kp1 - 1] = ptfni * zar + ptfnr * zai;
             // CR(KS) (Fortran lines 5686-5687)
-            crr[ks - 1] = przthr * T::from(BR[ks]).unwrap(); // BR(KS+1), 0-based [ks]
-            cri[ks - 1] = przthi * T::from(BR[ks]).unwrap();
+            crr[ks - 1] = przthr * T::from_f64(BR[ks]); // BR(KS+1), 0-based [ks]
+            cri[ks - 1] = przthi * T::from_f64(BR[ks]);
             // PRZTH = PRZTH * RZTH (Fortran lines 5688-5690)
             let str5 = przthr * rzthr - przthi * rzthi;
             przthi = przthr * rzthi + przthi * rzthr;
             przthr = str5;
             // DR(KS) (Fortran lines 5691-5692)
-            drr[ks - 1] = przthr * T::from(AR[ks + 1]).unwrap(); // AR(KS+2), 0-based [ks+1]
-            dri[ks - 1] = przthi * T::from(AR[ks + 1]).unwrap();
+            drr[ks - 1] = przthr * T::from_f64(AR[ks + 1]); // AR(KS+2), 0-based [ks+1]
+            dri[ks - 1] = przthi * T::from_f64(AR[ks + 1]);
         }
 
         pp = pp * rfnu2;
@@ -852,6 +858,7 @@ fn large_w2_branch<T: BesselFloat>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::SumOption;
     use num_complex::Complex64;
 
     const TOL: f64 = 2.220446049250313e-16;
@@ -861,7 +868,7 @@ mod tests {
         // z = fnu * 0.99 + 0i → w2 = 1 - 0.99^2 ≈ 0.0199 (small branch)
         let fnu = 100.0;
         let z = Complex64::new(fnu * 0.99, 0.0);
-        let result = zunhj(z, fnu, 0, TOL);
+        let result = zunhj(z, fnu, SumOption::Full, TOL);
         assert!(result.phi.re.is_finite());
         assert!(result.asum.re.is_finite());
         assert!(result.bsum.re.is_finite());
@@ -873,7 +880,7 @@ mod tests {
     fn zunhj_large_w2_real() {
         // z = 10 + 0i, fnu = 100 → ZB = 0.1, W2 = 1-0.01 = 0.99 (large branch)
         let z = Complex64::new(10.0, 0.0);
-        let result = zunhj(z, 100.0, 0, TOL);
+        let result = zunhj(z, 100.0, SumOption::Full, TOL);
         assert!(result.phi.re.is_finite());
         assert!(result.zeta1.re > 0.0);
         assert!(result.zeta2.re > 0.0);
@@ -883,7 +890,7 @@ mod tests {
     #[test]
     fn zunhj_complex_argument() {
         let z = Complex64::new(5.0, 3.0);
-        let result = zunhj(z, 50.0, 0, TOL);
+        let result = zunhj(z, 50.0, SumOption::Full, TOL);
         assert!(result.phi.re.is_finite());
         assert!(result.phi.im.is_finite());
         assert!(result.arg.re.is_finite());
@@ -893,7 +900,7 @@ mod tests {
     fn zunhj_ipmtr_1() {
         // ipmtr=1: compute only phi, arg, zeta1, zeta2 (no asum/bsum)
         let z = Complex64::new(5.0, 3.0);
-        let result = zunhj(z, 50.0, 1, TOL);
+        let result = zunhj(z, 50.0, SumOption::SkipSum, TOL);
         assert!(result.phi.re.is_finite());
         // asum/bsum should be zero
         assert_eq!(result.asum.re, 0.0);
@@ -904,7 +911,7 @@ mod tests {
     fn zunhj_overflow_precheck() {
         // Very small z → overflow pre-check path
         let z = Complex64::new(1e-310, 1e-310);
-        let result = zunhj(z, 1.0, 0, TOL);
+        let result = zunhj(z, 1.0, SumOption::Full, TOL);
         assert_eq!(result.phi.re, 1.0);
         assert!(result.zeta1.re > result.zeta2.re);
     }
@@ -913,7 +920,7 @@ mod tests {
     fn zunhj_imaginary_argument() {
         // Pure imaginary z (used in uni2/unk2 after rotation)
         let z = Complex64::new(0.0, 50.0);
-        let result = zunhj(z, 100.0, 0, TOL);
+        let result = zunhj(z, 100.0, SumOption::Full, TOL);
         assert!(result.phi.re.is_finite());
         assert!(result.zeta1.re.is_finite());
     }

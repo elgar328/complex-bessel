@@ -122,32 +122,32 @@ pub(crate) fn gamln<T: BesselFloat>(z: T) -> Result<T, BesselError> {
 
     // Table lookup for positive integers 1..100
     // Fortran: NZ = Z; FZ = Z - NZ; IF (FZ.GT.0) GO TO 10; IF (NZ.GT.100) GO TO 10
-    if z <= T::from(101.0).unwrap() {
+    if z <= T::from_f64(101.0) {
         let nz = z.floor().to_i32().unwrap();
-        let fz = z - T::from(nz).unwrap();
+        let fz = z - T::from_f64(nz as f64);
         if fz == zero && (1..=100).contains(&nz) {
-            return Ok(T::from(GLN_TABLE[(nz - 1) as usize]).unwrap());
+            return Ok(T::from_f64(GLN_TABLE[(nz - 1) as usize]));
         }
     }
 
     // D1MACH(4) = B^(2-T) = 2 * MACH_EPSILON for binary IEEE 754
-    let two = T::from(2.0).unwrap();
-    let wdtol = (two * T::MACH_EPSILON).max(T::from(0.5e-18).unwrap());
+    let two = T::from_f64(2.0);
+    let wdtol = (two * T::MACH_EPSILON).max(T::from_f64(0.5e-18));
 
     // Compute ZMIN: minimum argument for asymptotic convergence
     // R1M5 = D1MACH(5) = log10(2)
     // RLN = R1M5 * I1MACH(14) = log10(2) * DIGITS
-    let r1m5 = T::from(R1M5).unwrap();
-    let rln = r1m5 * T::from(T::MACH_DIGITS).unwrap();
-    let fln = rln.min(T::from(20.0).unwrap()).max(T::from(3.0).unwrap()) - T::from(3.0).unwrap();
-    let zm = T::from(1.8).unwrap() + T::from(0.3875).unwrap() * fln;
+    let r1m5 = T::from_f64(R1M5);
+    let rln = r1m5 * T::from_f64(T::MACH_DIGITS as f64);
+    let fln = rln.min(T::from_f64(20.0)).max(T::from_f64(3.0)) - T::from_f64(3.0);
+    let zm = T::from_f64(1.8) + T::from_f64(0.3875) * fln;
     let mz = zm.to_i32().unwrap() + 1;
-    let zmin = T::from(mz).unwrap();
+    let zmin = T::from_f64(mz as f64);
 
     // If z < ZMIN, push z upward using the recursion Γ(z+n) = z(z+1)...(z+n-1)·Γ(z)
     let nz_trunc = z.floor().to_i32().unwrap(); // integer part of original z
     let (zdmy, zinc) = if z < zmin {
-        let zinc_val = T::from(mz - nz_trunc).unwrap();
+        let zinc_val = T::from_f64((mz - nz_trunc) as f64);
         (z + zinc_val, zinc_val)
     } else {
         (z, zero)
@@ -156,7 +156,7 @@ pub(crate) fn gamln<T: BesselFloat>(z: T) -> Result<T, BesselError> {
     // Evaluate Stirling's asymptotic series:
     //   S(z) = Σ_{k=1}^{22} CF(k) * z^{-(2k-1)}
     let zp_init = one / zdmy;
-    let t1 = T::from(CF_TABLE[0]).unwrap() * zp_init;
+    let t1 = T::from_f64(CF_TABLE[0]) * zp_init;
     let mut s = t1;
 
     if zp_init >= wdtol {
@@ -165,7 +165,7 @@ pub(crate) fn gamln<T: BesselFloat>(z: T) -> Result<T, BesselError> {
         let mut zp = zp_init;
         for cf in &CF_TABLE[1..] {
             zp = zp * zsq;
-            let trm = T::from(*cf).unwrap() * zp;
+            let trm = T::from_f64(*cf) * zp;
             if trm.abs() < tst {
                 break;
             }
@@ -174,8 +174,8 @@ pub(crate) fn gamln<T: BesselFloat>(z: T) -> Result<T, BesselError> {
     }
 
     // Stirling's formula: ln Γ(z) = z(ln z - 1) + 0.5(ln(2π) - ln z) + S(z)
-    let half = T::from(0.5).unwrap();
-    let con = T::from(CON).unwrap();
+    let half = T::from_f64(0.5);
+    let con = T::from_f64(CON);
 
     if zinc == zero {
         // No recursion needed
@@ -186,7 +186,7 @@ pub(crate) fn gamln<T: BesselFloat>(z: T) -> Result<T, BesselError> {
         let nz_int = zinc.to_i32().unwrap();
         let mut product = one;
         for i in 0..nz_int {
-            product = product * (z + T::from(i).unwrap());
+            product = product * (z + T::from_f64(i.into()));
         }
         let tlg = zdmy.ln();
         Ok(zdmy * (tlg - one) - product.ln() + half * (con - tlg) + s)

@@ -16,7 +16,7 @@ use crate::algo::s1s2::zs1s2;
 use crate::algo::uchk::zuchk;
 use crate::algo::unhj::zunhj;
 use crate::machine::BesselFloat;
-use crate::types::{AiryDerivative, Scaling};
+use crate::types::{AiryDerivative, Scaling, SumOption};
 use crate::utils::zabs;
 
 /// CR1 = (1, sqrt(3)) (Fortran line 6196-6197)
@@ -59,14 +59,14 @@ pub(crate) fn zunk2<T: BesselFloat>(
     let zero = T::zero();
     let one = T::one();
     let czero = Complex::new(zero, zero);
-    let pi_t = T::from(PI).unwrap();
-    let hpi_t = T::from(HPI).unwrap();
-    let aic_t = T::from(AIC).unwrap();
+    let pi_t = T::from_f64(PI);
+    let hpi_t = T::from_f64(HPI);
+    let aic_t = T::from_f64(AIC);
 
-    let cr1r = T::from(CR1R).unwrap();
-    let cr1i = T::from(CR1I).unwrap();
-    let cr2r = T::from(CR2R).unwrap();
-    let cr2i = T::from(CR2I).unwrap();
+    let cr1r = T::from_f64(CR1R);
+    let cr1i = T::from_f64(CR1I);
+    let cr2r = T::from_f64(CR2R);
+    let cr2i = T::from_f64(CR2I);
 
     for v in y.iter_mut() {
         *v = czero;
@@ -80,8 +80,8 @@ pub(crate) fn zunk2<T: BesselFloat>(
     let cssr = [cscl, one, crsc];
     let csrr = [crsc, one, cscl];
     let bry = [
-        T::from(1.0e3).unwrap() * T::MACH_TINY / tol,
-        one / (T::from(1.0e3).unwrap() * T::MACH_TINY / tol),
+        T::from_f64(1.0e3) * T::MACH_TINY / tol,
+        one / (T::from_f64(1.0e3) * T::MACH_TINY / tol),
         T::MACH_HUGE,
     ];
 
@@ -100,7 +100,7 @@ pub(crate) fn zunk2<T: BesselFloat>(
     let mut zbi = zri;
 
     let inu = fnu.to_i32().unwrap() as usize;
-    let fnf = fnu - T::from(inu as f64).unwrap();
+    let fnf = fnu - T::from_f64(inu as f64);
     let ang = -hpi_t * fnf;
     let car = ang.cos();
     let sar = ang.sin();
@@ -109,8 +109,8 @@ pub(crate) fn zunk2<T: BesselFloat>(
 
     // KK = MOD(INU,4) + 1 → 0-based: kk = inu % 4
     let kk = inu % 4;
-    let str0 = c2r_init * T::from(CIPR[kk]).unwrap() - c2i_init * T::from(CIPI[kk]).unwrap();
-    let sti0 = c2r_init * T::from(CIPI[kk]).unwrap() + c2i_init * T::from(CIPR[kk]).unwrap();
+    let str0 = c2r_init * T::from_f64(CIPR[kk]) - c2i_init * T::from_f64(CIPI[kk]);
+    let sti0 = c2r_init * T::from_f64(CIPI[kk]) + c2i_init * T::from_f64(CIPR[kk]);
     let mut csr = cr1r * str0 - cr1i * sti0;
     let mut csi = cr1r * sti0 + cr1i * str0;
 
@@ -136,9 +136,9 @@ pub(crate) fn zunk2<T: BesselFloat>(
         // J flip-flop (Fortran: J = 3 - J)
         j = 3 - j;
         let jj = j - 1; // 0-based index
-        let fn_val = fnu + T::from(i as f64).unwrap();
+        let fn_val = fnu + T::from_f64(i as f64);
 
-        let result = zunhj(Complex::new(znr, zni), fn_val, 0, tol);
+        let result = zunhj(Complex::new(znr, zni), fn_val, SumOption::Full, tol);
         phi_arr[jj] = result.phi;
         arg_arr[jj] = result.arg;
         zeta1_arr[jj] = result.zeta1;
@@ -192,7 +192,7 @@ pub(crate) fn zunk2<T: BesselFloat>(
             // Refine test (Fortran lines 6287-6293)
             let aphi = zabs(result.phi);
             let aarg = zabs(result.arg);
-            rs1 = rs1 + aphi.ln() - T::from(0.25).unwrap() * aarg.ln() - aic_t;
+            rs1 = rs1 + aphi.ln() - T::from_f64(0.25) * aarg.ln() - aic_t;
             if rs1.abs() > elim {
                 if rs1 > zero {
                     return -1;
@@ -301,7 +301,7 @@ pub(crate) fn zunk2<T: BesselFloat>(
         // Loop completed without early exit from kdflg==2
     }
 
-    let fn_at_exit = fnu + T::from((i_exit - 1) as f64).unwrap();
+    let fn_at_exit = fnu + T::from_f64((i_exit - 1) as f64);
     let razr = one / zabs(Complex::new(zrr, zri));
     let str_rz = zrr * razr;
     let sti_rz = -zri * razr;
@@ -314,8 +314,12 @@ pub(crate) fn zunk2<T: BesselFloat>(
 
     if ib <= n {
         // Test last member (Fortran lines 6368-6406)
-        let fn_last = fnu + T::from((n - 1) as f64).unwrap();
-        let ipard = if mr != 0 { 0 } else { 1 };
+        let fn_last = fnu + T::from_f64((n - 1) as f64);
+        let ipard = if mr != 0 {
+            SumOption::Full
+        } else {
+            SumOption::SkipSum
+        };
         let result_last = zunhj(Complex::new(znr, zni), fn_last, ipard, tol);
 
         let s1r_last = if kode == Scaling::Exponential {
@@ -401,7 +405,7 @@ pub(crate) fn zunk2<T: BesselFloat>(
     }
 
     nz = 0;
-    let fmr = T::from(mr as f64).unwrap();
+    let fmr = T::from_f64(mr as f64);
     let sgn = -pi_t.copysign(fmr); // -DSIGN(PI, FMR)
 
     // CSGN and CSPN (Fortran lines 6455-6463)
@@ -422,8 +426,8 @@ pub(crate) fn zunk2<T: BesselFloat>(
     let mut csr_ac = sar * csgni;
     let mut csi_ac = car * csgni;
     let in_idx = ifn % 4;
-    let c2_ac_r = T::from(CIPR[in_idx]).unwrap();
-    let c2_ac_i = T::from(CIPI[in_idx]).unwrap();
+    let c2_ac_r = T::from_f64(CIPR[in_idx]);
+    let c2_ac_i = T::from_f64(CIPI[in_idx]);
     let str_ac = csr_ac * c2_ac_r + csi_ac * c2_ac_i;
     csi_ac = -csr_ac * c2_ac_i + csi_ac * c2_ac_r;
     csr_ac = str_ac;
@@ -439,7 +443,7 @@ pub(crate) fn zunk2<T: BesselFloat>(
     // Phase 3 loop (Fortran DO 290 K=1,N)
     let mut k_exit = n;
     for k in 0..n {
-        let fn_val = fnu + T::from((kk_idx - 1) as f64).unwrap();
+        let fn_val = fnu + T::from_f64((kk_idx - 1) as f64);
 
         // ── Logic to reuse phase 1 params or recompute (Fortran labels 172-175) ──
         let (phid, argd, zet1d, zet2d, asumd, bsumd);
@@ -456,7 +460,7 @@ pub(crate) fn zunk2<T: BesselFloat>(
             j = 3 - j; // flip j
         } else if kk_idx == n && ib_ac < n {
             // label 210: fresh computation
-            let result_ac = zunhj(Complex::new(znr, zni), fn_val, 0, tol);
+            let result_ac = zunhj(Complex::new(znr, zni), fn_val, SumOption::Full, tol);
             phid = result_ac.phi;
             argd = result_ac.arg;
             zet1d = result_ac.zeta1;
@@ -475,7 +479,7 @@ pub(crate) fn zunk2<T: BesselFloat>(
             j = 3 - j;
         } else {
             // Fresh ZUNHJ
-            let result_ac = zunhj(Complex::new(znr, zni), fn_val, 0, tol);
+            let result_ac = zunhj(Complex::new(znr, zni), fn_val, SumOption::Full, tol);
             phid = result_ac.phi;
             argd = result_ac.arg;
             zet1d = result_ac.zeta1;
@@ -553,7 +557,7 @@ pub(crate) fn zunk2<T: BesselFloat>(
         if rs1.abs() >= alim {
             let aphi = zabs(phid);
             let aarg = zabs(argd);
-            rs1 = rs1 + aphi.ln() - T::from(0.25).unwrap() * aarg.ln() - aic_t;
+            rs1 = rs1 + aphi.ln() - T::from_f64(0.25) * aarg.ln() - aic_t;
             if rs1.abs() > elim {
                 if rs1 > zero {
                     return -1;
@@ -684,7 +688,7 @@ pub(crate) fn zunk2<T: BesselFloat>(
     let mut s2 = cy[1];
     let mut csr_rec = csrr[iflag - 1];
     let mut ascle = bry[iflag - 1];
-    let mut fn_rec = T::from((inu + il) as f64).unwrap();
+    let mut fn_rec = T::from_f64((inu + il) as f64);
 
     for _i in 0..il {
         let c2 = s2;
