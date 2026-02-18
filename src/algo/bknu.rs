@@ -102,9 +102,7 @@ pub(crate) fn zbknu<T: BesselFloat>(
     let rcaz = one / caz;
     let str_val = z.re * rcaz;
     let sti = -z.im * rcaz;
-    let rzr = (str_val + str_val) * rcaz;
-    let rzi = (sti + sti) * rcaz;
-    let rz = Complex::new(rzr, rzi);
+    let rz = Complex::new((str_val + str_val) * rcaz, (sti + sti) * rcaz);
 
     let inu = (fnu + half).floor().to_i32().unwrap();
     let dnu = fnu - T::from_f64(inu as f64);
@@ -116,15 +114,15 @@ pub(crate) fn zbknu<T: BesselFloat>(
         // SERIES FOR |Z| ≤ R1  (Fortran lines 82-216)
         // ══════════════════════════════════════════════════════════════
         let mut fc = one;
-        let rz_log = Complex::new(rzr, rzi).ln();
-        let fmu = Complex::new(rz_log.re * dnu, rz_log.im * dnu);
+        let rz_log = rz.ln();
+        let fmu = rz_log * dnu;
         let (csh, cch) = zshch(fmu);
 
         let smu;
         if dnu != zero {
             fc = dnu * T::from_f64(PI);
             fc = fc / fc.sin();
-            smu = Complex::new(csh.re / dnu, csh.im / dnu);
+            smu = csh / dnu;
         } else {
             // DNU=0: sinh(x·DNU)/DNU → x as DNU→0 by L'Hôpital.
             // Fortran reuses SMUR/SMUI from ZLOG(RZ) here (variable reuse).
@@ -196,11 +194,7 @@ pub(crate) fn zbknu<T: BesselFloat>(
                     qr = qr * str_ak2;
                     qi = qi * str_ak2;
                     let rak = one / ak;
-                    let ck_new = Complex::new(
-                        (ck.re * cz.re - ck.im * cz.im) * rak,
-                        (ck.re * cz.im + ck.im * cz.re) * rak,
-                    );
-                    ck = ck_new;
+                    ck = ck * cz * rak;
                     s1 = s1 + Complex::new(ck.re * fr - ck.im * fi, ck.re * fi + ck.im * fr);
                     let str_s2 = pr - fr * ak;
                     let sti_s2 = pi_val - fi * ak;
@@ -226,7 +220,7 @@ pub(crate) fn zbknu<T: BesselFloat>(
             }
             let scale = cssr[kflag];
             let p2 = s2 * scale;
-            s2 = Complex::new(p2.re * rzr - p2.im * rzi, p2.re * rzi + p2.im * rzr);
+            s2 = p2 * rz;
             s1 = s1 * scale;
 
             if matches!(koded, Scaling::Exponential) {
@@ -250,11 +244,7 @@ pub(crate) fn zbknu<T: BesselFloat>(
                     qr = qr * str_ak2;
                     qi = qi * str_ak2;
                     let rak = one / ak;
-                    let ck_new = Complex::new(
-                        (ck.re * cz.re - ck.im * cz.im) * rak,
-                        (ck.re * cz.im + ck.im * cz.re) * rak,
-                    );
-                    ck = ck_new;
+                    ck = ck * cz * rak;
                     s1 = s1 + Complex::new(ck.re * fr - ck.im * fi, ck.re * fi + ck.im * fr);
                     a1 = a1 * t1_sq * rak;
                     bk = bk + ak + ak + one;
@@ -305,10 +295,7 @@ pub(crate) fn zbknu<T: BesselFloat>(
                 let e = (-z.re).exp() * cssr[kflag];
                 Complex::new(e * z.im.cos(), -e * z.im.sin())
             };
-            coef = Complex::new(
-                coef_base.re * exp_neg_z_scaled.re - coef_base.im * exp_neg_z_scaled.im,
-                coef_base.re * exp_neg_z_scaled.im + coef_base.im * exp_neg_z_scaled.re,
-            );
+            coef = coef_base * exp_neg_z_scaled;
         }
     } else {
         coef = coef_base;
@@ -417,10 +404,7 @@ pub(crate) fn zbknu<T: BesselFloat>(
         let rak = two / (fk_cur + one);
         let cb = Complex::new((fk_cur + z.re) * rak, z.im * rak);
         let pt = p2;
-        p2 = Complex::new(
-            (pt.re * cb.re - pt.im * cb.im - p1.re) * ak_inner,
-            (pt.im * cb.re + pt.re * cb.im - p1.im) * ak_inner,
-        );
+        p2 = (cb * pt - p1) * ak_inner;
         p1 = pt;
         cs = cs + p2;
         fks = a1 - fk_cur + one;
@@ -433,14 +417,7 @@ pub(crate) fn zbknu<T: BesselFloat>(
     let s1_raw = p2 * ptr;
     let cs_conj = Complex::new(cs.re * ptr, -cs.im * ptr);
     // S1 = COEF * (P2/|CS|) * (conj(CS)/|CS|)
-    let tmp = Complex::new(
-        coef.re * s1_raw.re - coef.im * s1_raw.im,
-        coef.re * s1_raw.im + coef.im * s1_raw.re,
-    );
-    let s1 = Complex::new(
-        tmp.re * cs_conj.re - tmp.im * cs_conj.im,
-        tmp.re * cs_conj.im + tmp.im * cs_conj.re,
-    );
+    let s1 = coef * s1_raw * cs_conj;
 
     if inu == 0 && n == 1 {
         // Direct output path
@@ -461,10 +438,7 @@ pub(crate) fn zbknu<T: BesselFloat>(
     let ptr2 = one / tm2;
     let p1_scaled = p1 * ptr2;
     let p2_conj = Complex::new(p2.re * ptr2, -p2.im * ptr2);
-    let pt_ratio = Complex::new(
-        p1_scaled.re * p2_conj.re - p1_scaled.im * p2_conj.im,
-        p1_scaled.re * p2_conj.im + p1_scaled.im * p2_conj.re,
-    );
+    let pt_ratio = p1_scaled * p2_conj;
 
     // S2 = S1 * (DNU + 0.5 - P1/P2·conj(P2)/|P2|) / z + S1... wait
     // Fortran: STR = DNU + 0.5 - PTR; STI = -PTI
@@ -473,10 +447,7 @@ pub(crate) fn zbknu<T: BesselFloat>(
     //          CALL ZMLT(STR, STI, S1R, S1I, S2R, S2I)
     let ratio = Complex::new(dnu + half - pt_ratio.re, -pt_ratio.im);
     let ratio_div_z = zdiv(ratio, z) + Complex::new(one, zero);
-    let s2 = Complex::new(
-        ratio_div_z.re * s1.re - ratio_div_z.im * s1.im,
-        ratio_div_z.re * s1.im + ratio_div_z.im * s1.re,
-    );
+    let s2 = ratio_div_z * s1;
 
     // ── Forward recurrence (label 210) ──
     forward_recurrence(
@@ -517,7 +488,7 @@ fn forward_recurrence<T: BesselFloat>(
 
     // CK = (DNU + 1) * RZ
     let str_init = fnu - T::from_f64(inu as f64) + one;
-    let mut ck = Complex::new(str_init * rz.re, str_init * rz.im);
+    let mut ck = rz * str_init;
 
     let mut inu_adj = inu;
     if n == 1 {
@@ -539,10 +510,7 @@ fn forward_recurrence<T: BesselFloat>(
 
         for _i in inub..inu_adj {
             let st = s2;
-            s2 = Complex::new(
-                ck.re * st.re - ck.im * st.im + s1.re,
-                ck.im * st.re + ck.re * st.im + s1.im,
-            );
+            s2 = ck * st + s1;
             s1 = st;
             ck = ck + rz;
 
@@ -601,10 +569,7 @@ fn forward_recurrence<T: BesselFloat>(
 
         for i in kk..n {
             let p2_val = s2;
-            s2 = Complex::new(
-                ck.re * p2_val.re - ck.im * p2_val.im + s1.re,
-                ck.im * p2_val.re + ck.re * p2_val.im + s1.im,
-            );
+            s2 = ck * p2_val + s1;
             s1 = p2_val;
             ck = ck + rz;
             let p2_scaled = s2 * p1r;
@@ -678,10 +643,7 @@ fn iflag1_recurrence<T: BesselFloat>(
 
     for i in 0..inu {
         let st = s2;
-        s2 = Complex::new(
-            st.re * ck.re - st.im * ck.im + s1.re,
-            st.im * ck.re + st.re * ck.im + s1.im,
-        );
+        s2 = ck * st + s1;
         s1 = st;
         ck = ck + rz;
 
@@ -892,7 +854,7 @@ fn handle_iflag1_final<T: BesselFloat>(
 
     // Continue recurrence for remaining values (label 250-260 with KFLAG tracking)
     let t2_val = fnu + T::from_f64(kk2 as f64);
-    let mut ck = Complex::new(t2_val * rz.re, t2_val * rz.im);
+    let mut ck = rz * t2_val;
     let mut kflag: usize = 0; // KFLAG=1 in Fortran
 
     let mut kk_idx = kk2 + 1; // 0-based next index to fill
@@ -905,10 +867,7 @@ fn handle_iflag1_final<T: BesselFloat>(
 
         for i in kk_idx..n {
             let p2_val = s2_local;
-            s2_local = Complex::new(
-                ck.re * p2_val.re - ck.im * p2_val.im + s1_local.re,
-                ck.im * p2_val.re + ck.re * p2_val.im + s1_local.im,
-            );
+            s2_local = ck * p2_val + s1_local;
             s1_local = p2_val;
             ck = ck + rz;
             let p2_scaled = s2_local * p1r;
