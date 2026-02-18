@@ -198,7 +198,7 @@ pub(crate) fn zunk1<T: BesselFloat>(
 
         // label 50
         cy[kdflg - 1] = s2;
-        y[i] = Complex::new(s2.re * csrr[kflag - 1], s2.im * csrr[kflag - 1]);
+        y[i] = s2 * csrr[kflag - 1];
 
         if kdflg == 2 {
             i_exit = i + 1; // Fortran 1-based I
@@ -217,17 +217,15 @@ pub(crate) fn zunk1<T: BesselFloat>(
     let razr = one / zabs(zr_arg);
     let str_val = zrr * razr;
     let sti = -zri * razr;
-    let rzr = (str_val + str_val) * razr;
-    let rzi = (sti + sti) * razr;
-    let mut ckr = fn_at_exit * rzr;
-    let mut cki = fn_at_exit * rzi;
+    let rz = Complex::new((str_val + str_val) * razr, (sti + sti) * razr);
+    let mut ck = rz * fn_at_exit;
 
     let ib = i_exit + 1; // Fortran IB = I + 1 (1-based index of next item)
 
     // -- Test last member and forward recurrence (Fortran lines 5876-5961) --
     if ib <= n {
         // Test last member for underflow (Fortran lines 5881-5921)
-        let fn_last = fnu + T::from_f64((n - 1) as f64);
+        let fn_last = fnu + T::from_f64((n - 1) as f64); // Fortran line 5881
         let ipard = if mr != 0 {
             SumOption::Full
         } else {
@@ -290,15 +288,11 @@ pub(crate) fn zunk1<T: BesselFloat>(
         let mut ascle = bry[kflag - 1];
 
         for y_item in y.iter_mut().take(n).skip(ib - 1) {
-            let c2 = s2;
-            s2 = Complex::new(
-                ckr * c2.re - cki * c2.im + s1.re,
-                ckr * c2.im + cki * c2.re + s1.im,
-            );
-            s1 = c2;
-            ckr = ckr + rzr;
-            cki = cki + rzi;
-            let c2_scaled = Complex::new(s2.re * c1r, s2.im * c1r);
+            let prev = s2;
+            s2 = ck * prev + s1;
+            s1 = prev;
+            ck = ck + rz;
+            let c2_scaled = s2 * c1r;
             *y_item = c2_scaled;
 
             if kflag >= 3 {
@@ -310,10 +304,10 @@ pub(crate) fn zunk1<T: BesselFloat>(
             }
             kflag += 1;
             ascle = bry[kflag - 1];
-            s1 = Complex::new(s1.re * c1r, s1.im * c1r);
+            s1 = s1 * c1r;
             s2 = c2_scaled;
-            s1 = Complex::new(s1.re * cssr[kflag - 1], s1.im * cssr[kflag - 1]);
-            s2 = Complex::new(s2.re * cssr[kflag - 1], s2.im * cssr[kflag - 1]);
+            s1 = s1 * cssr[kflag - 1];
+            s2 = s2 * cssr[kflag - 1];
             c1r = csrr[kflag - 1];
         }
     }
@@ -332,11 +326,9 @@ pub(crate) fn zunk1<T: BesselFloat>(
     let fnf = fnu - T::from_f64(inu as f64);
     let ifn = inu + n - 1;
     let ang = fnf * sgn;
-    let mut cspnr = ang.cos();
-    let mut cspni = ang.sin();
+    let mut cspn = Complex::new(ang.cos(), ang.sin());
     if ifn % 2 != 0 {
-        cspnr = -cspnr;
-        cspni = -cspni;
+        cspn = -cspn;
     }
 
     let asc = bry[0];
@@ -422,13 +414,9 @@ pub(crate) fn zunk1<T: BesselFloat>(
                 nz += s1s2_result.nz;
                 iuf = s1s2_result.iuf;
             }
-            y[kk - 1] = Complex::new(
-                s1_k.re * cspnr - s1_k.im * cspni + s2_k.re,
-                cspnr * s1_k.im + cspni * s1_k.re + s2_k.im,
-            );
+            y[kk - 1] = cspn * s1_k + s2_k;
             kk -= 1;
-            cspnr = -cspnr;
-            cspni = -cspni;
+            cspn = -cspn;
 
             if c2_save.re == zero && c2_save.im == zero {
                 kdflg = 1;
@@ -467,13 +455,9 @@ pub(crate) fn zunk1<T: BesselFloat>(
                     nz += s1s2_result.nz;
                     iuf = s1s2_result.iuf;
                 }
-                y[kk - 1] = Complex::new(
-                    s1_k.re * cspnr - s1_k.im * cspni + s2_k.re,
-                    cspnr * s1_k.im + cspni * s1_k.re + s2_k.im,
-                );
+                y[kk - 1] = cspn * s1_k + s2_k;
                 kk -= 1;
-                cspnr = -cspnr;
-                cspni = -cspni;
+                cspn = -cspn;
 
                 if c2_save.re == zero && c2_save.im == zero {
                     kdflg = 1;
@@ -496,15 +480,11 @@ pub(crate) fn zunk1<T: BesselFloat>(
         // -- Compute I function contribution (Fortran lines 6048-6070) --
         // S2 = -CSGNI * Im(PHI*SUM) + i * CSGNI * Re(PHI*SUM)
         let ps = phid * sumd;
-        let mut s2_i = Complex::new(-csgni * ps.im, csgni * ps.re);
+        let mut s2_i = Complex::new(zero, csgni) * ps;
 
         let str_exp = s1r.exp() * cssr[iflag - 1];
         let s1_sc = Complex::new(str_exp * s1i.cos(), str_exp * s1i.sin());
-        let s2_prod = Complex::new(
-            s2_i.re * s1_sc.re - s2_i.im * s1_sc.im,
-            s2_i.re * s1_sc.im + s2_i.im * s1_sc.re,
-        );
-        s2_i = s2_prod;
+        s2_i = s2_i * s1_sc;
 
         if iflag == 1 && zuchk(s2_i, bry[0], tol) {
             // NW != 0: set S2 to zero (Fortran lines 6062-6063)
@@ -514,7 +494,7 @@ pub(crate) fn zunk1<T: BesselFloat>(
         // label 230
         cy[kdflg - 1] = s2_i;
         let c2_save = s2_i;
-        let s2_scaled = Complex::new(s2_i.re * csrr[iflag - 1], s2_i.im * csrr[iflag - 1]);
+        let s2_scaled = s2_i * csrr[iflag - 1];
 
         // -- Add I and K functions (Fortran lines 6074-6091) --
         let mut s1_k = y[kk - 1]; // Y(KK)
@@ -529,13 +509,9 @@ pub(crate) fn zunk1<T: BesselFloat>(
         }
 
         // Y(KK) = CSPN * K_part + I_part (Fortran lines 6080-6081)
-        y[kk - 1] = Complex::new(
-            s1_k.re * cspnr - s1_k.im * cspni + s2_k.re,
-            cspnr * s1_k.im + cspni * s1_k.re + s2_k.im,
-        );
+        y[kk - 1] = cspn * s1_k + s2_k;
         kk -= 1;
-        cspnr = -cspnr;
-        cspni = -cspni;
+        cspn = -cspn;
 
         // KDFLG state machine (Fortran lines 6085-6091)
         if c2_save.re == zero && c2_save.im == zero {
@@ -564,15 +540,12 @@ pub(crate) fn zunk1<T: BesselFloat>(
     let mut fn_rec = T::from_f64((inu + il) as f64);
 
     for _i in 0..il {
-        let c2 = s2;
+        let prev = s2;
         let cfn = fn_rec + fnf;
-        s2 = Complex::new(
-            s1.re + cfn * (rzr * c2.re - rzi * c2.im),
-            s1.im + cfn * (rzr * c2.im + rzi * c2.re),
-        );
-        s1 = c2;
+        s2 = s1 + rz * prev * cfn;
+        s1 = prev;
         fn_rec = fn_rec - one;
-        let ck_val = Complex::new(s2.re * csr, s2.im * csr);
+        let ck_val = s2 * csr;
 
         // Add K function (Fortran lines 6126-6133)
         let mut c1_k = y[kk - 1]; // Y(KK)
@@ -586,13 +559,9 @@ pub(crate) fn zunk1<T: BesselFloat>(
             iuf = s1s2_result.iuf;
         }
 
-        y[kk - 1] = Complex::new(
-            c1_k.re * cspnr - c1_k.im * cspni + c2_k.re,
-            c1_k.re * cspni + c1_k.im * cspnr + c2_k.im,
-        );
+        y[kk - 1] = cspn * c1_k + c2_k;
         kk -= 1;
-        cspnr = -cspnr;
-        cspni = -cspni;
+        cspn = -cspn;
 
         if iflag >= 3 {
             continue;
@@ -603,10 +572,10 @@ pub(crate) fn zunk1<T: BesselFloat>(
         }
         iflag += 1;
         ascle = bry[iflag - 1];
-        s1 = Complex::new(s1.re * csr, s1.im * csr);
+        s1 = s1 * csr;
         s2 = ck_val;
-        s1 = Complex::new(s1.re * cssr[iflag - 1], s1.im * cssr[iflag - 1]);
-        s2 = Complex::new(s2.re * cssr[iflag - 1], s2.im * cssr[iflag - 1]);
+        s1 = s1 * cssr[iflag - 1];
+        s2 = s2 * cssr[iflag - 1];
         csr = csrr[iflag - 1];
     }
 

@@ -75,22 +75,18 @@ pub(crate) fn zuni2<T: BesselFloat>(
 
     let inu = fnu.to_i32().unwrap() as usize;
     let ang = T::from_f64(HPI) * (fnu - T::from_f64(inu as f64));
-    let c2r_init = ang.cos();
-    let c2i_init = ang.sin();
-    let car = c2r_init;
-    let sar = c2i_init;
+    let c2_base = Complex::new(ang.cos(), ang.sin());
 
     // IN = (INU + N - 1) mod 4 (0-based)
     let in_idx = (inu + n - 1) % 4;
-    let mut c2r = c2r_init * T::from_f64(CIPR[in_idx]) - c2i_init * T::from_f64(CIPI[in_idx]);
-    let mut c2i = c2r_init * T::from_f64(CIPI[in_idx]) + c2i_init * T::from_f64(CIPR[in_idx]);
+    let mut c2 = c2_base * Complex::new(T::from_f64(CIPR[in_idx]), T::from_f64(CIPI[in_idx]));
 
     if z.im <= zero {
         // Fortran lines 7119-7122
         znr = -znr;
         zbi = -zbi;
         cidi = -cidi;
-        c2i = -c2i;
+        c2 = c2.conj();
     }
 
     // ── Check first member for overflow/underflow (Fortran lines 7127-7144) ──
@@ -177,10 +173,10 @@ pub(crate) fn zuni2<T: BesselFloat>(
                 if fn_check >= fnul {
                     // Recalculate C2 (Fortran lines 7292-7296)
                     let in_idx2 = (inu + nd - 1) % 4;
-                    c2r = car * T::from_f64(CIPR[in_idx2]) - sar * T::from_f64(CIPI[in_idx2]);
-                    c2i = car * T::from_f64(CIPI[in_idx2]) + sar * T::from_f64(CIPR[in_idx2]);
+                    c2 = c2_base
+                        * Complex::new(T::from_f64(CIPR[in_idx2]), T::from_f64(CIPI[in_idx2]));
                     if z.im <= zero {
-                        c2i = -c2i;
+                        c2 = c2.conj();
                     }
                     computed_ok = false;
                     break;
@@ -219,10 +215,10 @@ pub(crate) fn zuni2<T: BesselFloat>(
                     let fn_check = fnu + T::from_f64((nd - 1) as f64);
                     if fn_check >= fnul {
                         let in_idx2 = (inu + nd - 1) % 4;
-                        c2r = car * T::from_f64(CIPR[in_idx2]) - sar * T::from_f64(CIPI[in_idx2]);
-                        c2i = car * T::from_f64(CIPI[in_idx2]) + sar * T::from_f64(CIPR[in_idx2]);
+                        c2 = c2_base
+                            * Complex::new(T::from_f64(CIPR[in_idx2]), T::from_f64(CIPI[in_idx2]));
                         if z.im <= zero {
-                            c2i = -c2i;
+                            c2 = c2.conj();
                         }
                         computed_ok = false;
                         break;
@@ -247,20 +243,13 @@ pub(crate) fn zuni2<T: BesselFloat>(
             let (dai, _ndai) = zairy(result.arg, AiryDerivative::Derivative, Scaling::Exponential)
                 .unwrap_or((czero, 0));
 
-            let str_d = dai.re * result.bsum.re - dai.im * result.bsum.im;
-            let sti_d = dai.re * result.bsum.im + dai.im * result.bsum.re;
-            let str_a = str_d + (ai.re * result.asum.re - ai.im * result.asum.im);
-            let sti_a = sti_d + (ai.re * result.asum.im + ai.im * result.asum.re);
-            let s2r = result.phi.re * str_a - result.phi.im * sti_a;
-            let s2i = result.phi.re * sti_a + result.phi.im * str_a;
+            let s2_airy = result.phi * (ai * result.asum + dai * result.bsum);
 
             let str_exp = s1r.exp() * cssr[iflag - 1];
-            let s1_scaled_re = str_exp * s1i.cos();
-            let s1_scaled_im = str_exp * s1i.sin();
-            let mut s2_re = s2r * s1_scaled_re - s2i * s1_scaled_im;
-            let mut s2_im = s2r * s1_scaled_im + s2i * s1_scaled_re;
+            let s1_scaled = Complex::new(str_exp * s1i.cos(), str_exp * s1i.sin());
+            let mut s2_val = s2_airy * s1_scaled;
 
-            if iflag == 1 && zuchk(Complex::new(s2_re, s2_im), bry0, tol) {
+            if iflag == 1 && zuchk(s2_val, bry0, tol) {
                 // Underflow (label 120)
                 y[nd - 1] = czero;
                 nz += 1;
@@ -280,10 +269,10 @@ pub(crate) fn zuni2<T: BesselFloat>(
                 let fn_check = fnu + T::from_f64((nd - 1) as f64);
                 if fn_check >= fnul {
                     let in_idx2 = (inu + nd - 1) % 4;
-                    c2r = car * T::from_f64(CIPR[in_idx2]) - sar * T::from_f64(CIPI[in_idx2]);
-                    c2i = car * T::from_f64(CIPI[in_idx2]) + sar * T::from_f64(CIPR[in_idx2]);
+                    c2 = c2_base
+                        * Complex::new(T::from_f64(CIPR[in_idx2]), T::from_f64(CIPI[in_idx2]));
                     if z.im <= zero {
-                        c2i = -c2i;
+                        c2 = c2.conj();
                     }
                     computed_ok = false;
                     break;
@@ -294,24 +283,19 @@ pub(crate) fn zuni2<T: BesselFloat>(
 
             // Conjugation for ZI <= 0 (Fortran line 7205)
             if z.im <= zero {
-                s2_im = -s2_im;
+                s2_val = s2_val.conj();
             }
 
             // Phase rotation by C2 (Fortran lines 7206-7208)
-            let str_c = s2_re * c2r - s2_im * c2i;
-            s2_im = s2_re * c2i + s2_im * c2r;
-            s2_re = str_c;
+            s2_val = s2_val * c2;
 
             // Store (Fortran lines 7209-7213)
-            cy[i] = Complex::new(s2_re, s2_im);
+            cy[i] = s2_val;
             let j_idx = nd - 1 - i;
-            y[j_idx] = Complex::new(s2_re * csrr[iflag - 1], s2_im * csrr[iflag - 1]);
+            y[j_idx] = s2_val * csrr[iflag - 1];
 
-            // C2 update: C2 *= (0, CIDI) → C2R = -C2I*CIDI, C2I = C2R*CIDI
-            // (Fortran lines 7214-7216)
-            let str2 = -c2i * cidi;
-            c2i = c2r * cidi;
-            c2r = str2;
+            // C2 *= i*CIDI (Fortran lines 7214-7216)
+            c2 = c2 * Complex::new(zero, cidi);
         }
 
         if !computed_ok {
@@ -326,8 +310,7 @@ pub(crate) fn zuni2<T: BesselFloat>(
         let raz = one / zabs(z);
         let str = z.re * raz;
         let sti = -z.im * raz;
-        let rzr = (str + str) * raz;
-        let rzi = (sti + sti) * raz;
+        let rz = Complex::new((str + str) * raz, (sti + sti) * raz);
 
         let bry1 = one / bry0;
         let bry2 = T::MACH_HUGE;
@@ -347,15 +330,11 @@ pub(crate) fn zuni2<T: BesselFloat>(
         let mut fn_rec = T::from_f64(k as f64);
 
         for _i in 2..nd {
-            let c2 = s2;
+            let prev = s2;
             let cfn = fnu + fn_rec;
-            s2 = s1
-                + Complex::new(
-                    cfn * (rzr * c2.re - rzi * c2.im),
-                    cfn * (rzr * c2.im + rzi * c2.re),
-                );
-            s1 = c2;
-            let c2_scaled = Complex::new(s2.re * c1r, s2.im * c1r);
+            s2 = s1 + rz * prev * cfn;
+            s1 = prev;
+            let c2_scaled = s2 * c1r;
             y[k] = c2_scaled;
             k -= 1;
             fn_rec = fn_rec - one;
@@ -369,10 +348,10 @@ pub(crate) fn zuni2<T: BesselFloat>(
             }
             iflag += 1;
             ascle = if iflag == 2 { bry1 } else { bry2 };
-            s1 = Complex::new(s1.re * c1r, s1.im * c1r);
+            s1 = s1 * c1r;
             s2 = c2_scaled;
-            s1 = Complex::new(s1.re * cssr[iflag - 1], s1.im * cssr[iflag - 1]);
-            s2 = Complex::new(s2.re * cssr[iflag - 1], s2.im * cssr[iflag - 1]);
+            s1 = s1 * cssr[iflag - 1];
+            s2 = s2 * cssr[iflag - 1];
             c1r = csrr[iflag - 1];
         }
 
