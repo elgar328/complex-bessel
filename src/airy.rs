@@ -56,8 +56,8 @@ fn airy_power_series<T: BesselFloat>(
     let mut atrm = one;
 
     // z³ (Fortran lines 1629-1633)
-    let z2 = Complex::new(z.re * z.re - z.im * z.im, z.re * z.im + z.im * z.re);
-    let z3 = Complex::new(z2.re * z.re - z2.im * z.im, z2.re * z.im + z2.im * z.re);
+    let z2 = z * z;
+    let z3 = z2 * z;
     let az3 = az * aa;
 
     // Divisor coefficients (Fortran lines 1634-1642)
@@ -80,12 +80,10 @@ fn airy_power_series<T: BesselFloat>(
     bk = thirty - nine * fid;
 
     for _ in 0..25 {
-        let str = (trm1.re * z3.re - trm1.im * z3.im) / d1;
-        trm1 = Complex::new(str, (trm1.re * z3.im + trm1.im * z3.re) / d1);
+        trm1 = trm1 * z3 / d1;
         s1 = s1 + trm1;
 
-        let str2 = (trm2.re * z3.re - trm2.im * z3.im) / d2;
-        trm2 = Complex::new(str2, (trm2.re * z3.im + trm2.im * z3.re) / d2);
+        trm2 = trm2 * z3 / d2;
         s2 = s2 + trm2;
 
         atrm = atrm * az3 / ad;
@@ -145,9 +143,9 @@ pub(crate) fn zairy<T: BesselFloat>(
             // Ai(z) ≈ C1 - C2*z (Fortran lines 1819-1826)
             let mut s1 = czero;
             if az > aa {
-                s1 = Complex::new(c2 * z.re, c2 * z.im);
+                s1 = z * c2;
             }
-            let ai = Complex::new(c1 - s1.re, -s1.im);
+            let ai = Complex::new(c1, zero) - s1;
             return if kode == Scaling::Exponential {
                 Ok((zairy_scale_exp_zta(z, ai, tth), 0))
             } else {
@@ -158,8 +156,8 @@ pub(crate) fn zairy<T: BesselFloat>(
             let mut ai = Complex::new(-c2, zero);
             let aa_sqrt = aa.sqrt();
             if az > aa_sqrt {
-                let s1 = Complex::new(T::from_f64(0.5) * (z.re * z.re - z.im * z.im), z.re * z.im);
-                ai = Complex::new(ai.re + c1 * s1.re, ai.im + c1 * s1.im);
+                let s1 = z * z * T::from_f64(0.5);
+                ai = ai + s1 * c1;
             }
             return if kode == Scaling::Exponential {
                 Ok((zairy_scale_exp_zta(z, ai, tth), 0))
@@ -174,23 +172,18 @@ pub(crate) fn zairy<T: BesselFloat>(
 
     if id == AiryDerivative::Value {
         // Ai = C1*S1 - C2*(z*S2) (Fortran lines 1664-1665)
-        let zs2 = Complex::new(z.re * s2.re - z.im * s2.im, z.re * s2.im + z.im * s2.re);
-        let ai = Complex::new(s1.re * c1 - c2 * zs2.re, s1.im * c1 - c2 * zs2.im);
+        let ai = s1 * c1 - z * s2 * c2;
         if kode == Scaling::Unscaled {
             return Ok((ai, 0));
         }
         Ok((zairy_scale_exp_zta(z, ai, tth), 0))
     } else {
         // Ai' = -C2*S2 (Fortran lines 1676-1677)
-        let mut ai = Complex::new(-s2.re * c2, -s2.im * c2);
+        let mut ai = -(s2 * c2);
         if az > tol {
             // Ai' += C1/(1+fid) * z² * S1 (Fortran lines 1679-1683)
-            let zs1 = Complex::new(z.re * s1.re - z.im * s1.im, z.re * s1.im + z.im * s1.re);
             let cc = c1 / (one + fid);
-            ai = Complex::new(
-                ai.re + cc * (zs1.re * z.re - zs1.im * z.im),
-                ai.im + cc * (zs1.re * z.im + zs1.im * z.re),
-            );
+            ai = ai + z * s1 * z * cc;
         }
         if kode == Scaling::Unscaled {
             return Ok((ai, 0));
@@ -202,13 +195,8 @@ pub(crate) fn zairy<T: BesselFloat>(
 /// Multiply `val` by exp(zta) where zta = (2/3)*z*sqrt(z).
 /// KODE=2 scaling for ZAIRY power series branch (Fortran lines 1667-1673).
 fn zairy_scale_exp_zta<T: BesselFloat>(z: Complex<T>, val: Complex<T>, tth: T) -> Complex<T> {
-    let sqz = z.sqrt();
-    let zta = Complex::new(
-        tth * (z.re * sqz.re - z.im * sqz.im),
-        tth * (z.re * sqz.im + z.im * sqz.re),
-    );
-    let e = zta.exp();
-    Complex::new(val.re * e.re - val.im * e.im, val.re * e.im + val.im * e.re)
+    let zta = z * z.sqrt() * tth;
+    val * zta.exp()
 }
 
 /// ZAIRY |z| > 1 branch: compute Ai via K Bessel function.
@@ -253,27 +241,24 @@ fn zairy_large_z<T: BesselFloat>(
 
     // ZTA = (2/3)*z*sqrt(z) (Fortran lines 1731-1733)
     let csq = z.sqrt();
-    let mut ztar = tth * (z.re * csq.re - z.im * csq.im);
-    let mut ztai = tth * (z.re * csq.im + z.im * csq.re);
+    let mut zta = z * csq * tth;
 
     // Branch cut correction (Fortran lines 1737-1749)
     let mut iflag: i32 = 0;
     let mut sfac = one;
-    let ak = ztai; // save imaginary part
+    let ak = zta.im; // save imaginary part
 
     if z.re < zero {
         // Fortran lines 1741-1744: Re(z) < 0 → ztar = -|ztar|
-        ztar = -ztar.abs();
-        ztai = ak;
+        zta = Complex::new(-zta.re.abs(), ak);
     }
     if z.im == zero && z.re <= zero {
         // Negative real axis: ztar = 0 (Fortran lines 1748-1749)
-        ztar = zero;
-        ztai = ak;
+        zta = Complex::new(zero, ak);
     }
 
     // Dispatch based on Re(zta) and Re(z) (Fortran line 1752)
-    let aa_zta = ztar;
+    let aa_zta = zta.re;
     if aa_zta >= zero && z.re > zero {
         // Label 110: direct ZBKNU path (right half plane)
         // Underflow test (Fortran lines 1774-1782)
@@ -288,12 +273,11 @@ fn zairy_large_z<T: BesselFloat>(
         }
 
         // Label 120: ZBKNU (Fortran lines 1784-1785)
-        let zta = Complex::new(ztar, ztai);
         let mut cy_buf = [czero];
         let nz_k = zbknu(zta, fnu, kode, &mut cy_buf, tol, elim, alim)?;
         nz += nz_k as i32;
 
-        let s1 = Complex::new(cy_buf[0].re * coef, cy_buf[0].im * coef);
+        let s1 = cy_buf[0] * coef;
         return zairy_form_result(z, csq, s1, id, iflag, sfac, nz);
     }
 
@@ -312,7 +296,6 @@ fn zairy_large_z<T: BesselFloat>(
 
     // Label 100: ZACAI call (Fortran lines 1766-1772)
     let mr: i32 = if z.im < zero { -1 } else { 1 };
-    let zta = Complex::new(ztar, ztai);
     let mut cy_buf = [czero];
     let nn = zacai(zta, fnu, kode, mr, &mut cy_buf, rl, tol, elim, alim)?;
     if nn < 0 {
@@ -325,7 +308,7 @@ fn zairy_large_z<T: BesselFloat>(
     }
     nz += nn;
 
-    let s1 = Complex::new(cy_buf[0].re * coef, cy_buf[0].im * coef);
+    let s1 = cy_buf[0] * coef;
     zairy_form_result(z, csq, s1, id, iflag, sfac, nz)
 }
 
@@ -344,34 +327,18 @@ fn zairy_form_result<T: BesselFloat>(
         // Normal case
         if id == AiryDerivative::Value {
             // Ai = sqrt(z) * s1 (Fortran lines 1791-1792)
-            let ai = Complex::new(
-                csq.re * s1.re - csq.im * s1.im,
-                csq.re * s1.im + csq.im * s1.re,
-            );
-            Ok((ai, nz))
+            Ok((csq * s1, nz))
         } else {
             // Ai' = -(z * s1) (Fortran lines 1795-1796)
-            let ai = Complex::new(
-                -(z.re * s1.re - z.im * s1.im),
-                -(z.re * s1.im + z.im * s1.re),
-            );
-            Ok((ai, nz))
+            Ok((-(z * s1), nz))
         }
     } else {
         // IFLAG != 0: scaled computation (Fortran lines 1798-1813)
-        let s1s = Complex::new(s1.re * sfac, s1.im * sfac);
+        let s1s = s1 * sfac;
         if id == AiryDerivative::Value {
-            let tmp = Complex::new(
-                s1s.re * csq.re - s1s.im * csq.im,
-                s1s.re * csq.im + s1s.im * csq.re,
-            );
-            Ok((Complex::new(tmp.re / sfac, tmp.im / sfac), nz))
+            Ok((s1s * csq / sfac, nz))
         } else {
-            let tmp = Complex::new(
-                -(s1s.re * z.re - s1s.im * z.im),
-                -(s1s.re * z.im + s1s.im * z.re),
-            );
-            Ok((Complex::new(tmp.re / sfac, tmp.im / sfac), nz))
+            Ok((-(s1s * z) / sfac, nz))
         }
     }
 }
@@ -422,8 +389,7 @@ pub(crate) fn zbiry<T: BesselFloat>(
 
     if id == AiryDerivative::Value {
         // Bi = C1*S1 + C2*(z*S2) (Fortran lines 2053-2054, note + sign)
-        let zs2 = Complex::new(z.re * s2.re - z.im * s2.im, z.re * s2.im + z.im * s2.re);
-        let bi = Complex::new(c1 * s1.re + c2 * zs2.re, c1 * s1.im + c2 * zs2.im);
+        let bi = s1 * c1 + z * s2 * c2;
         if kode == Scaling::Unscaled {
             return Ok(bi);
         }
@@ -431,15 +397,11 @@ pub(crate) fn zbiry<T: BesselFloat>(
         Ok(zbiry_scale_exp(z, bi, tth))
     } else {
         // Bi' = C2*S2 (Fortran lines 2066-2067, no minus sign)
-        let mut bi = Complex::new(s2.re * c2, s2.im * c2);
+        let mut bi = s2 * c2;
         if az > tol {
             // Bi' += C1/(1+fid) * z² * S1 (Fortran lines 2069-2073)
             let cc = c1 / (one + fid);
-            let zs1 = Complex::new(z.re * s1.re - z.im * s1.im, z.re * s1.im + z.im * s1.re);
-            bi = Complex::new(
-                bi.re + cc * (zs1.re * z.re - zs1.im * z.im),
-                bi.im + cc * (zs1.re * z.im + zs1.im * z.re),
-            );
+            bi = bi + z * s1 * z * cc;
         }
         if kode == Scaling::Unscaled {
             return Ok(bi);
@@ -451,10 +413,8 @@ pub(crate) fn zbiry<T: BesselFloat>(
 /// Multiply `val` by exp(-|Re(zta)|) for ZBIRY KODE=2 in the power series branch.
 /// (Fortran lines 2056-2063 / 2076-2083)
 fn zbiry_scale_exp<T: BesselFloat>(z: Complex<T>, val: Complex<T>, tth: T) -> Complex<T> {
-    let sqz = z.sqrt();
-    let ztar = tth * (z.re * sqz.re - z.im * sqz.im);
-    let eaa = (-ztar.abs()).exp();
-    Complex::new(val.re * eaa, val.im * eaa)
+    let zta_re = (z * z.sqrt() * tth).re;
+    val * (-zta_re.abs()).exp()
 }
 
 /// ZBIRY |z| > 1 branch: compute Bi via I Bessel function.
@@ -498,24 +458,21 @@ fn zbiry_large_z<T: BesselFloat>(
 
     // ZTA = (2/3)*z*sqrt(z) (Fortran lines 2123-2125)
     let csq = z.sqrt();
-    let mut ztar = tth * (z.re * csq.re - z.im * csq.im);
-    let mut ztai = tth * (z.re * csq.im + z.im * csq.re);
+    let mut zta = z * csq * tth;
 
     // Branch cut correction (Fortran lines 2129-2139)
     let mut sfac = one;
-    let ak = ztai;
+    let ak = zta.im;
 
     if z.re < zero {
-        ztar = -ztar.abs();
-        ztai = ak;
+        zta = Complex::new(-zta.re.abs(), ak);
     }
     if z.im == zero && z.re <= zero {
-        ztar = zero;
-        ztai = ak;
+        zta = Complex::new(zero, ak);
     }
 
     // Overflow test (Fortran lines 2141-2150)
-    let aa_zta = ztar;
+    let aa_zta = zta.re;
     if kode != Scaling::Exponential {
         let bb_abs = aa_zta.abs();
         if bb_abs >= alim {
@@ -534,11 +491,8 @@ fn zbiry_large_z<T: BesselFloat>(
         if z.im < zero {
             fmr = -pi_t;
         }
-        ztar = -ztar;
-        ztai = -ztai;
+        zta = -zta;
     }
-
-    let zta = Complex::new(ztar, ztai);
 
     // First ZBINU: I_{fnu}(zta) (Fortran lines 2163-2164)
     let czero = Complex::new(zero, zero);
@@ -547,43 +501,32 @@ fn zbiry_large_z<T: BesselFloat>(
 
     // S1 = exp(i*FMR*FNU) * CY(1) * SFAC (Fortran lines 2166-2171)
     let aa_fmr = fmr * fnu;
-    let z3r = sfac;
-    let str_cos = aa_fmr.cos();
-    let sti_sin = aa_fmr.sin();
-    let mut s1r = (str_cos * cy1_buf[0].re - sti_sin * cy1_buf[0].im) * z3r;
-    let mut s1i = (str_cos * cy1_buf[0].im + sti_sin * cy1_buf[0].re) * z3r;
+    let phase = Complex::new(aa_fmr.cos(), aa_fmr.sin());
+    let mut s1 = phase * cy1_buf[0] * sfac;
 
     // Second ZBINU: I_{fnu2}(zta), I_{fnu2+1}(zta) (Fortran lines 2172-2178)
     let fnu2 = (two - fid) / three;
     let mut cy2_buf = [czero; 2];
     zbinu(zta, fnu2, kode, &mut cy2_buf, rl, fnul, tol, elim, alim)?;
-    let cy2_0 = Complex::new(cy2_buf[0].re * z3r, cy2_buf[0].im * z3r);
-    let cy2_1 = Complex::new(cy2_buf[1].re * z3r, cy2_buf[1].im * z3r);
+    let cy2_0 = cy2_buf[0] * sfac;
+    let cy2_1 = cy2_buf[1] * sfac;
 
     // Backward recurrence: I_{fnu2-1} = 2*fnu2*(CY(1)/ZTA) + CY(2)
     // (Fortran lines 2182-2184)
-    let div_result = zdiv(cy2_0, zta);
-    let s2r = (fnu2 + fnu2) * div_result.re + cy2_1.re;
-    let s2i = (fnu2 + fnu2) * div_result.im + cy2_1.im;
+    let s2 = zdiv(cy2_0, zta) * (fnu2 + fnu2) + cy2_1;
 
     // Final combination (Fortran lines 2185-2189)
     let aa_rot = fmr * (fnu2 - one);
-    let str2 = aa_rot.cos();
-    let sti2 = aa_rot.sin();
-    s1r = coef * (s1r + s2r * str2 - s2i * sti2);
-    s1i = coef * (s1i + s2r * sti2 + s2i * str2);
+    let phase2 = Complex::new(aa_rot.cos(), aa_rot.sin());
+    s1 = (s1 + phase2 * s2) * coef;
 
     // Form result (Fortran lines 2190-2202)
     if id == AiryDerivative::Value {
         // Bi = sqrt(z) * S1 / SFAC (Fortran lines 2191-2195)
-        let str_out = csq.re * s1r - csq.im * s1i;
-        let sti_out = csq.re * s1i + csq.im * s1r;
-        Ok(Complex::new(str_out / sfac, sti_out / sfac))
+        Ok(csq * s1 / sfac)
     } else {
         // Bi' = z * S1 / SFAC (Fortran lines 2198-2202)
-        let str_out = z.re * s1r - z.im * s1i;
-        let sti_out = z.re * s1i + z.im * s1r;
-        Ok(Complex::new(str_out / sfac, sti_out / sfac))
+        Ok(z * s1 / sfac)
     }
 }
 

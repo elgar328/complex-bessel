@@ -262,8 +262,7 @@ pub(crate) fn zuni1<T: BesselFloat>(
         let rast = one / zabs(z);
         let str_val = z.re * rast;
         let sti = -z.im * rast;
-        let rzr = (str_val + str_val) * rast;
-        let rzi = (sti + sti) * rast;
+        let rz = Complex::new((str_val + str_val) * rast, (sti + sti) * rast);
 
         let bry1 = one / bry0;
         let bry2 = T::MACH_HUGE;
@@ -286,13 +285,9 @@ pub(crate) fn zuni1<T: BesselFloat>(
         for _i in 2..nd {
             let c2 = s2;
             let cfn = fnu + fn_rec;
-            s2 = s1
-                + Complex::new(
-                    cfn * (rzr * c2.re - rzi * c2.im),
-                    cfn * (rzr * c2.im + rzi * c2.re),
-                );
+            s2 = s1 + rz * c2 * cfn;
             s1 = c2;
-            let c2_scaled = Complex::new(s2.re * c1r, s2.im * c1r);
+            let c2_scaled = s2 * c1r;
             y[k] = c2_scaled;
             k -= 1;
             fn_rec = fn_rec - one;
@@ -306,10 +301,10 @@ pub(crate) fn zuni1<T: BesselFloat>(
             }
             iflag += 1;
             ascle = if iflag == 2 { bry1 } else { bry2 };
-            s1 = Complex::new(s1.re * c1r, s1.im * c1r);
+            s1 = s1 * c1r;
             s2 = c2_scaled;
-            s1 = Complex::new(s1.re * cssr[iflag - 1], s1.im * cssr[iflag - 1]);
-            s2 = Complex::new(s2.re * cssr[iflag - 1], s2.im * cssr[iflag - 1]);
+            s1 = s1 * cssr[iflag - 1];
+            s2 = s2 * cssr[iflag - 1];
             c1r = csrr[iflag - 1];
         }
 

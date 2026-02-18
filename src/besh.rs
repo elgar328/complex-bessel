@@ -219,13 +219,11 @@ pub(crate) fn zbesh<T: BesselFloat>(
     let rhpi = one / sgn;
 
     // CSGN = RHPI * (-sin(arg) + i*cos(arg)) (Fortran lines 303-304)
-    let mut csgnr = -rhpi * arg.sin();
-    let mut csgni = rhpi * arg.cos();
+    let mut csgn = Complex::new(-rhpi * arg.sin(), rhpi * arg.cos());
 
     // If inuh is odd, negate CSGN (Fortran lines 305-309)
     if inuh % 2 != 0 {
-        csgnr = -csgnr;
-        csgni = -csgni;
+        csgn = -csgn;
     }
 
     // ZTI = -FMM (Fortran line 311)
@@ -247,14 +245,10 @@ pub(crate) fn zbesh<T: BesselFloat>(
         }
 
         // CY(I) = (AA + i*BB) * CSGN * ATOL (Fortran lines 329-332)
-        let str = aa_val * csgnr - bb_val * csgni;
-        let sti = aa_val * csgni + bb_val * csgnr;
-        *item = Complex::new(str * atol, sti * atol);
+        *item = Complex::new(aa_val, bb_val) * csgn * atol;
 
         // Advance CSGN: CSGN *= (0, ZTI) (Fortran lines 333-335)
-        let str_new = -csgni * zti;
-        csgni = csgnr * zti;
-        csgnr = str_new;
+        csgn = csgn * Complex::new(zero, zti);
     }
 
     let status = if precision_warning {

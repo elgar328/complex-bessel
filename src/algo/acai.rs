@@ -99,58 +99,38 @@ pub(crate) fn zacai<T: BesselFloat>(
     let sgn = -pi_t.copysign(fmr); // SGN = -DSIGN(PI, FMR) (Fortran line 4739)
 
     // CSGN = (0, sgn) (Fortran lines 4740-4741)
-    let mut csgnr = zero;
-    let mut csgni = sgn;
+    let mut csgn = Complex::new(zero, sgn);
 
     if kode == Scaling::Exponential {
         // Fortran lines 4743-4745: KODE=2 adjustment
         let yy = -zn.im;
-        let new_r = -csgni * yy.sin();
-        let new_i = csgni * yy.cos();
-        csgnr = new_r;
-        csgni = new_i;
+        csgn = csgn * Complex::new(yy.cos(), yy.sin());
     }
 
     // CSPN = exp(FNU*PI*I) with precision preservation (Fortran lines 4751-4758)
     let inu = fnu.to_i32().unwrap();
     let arg = (fnu - T::from_f64(inu as f64)) * sgn;
-    let mut cspnr = arg.cos();
-    let mut cspni = arg.sin();
+    let mut cspn = Complex::new(arg.cos(), arg.sin());
     if inu % 2 != 0 {
-        cspnr = -cspnr;
-        cspni = -cspni;
+        cspn = -cspn;
     }
 
     // C1 = K result, C2 = I result (Fortran lines 4760-4763)
-    let mut c1r = k_buf[0].re;
-    let mut c1i = k_buf[0].im;
-    let mut c2r = i_buf[0].re;
-    let mut c2i = i_buf[0].im;
+    let mut c1 = k_buf[0];
+    let mut c2 = i_buf[0];
 
     if kode == Scaling::Exponential {
         // Fortran lines 4765-4769: ZS1S2 call for KODE=2
         let iuf: i32 = 0;
         let ascle = T::from_f64(1.0e3) * T::MACH_TINY / tol;
-        let s1s2_out = zs1s2(
-            zn,
-            Complex::new(c1r, c1i),
-            Complex::new(c2r, c2i),
-            ascle,
-            alim,
-            iuf,
-        );
+        let s1s2_out = zs1s2(zn, c1, c2, ascle, alim, iuf);
         nz += s1s2_out.nz;
-        c1r = s1s2_out.s1.re;
-        c1i = s1s2_out.s1.im;
-        c2r = s1s2_out.s2.re;
-        c2i = s1s2_out.s2.im;
+        c1 = s1s2_out.s1;
+        c2 = s1s2_out.s2;
     }
 
     // Y(1) = CSPN*C1 + CSGN*C2 (Fortran lines 4771-4772)
-    y[0] = Complex::new(
-        cspnr * c1r - cspni * c1i + csgnr * c2r - csgni * c2i,
-        cspnr * c1i + cspni * c1r + csgnr * c2i + csgni * c2r,
-    );
+    y[0] = cspn * c1 + csgn * c2;
 
     Ok(nz)
 }

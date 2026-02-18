@@ -71,24 +71,19 @@ pub(crate) fn zbesj<T: BesselFloat>(
     let inuh = inu / 2;
     let ir = inu - 2 * inuh;
     let arg = (fnu - T::from_f64((inu - ir) as f64)) * hpi_t;
-    let mut csgnr = arg.cos();
-    let mut csgni = arg.sin();
+    let mut csgn = Complex::new(arg.cos(), arg.sin());
     if inuh % 2 != 0 {
-        csgnr = -csgnr;
-        csgni = -csgni;
+        csgn = -csgn;
     }
 
     // ZN is in the right half-plane (Fortran lines 844-850)
     // J(fnu, z) = exp(fnu*pi*i/2) * I(fnu, -i*z) for Im(z) >= 0
-    let mut znr = z.im;
-    let mut zni = -z.re;
+    let mut zn = Complex::new(z.im, -z.re);
     if z.im < zero {
-        znr = -znr;
-        zni = -zni;
-        csgni = -csgni;
+        zn = -zn;
+        csgn = Complex::new(csgn.re, -csgn.im);
         cii = -cii;
     }
-    let zn = Complex::new(znr, zni);
 
     // Call ZBINU (Fortran lines 852-853)
     let nz = zbinu(zn, fnu, scaling, y, rl, fnul, tol, elim, alim)?;
@@ -117,15 +112,11 @@ pub(crate) fn zbesj<T: BesselFloat>(
             bb_val = bb_val * rtol;
             atol = tol;
         }
-        let str = aa_val * csgnr - bb_val * csgni;
-        let sti = aa_val * csgni + bb_val * csgnr;
-        *cy_item = Complex::new(str * atol, sti * atol);
+        *cy_item = Complex::new(aa_val, bb_val) * csgn * atol;
 
         // Advance CSGN: multiply by (0, cii) → CSGN *= i*CII
         // (Fortran lines 875-877)
-        let str_new = -csgni * cii;
-        csgni = csgnr * cii;
-        csgnr = str_new;
+        csgn = csgn * Complex::new(zero, cii);
     }
 
     Ok((nz, status))

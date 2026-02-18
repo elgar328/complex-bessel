@@ -67,8 +67,7 @@ pub(crate) fn zbesi<T: BesselFloat>(
     // (Fortran lines 561-610)
     let mut znr = z.re;
     let mut zni = z.im;
-    let mut csgnr = one;
-    let mut csgni = zero;
+    let mut csgn = Complex::new(one, zero);
 
     if z.re < zero {
         // Left half-plane: use I(fnu, -z) * exp(fnu*pi*i)
@@ -81,11 +80,9 @@ pub(crate) fn zbesi<T: BesselFloat>(
         if z.im < zero {
             arg = -arg;
         }
-        csgnr = arg.cos();
-        csgni = arg.sin();
+        csgn = Complex::new(arg.cos(), arg.sin());
         if inu % 2 != 0 {
-            csgnr = -csgnr;
-            csgni = -csgni;
+            csgn = -csgn;
         }
     }
 
@@ -123,12 +120,9 @@ pub(crate) fn zbesi<T: BesselFloat>(
             bb_val = bb_val * rtol;
             atol = tol;
         }
-        let str = aa_val * csgnr - bb_val * csgni;
-        let sti = aa_val * csgni + bb_val * csgnr;
-        *cy_item = Complex::new(str * atol, sti * atol);
+        *cy_item = Complex::new(aa_val, bb_val) * csgn * atol;
         // CSGN alternates sign each order (Fortran lines 608-609)
-        csgnr = -csgnr;
-        csgni = -csgni;
+        csgn = -csgn;
     }
 
     Ok((nz, status))
