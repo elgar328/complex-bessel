@@ -11,6 +11,7 @@
 
 use num_complex::Complex;
 
+use crate::algo::constants::AIC;
 use crate::algo::uchk::zuchk;
 use crate::algo::unhj::zunhj;
 use crate::algo::unik::zunik;
@@ -50,7 +51,7 @@ pub(crate) fn zuoik<T: BesselFloat>(
     let mut nn = n;
 
     // AIC = ln(sqrt(pi/2)) = 0.5*ln(pi/2) (Fortran line 4017)
-    let aic = T::from(1.265512123484645396).unwrap();
+    let aic = T::from(AIC).unwrap();
 
     // Reflect to right half plane (Fortran lines 4020-4026)
     let (zrr, zri) = if z.re >= zero {

@@ -55,14 +55,13 @@ pub(crate) fn zacai<T: BesselFloat>(
     // ZN = -Z (Fortran line 4703-4704)
     let zn = Complex::new(-z.re, -z.im);
     let az = zabs(z);
-    let nn = n;
     let dfnu = fnu + T::from((n - 1) as f64).unwrap();
 
     // I function dispatch (Fortran lines 4706-4731)
     // Direct calls to avoid ZBINU → ZBUNI → ZUNI2 → ZAIRY recursion
     // N is always 1 for acai, so use stack buffer
     let mut i_buf = [czero];
-    let nw: i32 = if az <= two || az * az * T::from(0.25).unwrap() <= dfnu + one {
+    let _nw: i32 = if az <= two || az * az * T::from(0.25).unwrap() <= dfnu + one {
         // Label 10: power series (Fortran line 4710)
         zseri(zn, fnu, kode, &mut i_buf, tol, elim, alim)
     } else if az >= rl {
@@ -88,7 +87,6 @@ pub(crate) fn zacai<T: BesselFloat>(
         }
         nw_val
     };
-    let _ = (nw, nn); // suppress unused warnings
 
     // Label 40: Analytic continuation (Fortran lines 4732-4777)
     // K function at -z (Fortran line 4736)
