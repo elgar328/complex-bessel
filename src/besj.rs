@@ -4,9 +4,6 @@
 //! J(fnu, z) = exp(fnu*pi*i/2) * I(fnu, -i*z) for Im(z) >= 0
 //! J(fnu, z) = exp(-fnu*pi*i/2) * I(fnu, i*z) for Im(z) < 0
 
-#![allow(clippy::excessive_precision)]
-#![allow(clippy::approx_constant)]
-
 use num_complex::Complex;
 
 use crate::algo::binu::zbinu;

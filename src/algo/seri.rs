@@ -3,8 +3,6 @@
 //! Translation of Fortran ZSERI from TOMS 644 (zbsubs.f lines 3622-3812).
 //! Computes I(fnu, z) for |z| <= 2*sqrt(fnu+1) region.
 
-#![allow(clippy::excessive_precision)]
-
 use num_complex::Complex;
 
 use crate::algo::gamln::gamln;

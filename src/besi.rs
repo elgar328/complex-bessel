@@ -2,9 +2,6 @@
 //!
 //! Translation of Fortran ZBESI from TOMS 644 (zbsubs.f lines 355-624).
 
-#![allow(clippy::excessive_precision)]
-#![allow(clippy::approx_constant)]
-
 use num_complex::Complex;
 
 use crate::algo::binu::zbinu;

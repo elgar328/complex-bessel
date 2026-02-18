@@ -2,8 +2,6 @@
 //!
 //! Translation of Fortran ZMLRI from TOMS 644 (zbsubs.f lines 3322-3526).
 
-#![allow(clippy::excessive_precision)]
-
 use num_complex::Complex;
 
 use crate::algo::gamln::gamln;

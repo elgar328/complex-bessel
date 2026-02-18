@@ -5,8 +5,6 @@
 //! asymptotic expansion for J(fnu, z*exp(m*hpi*i)).
 
 #![allow(clippy::too_many_arguments)]
-#![allow(clippy::excessive_precision)]
-#![allow(clippy::approx_constant)]
 
 use num_complex::Complex;
 

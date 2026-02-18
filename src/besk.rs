@@ -122,7 +122,6 @@ pub(crate) fn zbesk<T: BesselFloat>(
     // ── Small-to-moderate order path ──
     // Fortran: check for overflow when FN > 1 and |z| is tiny
     let rl = T::rl();
-    let fnul = T::fnul();
 
     if fn_val > T::one() {
         if fn_val > T::from(2.0).unwrap() {

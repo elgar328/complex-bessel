@@ -4,9 +4,6 @@
 //! Y(fnu, z) = i*CC*I(fnu, arg) - (2/pi)*conj(CC)*K(fnu, arg)
 //! where CC = exp(-i*pi*fnu/2), arg = z*exp(-i*pi/2).
 
-#![allow(clippy::excessive_precision)]
-#![allow(clippy::approx_constant)]
-
 #[cfg(all(feature = "alloc", not(feature = "std")))]
 use alloc::vec;
 

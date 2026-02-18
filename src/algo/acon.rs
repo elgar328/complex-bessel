@@ -4,8 +4,6 @@
 //! Applies: K(fnu, zn*exp(mp)) = K(fnu, zn)*exp(-mp*fnu) - mp*I(fnu, zn)
 //! where mp = pi*mr*i.
 
-#![allow(clippy::excessive_precision)]
-#![allow(clippy::approx_constant)]
 #![allow(clippy::too_many_arguments)]
 #![allow(unused_assignments)]
 

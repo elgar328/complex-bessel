@@ -5,7 +5,6 @@
 //! to the left half plane using the uniform asymptotic expansion.
 
 #![allow(clippy::too_many_arguments)]
-#![allow(clippy::excessive_precision)]
 
 use num_complex::Complex;
 

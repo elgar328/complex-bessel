@@ -4,7 +4,6 @@
 //! and ZBIRY (zbsubs.f lines 1857-2221) from TOMS 644.
 
 #![allow(clippy::excessive_precision)]
-#![allow(clippy::approx_constant)]
 
 use num_complex::Complex;
 

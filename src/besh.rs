@@ -8,10 +8,6 @@
 //!   H(m, fnu, z) = (1/mp)*exp(-mp*fnu)*K(fnu, z*exp(-mp))
 //! where mp = (3-2*m)*i*pi/2, m = 1 or 2.
 
-// Exact Fortran constants — preserve verbatim.
-#![allow(clippy::excessive_precision)]
-#![allow(clippy::approx_constant)]
-
 use num_complex::Complex;
 
 use crate::algo::acon::zacon;

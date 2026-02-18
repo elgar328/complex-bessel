@@ -5,7 +5,6 @@
 //! asymptotic expansion.
 
 #![allow(clippy::too_many_arguments)]
-#![allow(clippy::excessive_precision)]
 
 use num_complex::Complex;
 
