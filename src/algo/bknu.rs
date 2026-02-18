@@ -17,7 +17,7 @@ use crate::algo::shch::zshch;
 use crate::algo::uchk::zuchk;
 use crate::machine::BesselFloat;
 use crate::types::{BesselError, Scaling};
-use crate::utils::{zabs, zdiv};
+use crate::utils::{reciprocal_z, zabs, zdiv};
 
 // ── Constants from Fortran DATA statements ──
 
@@ -99,10 +99,7 @@ pub(crate) fn zbknu<T: BesselFloat>(
     let mut nz: usize = 0;
     let mut iflag = 0_i32;
     let mut koded = kode;
-    let rcaz = one / caz;
-    let str_val = z.re * rcaz;
-    let sti = -z.im * rcaz;
-    let rz = Complex::new((str_val + str_val) * rcaz, (sti + sti) * rcaz);
+    let rz = reciprocal_z(z);
 
     let inu = (fnu + half).floor().to_i32().unwrap();
     let dnu = fnu - T::from_f64(inu as f64);

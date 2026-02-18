@@ -11,7 +11,7 @@ use crate::algo::uni1::zuni1;
 use crate::algo::uni2::zuni2;
 use crate::machine::BesselFloat;
 use crate::types::Scaling;
-use crate::utils::zabs;
+use crate::utils::{reciprocal_z, zabs};
 
 /// Output metadata of ZBUNI (no Vec — results written into caller-provided slice).
 #[derive(Debug, Clone, Copy)]
@@ -135,10 +135,7 @@ pub(crate) fn zbuni<T: BesselFloat>(
     let mut s1 = cy[1] * csclr;
     let mut s2 = cy[0] * csclr;
 
-    let raz = one / zabs(z);
-    let str2 = z.re * raz;
-    let sti2 = -z.im * raz;
-    let rz = Complex::new((str2 + str2) * raz, (sti2 + sti2) * raz);
+    let rz = reciprocal_z(z);
 
     // Backward recurrence for NUI steps (Fortran DO 30)
     let mut fnui_val = fnui;

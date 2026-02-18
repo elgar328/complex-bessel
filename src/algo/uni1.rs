@@ -13,7 +13,7 @@ use crate::algo::unik::zunik;
 use crate::algo::uoik::zuoik;
 use crate::machine::BesselFloat;
 use crate::types::{IkFlag, Scaling, SumOption};
-use crate::utils::zabs;
+use crate::utils::{reciprocal_z, zabs};
 
 /// Output of ZUNI1.
 #[derive(Debug, Clone, Copy)]
@@ -259,10 +259,7 @@ pub(crate) fn zuni1<T: BesselFloat>(
             return Uni1Output { nz, nlast };
         }
 
-        let rast = one / zabs(z);
-        let str_val = z.re * rast;
-        let sti = -z.im * rast;
-        let rz = Complex::new((str_val + str_val) * rast, (sti + sti) * rast);
+        let rz = reciprocal_z(z);
 
         let bry1 = one / bry0;
         let bry2 = T::MACH_HUGE;

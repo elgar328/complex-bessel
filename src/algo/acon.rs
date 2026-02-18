@@ -15,7 +15,7 @@ use crate::algo::constants::PI;
 use crate::algo::s1s2::zs1s2;
 use crate::machine::BesselFloat;
 use crate::types::{BesselError, Scaling};
-use crate::utils::zabs;
+use crate::utils::{reciprocal_z, zabs};
 
 /// Analytic continuation of K function from right to left half-plane.
 ///
@@ -130,11 +130,7 @@ pub(crate) fn zacon<T: BesselFloat>(
     // Forward recurrence on K function for n > 2 (Fortran lines 4277-4371)
     cspn = -cspn;
 
-    let azn = zabs(zn);
-    let razn = one / azn;
-    let str_rz = zn.re * razn;
-    let sti_rz = -zn.im * razn;
-    let rz = Complex::new((str_rz + str_rz) * razn, (sti_rz + sti_rz) * razn);
+    let rz = reciprocal_z(zn);
 
     let fn_val = fnu + one;
     let mut ck = rz * fn_val;

@@ -17,7 +17,7 @@ use crate::algo::uchk::zuchk;
 use crate::algo::unhj::zunhj;
 use crate::machine::BesselFloat;
 use crate::types::{AiryDerivative, Scaling, SumOption};
-use crate::utils::zabs;
+use crate::utils::{reciprocal_z, zabs};
 
 /// CR1 = (1, sqrt(3)) (Fortran line 6196-6197)
 const CR1: [f64; 2] = [1.0, 1.73205080756887729];
@@ -270,10 +270,7 @@ pub(crate) fn zunk2<T: BesselFloat>(
 
     let fn_at_exit = fnu + T::from_f64((i_exit - 1) as f64);
     let zr_vec = Complex::new(zrr, zri);
-    let razr = one / zabs(zr_vec);
-    let str_rz = zrr * razr;
-    let sti_rz = -zri * razr;
-    let rz = Complex::new((str_rz + str_rz) * razr, (sti_rz + sti_rz) * razr);
+    let rz = reciprocal_z(zr_vec);
     let mut ck = rz * fn_at_exit;
 
     let ib = i_exit + 1;

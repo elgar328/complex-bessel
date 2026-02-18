@@ -9,7 +9,7 @@ use crate::algo::gamln::gamln;
 use crate::algo::uchk::zuchk;
 use crate::machine::BesselFloat;
 use crate::types::Scaling;
-use crate::utils::{zabs, zdiv};
+use crate::utils::{reciprocal_z, zabs, zdiv};
 
 /// Power series computation of I Bessel function.
 ///
@@ -200,10 +200,7 @@ pub(crate) fn zseri<T: BesselFloat>(
 
         let mut k: isize = nn as isize - 3; // 0-based (Fortran K=NN-2 → k=NN-3)
         let mut ak_val = T::from_f64((nn - 2) as f64);
-        let raz = one / az;
-        let str = z.re * raz;
-        let sti = -z.im * raz;
-        let rz = Complex::new((str + str) * raz, (sti + sti) * raz);
+        let rz = reciprocal_z(z);
 
         if iflag == 1 {
             // Scaled recurrence (Fortran label 120, lines 3760-3788)

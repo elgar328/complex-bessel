@@ -46,6 +46,20 @@ pub(crate) fn zdiv<T: BesselFloat>(a: Complex<T>, b: Complex<T>) -> Complex<T> {
     Complex::new((a.re * cc + a.im * cd) * bm, (a.im * cc - a.re * cd) * bm)
 }
 
+/// Overflow-safe reciprocal: `rz = 2 / z`.
+///
+/// Computes `2/z` without intermediate overflow by factoring out the
+/// magnitude. Equivalent to the `RZ` computation in Fortran ZBKNU,
+/// ZSERI, ZASYI, etc.
+#[inline]
+pub(crate) fn reciprocal_z<T: BesselFloat>(z: Complex<T>) -> Complex<T> {
+    let one = T::one();
+    let raz = one / zabs(z);
+    let str = z.re * raz;
+    let sti = -z.im * raz;
+    Complex::new((str + str) * raz, (sti + sti) * raz)
+}
+
 /// Compute sin(π·x) with exact values at half-integers.
 ///
 /// Reduces the argument modulo 2 first, so `sinpi(n)` is exactly 0 for

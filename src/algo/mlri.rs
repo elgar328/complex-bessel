@@ -38,8 +38,8 @@ pub(crate) fn zmlri<T: BesselFloat>(
     let raz = one / az;
     let str = z.re * raz;
     let sti = -z.im * raz;
-    let mut ck = Complex::new(str * at * raz, sti * at * raz);
     let rz = Complex::new((str + str) * raz, (sti + sti) * raz);
+    let mut ck = rz * (at * T::from_f64(0.5));
     let mut p1 = czero;
     let mut p2 = Complex::new(one, zero);
     let ack = (at + one) * raz;

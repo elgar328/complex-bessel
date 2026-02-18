@@ -14,7 +14,7 @@ use crate::algo::uchk::zuchk;
 use crate::algo::unik::{UnikCache, zunik};
 use crate::machine::BesselFloat;
 use crate::types::{IkFlag, Scaling, SumOption};
-use crate::utils::zabs;
+use crate::utils::{reciprocal_z, zabs};
 
 /// Compute K(fnu,z) via Region 1 uniform asymptotic expansion + analytic continuation.
 ///
@@ -211,10 +211,7 @@ pub(crate) fn zunk1<T: BesselFloat>(
     }
 
     // -- Compute RZ and CK (Fortran lines 5868-5874) --
-    let razr = one / zabs(zr_arg);
-    let str_val = zrr * razr;
-    let sti = -zri * razr;
-    let rz = Complex::new((str_val + str_val) * razr, (sti + sti) * razr);
+    let rz = reciprocal_z(zr_arg);
     let mut ck = rz * fn_at_exit;
 
     let ib = i_exit + 1; // Fortran IB = I + 1 (1-based index of next item)
