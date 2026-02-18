@@ -324,7 +324,6 @@ pub(crate) fn zunk2<T: BesselFloat>(
             let sti = zbi + result_last.zeta2.im;
             let rast = fn_last / zabs(Complex::new(str, sti));
             let str2 = str * rast * rast;
-            let _sti2 = -sti * rast * rast;
             result_last.zeta1.re - str2
         } else {
             result_last.zeta1.re - result_last.zeta2.re

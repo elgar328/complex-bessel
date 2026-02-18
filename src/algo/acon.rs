@@ -49,7 +49,7 @@ pub(crate) fn zacon<T: BesselFloat>(
     let zn = Complex::new(-z.re, -z.im);
 
     // Compute I function at -z via ZBINU, written directly into y (Fortran lines 4206-4208)
-    let _nw = zbinu(zn, fnu, kode, y, rl, fnul, tol, elim, alim)?;
+    zbinu(zn, fnu, kode, y, rl, fnul, tol, elim, alim)?;
 
     // Compute K function at -z via ZBKNU (Fortran lines 4212-4213)
     let nn_k = if n < 2 { n } else { 2 };

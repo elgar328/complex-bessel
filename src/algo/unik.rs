@@ -327,7 +327,6 @@ mod tests {
         // phi should use CON(1) for I function
         let con1 = CON[0];
         let con2 = CON[1];
-        let _ratio = result_i.phi.re / result_k.phi.re;
         // When z is complex, phi has imaginary part too, so check via norms
         let phi_i_mag =
             (result_i.phi.re * result_i.phi.re + result_i.phi.im * result_i.phi.im).sqrt();

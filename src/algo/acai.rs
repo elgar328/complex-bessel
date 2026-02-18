@@ -61,32 +61,30 @@ pub(crate) fn zacai<T: BesselFloat>(
     // Direct calls to avoid ZBINU → ZBUNI → ZUNI2 → ZAIRY recursion
     // N is always 1 for acai, so use stack buffer
     let mut i_buf = [czero];
-    let _nw: i32 = if az <= two || az * az * T::from(0.25).unwrap() <= dfnu + one {
+    if az <= two || az * az * T::from(0.25).unwrap() <= dfnu + one {
         // Label 10: power series (Fortran line 4710)
-        zseri(zn, fnu, kode, &mut i_buf, tol, elim, alim)
+        zseri(zn, fnu, kode, &mut i_buf, tol, elim, alim);
     } else if az >= rl {
         // Label 20: asymptotic expansion for large z (Fortran line 4718)
-        let nw_val = zasyi(zn, fnu, kode, &mut i_buf, rl, tol, elim, alim);
-        if nw_val < 0 {
-            return Err(if nw_val == -2 {
+        let nw = zasyi(zn, fnu, kode, &mut i_buf, rl, tol, elim, alim);
+        if nw < 0 {
+            return Err(if nw == -2 {
                 BesselError::ConvergenceFailure
             } else {
                 BesselError::Overflow
             });
         }
-        nw_val
     } else {
         // Label 30: Miller algorithm (Fortran line 4726)
-        let nw_val = zmlri(zn, fnu, kode, &mut i_buf, tol);
-        if nw_val < 0 {
-            return Err(if nw_val == -2 {
+        let nw = zmlri(zn, fnu, kode, &mut i_buf, tol);
+        if nw < 0 {
+            return Err(if nw == -2 {
                 BesselError::ConvergenceFailure
             } else {
                 BesselError::Overflow
             });
         }
-        nw_val
-    };
+    }
 
     // Label 40: Analytic continuation (Fortran lines 4732-4777)
     // K function at -z (Fortran line 4736)

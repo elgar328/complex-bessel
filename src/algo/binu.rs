@@ -159,7 +159,7 @@ fn dispatch_20<T: BesselFloat>(
             return handle_error(-1);
         }
         // Call ZWRSK (Fortran lines 4465-4467)
-        let _nw_wrsk = zwrsk(z, fnu, kode, &mut cy[..*nn], tol, elim, alim)?;
+        zwrsk(z, fnu, kode, &mut cy[..*nn], tol, elim, alim)?;
         return Ok(*nz);
     }
 

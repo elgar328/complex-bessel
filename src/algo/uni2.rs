@@ -105,7 +105,6 @@ pub(crate) fn zuni2<T: BesselFloat>(
         let sti = zbi + result0.zeta2.im;
         let rast = fn_val / zabs(Complex::new(str, sti));
         let str2 = str * rast * rast;
-        let _sti2 = -sti * rast * rast;
         -result0.zeta1.re + str2
     } else {
         -result0.zeta1.re + result0.zeta2.re

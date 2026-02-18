@@ -547,7 +547,7 @@ fn zbiry_large_z<T: BesselFloat>(
     // First ZBINU: I_{fnu}(zta) (Fortran lines 2163-2164)
     let czero = Complex::new(zero, zero);
     let mut cy1_buf = [czero];
-    let _nz1 = zbinu(zta, fnu, kode, &mut cy1_buf, rl, fnul, tol, elim, alim)?;
+    zbinu(zta, fnu, kode, &mut cy1_buf, rl, fnul, tol, elim, alim)?;
 
     // S1 = exp(i*FMR*FNU) * CY(1) * SFAC (Fortran lines 2166-2171)
     let aa_fmr = fmr * fnu;
@@ -560,7 +560,7 @@ fn zbiry_large_z<T: BesselFloat>(
     // Second ZBINU: I_{fnu2}(zta), I_{fnu2+1}(zta) (Fortran lines 2172-2178)
     let fnu2 = (two - fid) / three;
     let mut cy2_buf = [czero; 2];
-    let _nz2 = zbinu(zta, fnu2, kode, &mut cy2_buf, rl, fnul, tol, elim, alim)?;
+    zbinu(zta, fnu2, kode, &mut cy2_buf, rl, fnul, tol, elim, alim)?;
     let cy2_0 = Complex::new(cy2_buf[0].re * z3r, cy2_buf[0].im * z3r);
     let cy2_1 = Complex::new(cy2_buf[1].re * z3r, cy2_buf[1].im * z3r);
 
