@@ -23,34 +23,37 @@ use crate::utils::zabs;
 ///
 /// # Parameters
 /// - `z`: complex argument
-/// - `fnu`: starting order ν >= 0
+/// - `fnu`: starting order v >= 0
 /// - `kode`: scaling mode
-/// - `mr`: analytic continuation direction (0 = none, ±1 = left half plane)
-/// - `n`: number of sequence members
+/// - `mr`: analytic continuation direction (0 = none, +/-1 = left half plane)
+/// - `y`: output slice for sequence members
 /// - `tol`, `elim`, `alim`: machine-derived thresholds
 ///
 /// # Returns
-/// `(y, nz)` where nz = -1 indicates overflow.
+/// `nz` where nz = -1 indicates overflow.
 pub(crate) fn zunk1<T: BesselFloat>(
     z: Complex<T>,
     fnu: T,
     kode: Scaling,
     mr: i32,
-    n: usize,
+    y: &mut [Complex<T>],
     tol: T,
     elim: T,
     alim: T,
-) -> (Vec<Complex<T>>, i32) {
+) -> i32 {
+    let n = y.len();
     let zero = T::zero();
     let one = T::one();
     let czero = Complex::new(zero, zero);
     let pi_t = T::from(PI).unwrap();
 
-    let mut y = vec![czero; n];
+    for v in y.iter_mut() {
+        *v = czero;
+    }
     let mut kdflg: usize = 1;
     let mut nz: i32 = 0;
 
-    // ── 3-level scaling (Fortran lines 5769-5779) ──
+    // -- 3-level scaling (Fortran lines 5769-5779) --
     let cscl = one / tol;
     let crsc = tol;
     let cssr = [cscl, one, crsc];
@@ -61,7 +64,7 @@ pub(crate) fn zunk1<T: BesselFloat>(
         T::MACH_HUGE,
     ];
 
-    // ── Reflect to right half plane (Fortran lines 5780-5784) ──
+    // -- Reflect to right half plane (Fortran lines 5780-5784) --
     let (zrr, zri) = if z.re >= zero {
         (z.re, z.im)
     } else {
@@ -69,8 +72,8 @@ pub(crate) fn zunk1<T: BesselFloat>(
     };
     let zr_arg = Complex::new(zrr, zri);
 
-    // ── Phase 1: K function computation (Fortran lines 5786-5865) ──
-    let mut j: usize = 1; // Fortran J starts at 2, first flip gives 1 → Rust: start 1, first flip gives 0
+    // -- Phase 1: K function computation (Fortran lines 5786-5865) --
+    let mut j: usize = 1; // Fortran J starts at 2, first flip gives 1 -> Rust: start 1, first flip gives 0
     let mut phi_arr = [czero; 2];
     let mut zeta1_arr = [czero; 2];
     let mut zeta2_arr = [czero; 2];
@@ -84,7 +87,7 @@ pub(crate) fn zunk1<T: BesselFloat>(
     let mut fn_at_exit = fnu;
 
     for i in 0..n {
-        // J flip-flop (Fortran: J = 3 - J) → Rust: j = 1 - j
+        // J flip-flop (Fortran: J = 3 - J) -> Rust: j = 1 - j
         j = 1 - j;
         let fn_val = fnu + T::from(i as f64).unwrap();
 
@@ -113,14 +116,14 @@ pub(crate) fn zunk1<T: BesselFloat>(
 
         let mut rs1 = s1r;
 
-        // ── Overflow/underflow test (Fortran lines 5814-5864) ──
+        // -- Overflow/underflow test (Fortran lines 5814-5864) --
         if rs1.abs() > elim {
             // label 60: underflow or overflow
             if rs1 > zero {
-                return (y, -1); // label 300: overflow
+                return -1; // label 300: overflow
             }
             if z.re < zero {
-                return (y, -1); // label 300
+                return -1; // label 300
             }
             // Underflow
             kdflg = 1;
@@ -145,10 +148,10 @@ pub(crate) fn zunk1<T: BesselFloat>(
             if rs1.abs() > elim {
                 // label 60
                 if rs1 > zero {
-                    return (y, -1);
+                    return -1;
                 }
                 if z.re < zero {
-                    return (y, -1);
+                    return -1;
                 }
                 kdflg = 1;
                 y[i] = czero;
@@ -167,7 +170,7 @@ pub(crate) fn zunk1<T: BesselFloat>(
             }
         }
 
-        // ── Scale and store (Fortran lines 5831-5848) ──
+        // -- Scale and store (Fortran lines 5831-5848) --
         let s2_raw = result.phi * result.sum;
         let str_exp = s1r.exp() * cssr[kflag - 1];
         let s1_scaled = Complex::new(str_exp * s1i.cos(), str_exp * s1i.sin());
@@ -179,10 +182,10 @@ pub(crate) fn zunk1<T: BesselFloat>(
         if kflag == 1 && zuchk(s2, bry[0], tol) {
             // label 60: underflow
             if rs1 > zero {
-                return (y, -1);
+                return -1;
             }
             if z.re < zero {
-                return (y, -1);
+                return -1;
             }
             kdflg = 1;
             y[i] = czero;
@@ -211,7 +214,7 @@ pub(crate) fn zunk1<T: BesselFloat>(
         fn_at_exit = fnu + T::from((n - 1) as f64).unwrap();
     }
 
-    // ── Compute RZ and CK (Fortran lines 5868-5874) ──
+    // -- Compute RZ and CK (Fortran lines 5868-5874) --
     let razr = one / zabs(zr_arg);
     let str_val = zrr * razr;
     let sti = -zri * razr;
@@ -222,7 +225,7 @@ pub(crate) fn zunk1<T: BesselFloat>(
 
     let ib = i_exit + 1; // Fortran IB = I + 1 (1-based index of next item)
 
-    // ── Test last member and forward recurrence (Fortran lines 5876-5961) ──
+    // -- Test last member and forward recurrence (Fortran lines 5876-5961) --
     if ib <= n {
         // Test last member for underflow (Fortran lines 5881-5921)
         let fn_last = fnu + T::from((n - 1) as f64).unwrap();
@@ -247,16 +250,16 @@ pub(crate) fn zunk1<T: BesselFloat>(
         if rs1.abs() > elim {
             // label 95
             if rs1.abs() > zero && rs1 > zero {
-                return (y, -1);
+                return -1;
             }
             if z.re < zero {
-                return (y, -1);
+                return -1;
             }
             nz = n as i32;
             for item in y.iter_mut() {
                 *item = czero;
             }
-            return (y, nz);
+            return nz;
         }
         if rs1.abs() >= alim {
             let aphi = zabs(result_last.phi);
@@ -264,16 +267,16 @@ pub(crate) fn zunk1<T: BesselFloat>(
             if rs1.abs() >= elim {
                 // label 95
                 if rs1 > zero {
-                    return (y, -1);
+                    return -1;
                 }
                 if z.re < zero {
-                    return (y, -1);
+                    return -1;
                 }
                 nz = n as i32;
                 for item in y.iter_mut() {
                     *item = czero;
                 }
-                return (y, nz);
+                return nz;
             }
         }
 
@@ -312,9 +315,9 @@ pub(crate) fn zunk1<T: BesselFloat>(
         }
     }
 
-    // ── Phase 2: Analytic continuation (Fortran lines 5963-6153) ──
+    // -- Phase 2: Analytic continuation (Fortran lines 5963-6153) --
     if mr == 0 {
-        return (y, nz);
+        return nz;
     }
 
     nz = 0;
@@ -347,7 +350,7 @@ pub(crate) fn zunk1<T: BesselFloat>(
     for k in 0..n {
         let fn_val = fnu + T::from((kk - 1) as f64).unwrap();
 
-        // ── Cache reuse logic (Fortran labels 172/175/180) ──
+        // -- Cache reuse logic (Fortran labels 172/175/180) --
         let mut m: usize = 2; // workspace slot (0-based), default = slot 2 (Fortran M=3)
         let mut use_cache: Option<UnikCache<T>> = None;
 
@@ -392,11 +395,11 @@ pub(crate) fn zunk1<T: BesselFloat>(
 
         let mut rs1 = s1r;
 
-        // ── Overflow/underflow test (Fortran lines 6035-6096) ──
+        // -- Overflow/underflow test (Fortran lines 6035-6096) --
         if rs1.abs() > elim {
             // label 260
             if rs1 > zero {
-                return (y, -1); // label 300
+                return -1; // label 300
             }
             // Underflow: S2 = 0 (goto 230)
             let s2_i = czero;
@@ -445,7 +448,7 @@ pub(crate) fn zunk1<T: BesselFloat>(
             if rs1.abs() > elim {
                 // label 260
                 if rs1 > zero {
-                    return (y, -1);
+                    return -1;
                 }
                 // S2 = 0 path
                 let c2_save = czero;
@@ -487,7 +490,7 @@ pub(crate) fn zunk1<T: BesselFloat>(
             }
         }
 
-        // ── Compute I function contribution (Fortran lines 6048-6070) ──
+        // -- Compute I function contribution (Fortran lines 6048-6070) --
         // S2 = -CSGNI * Im(PHI*SUM) + i * CSGNI * Re(PHI*SUM)
         let ps = phid * sumd;
         let mut s2_i = Complex::new(-csgni * ps.im, csgni * ps.re);
@@ -510,7 +513,7 @@ pub(crate) fn zunk1<T: BesselFloat>(
         let c2_save = s2_i;
         let s2_scaled = Complex::new(s2_i.re * csrr[iflag - 1], s2_i.im * csrr[iflag - 1]);
 
-        // ── Add I and K functions (Fortran lines 6074-6091) ──
+        // -- Add I and K functions (Fortran lines 6074-6091) --
         let mut s1_k = y[kk - 1]; // Y(KK)
         let mut s2_k = s2_scaled;
 
@@ -542,12 +545,12 @@ pub(crate) fn zunk1<T: BesselFloat>(
         }
     }
 
-    // ── Backward recurrence for remaining I terms (Fortran lines 6097-6153) ──
+    // -- Backward recurrence for remaining I terms (Fortran lines 6097-6153) --
     // Fortran: K = N after loop, or K = k_exit if early exit
     // IL = N - K (number of remaining items)
     let il = n - k_exit;
     if il == 0 {
-        return (y, nz);
+        return nz;
     }
 
     // Recurrence with scaling (Fortran lines 6107-6153)
@@ -604,5 +607,5 @@ pub(crate) fn zunk1<T: BesselFloat>(
         csr = csrr[iflag - 1];
     }
 
-    (y, nz)
+    nz
 }

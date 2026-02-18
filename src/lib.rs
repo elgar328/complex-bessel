@@ -121,18 +121,25 @@
 //!
 //! # `no_std` support
 //!
-//! Disable the default `std` feature:
+//! Three tiers of feature support:
+//!
+//! | Feature | API | Allocator |
+//! |---------|-----|-----------|
+//! | (none) | 30 single-value + 8 Airy | **Not required** |
+//! | `alloc` | + `_seq` variants + `BesselResult` | Required |
+//! | `std` (default) | Full + `impl Error` | Required |
 //!
 //! ```toml
-//! [dependencies]
+//! # Pure no_std, no allocator needed:
 //! complex-bessel = { version = "0.1", default-features = false }
-//! ```
 //!
-//! Requires `alloc`. All functions remain available.
+//! # no_std with alloc (adds _seq functions):
+//! complex-bessel = { version = "0.1", default-features = false, features = ["alloc"] }
+//! ```
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-#[cfg(not(feature = "std"))]
+#[cfg(all(feature = "alloc", not(feature = "std")))]
 extern crate alloc;
 
 pub(crate) mod airy;
@@ -147,7 +154,9 @@ pub mod types;
 pub(crate) mod utils;
 
 pub use machine::BesselFloat;
-pub use types::{BesselError, BesselResult, BesselStatus, Scaling};
+#[cfg(feature = "alloc")]
+pub use types::BesselResult;
+pub use types::{BesselError, BesselStatus, Scaling};
 
 use num_complex::Complex;
 use types::{AiryDerivative, HankelKind};
@@ -172,9 +181,11 @@ fn besselj_internal<T: BesselFloat>(
     scaling: Scaling,
 ) -> Result<Complex<T>, BesselError> {
     let zero = T::zero();
+    let czero = Complex::new(zero, zero);
     if nu >= zero {
-        let result = besj::zbesj(z, nu, scaling, 1)?;
-        return Ok(result.values[0]);
+        let mut y = [czero];
+        besj::zbesj(z, nu, scaling, &mut y)?;
+        return Ok(y[0]);
     }
 
     // Negative order: J_{-ν}(z) = cos(νπ)*J_ν(z) - sin(νπ)*Y_ν(z) (DLMF 10.4.1)
@@ -182,22 +193,22 @@ fn besselj_internal<T: BesselFloat>(
 
     // Integer shortcut: J_{-n}(z) = (-1)^n * J_n(z)
     if let Some(n) = as_integer(abs_nu) {
-        let result = besj::zbesj(z, abs_nu, scaling, 1)?;
+        let mut y = [czero];
+        besj::zbesj(z, abs_nu, scaling, &mut y)?;
         let sign = if n % 2 == 0 { T::one() } else { -T::one() };
-        return Ok(result.values[0] * sign);
+        return Ok(y[0] * sign);
     }
 
     // General case: need both J and Y at positive |ν|
     let cos_nu_pi = utils::cospi(abs_nu);
     let sin_nu_pi = utils::sinpi(abs_nu);
 
-    let j_result = besj::zbesj(z, abs_nu, scaling, 1)?;
-    let y_result = besy::zbesy(z, abs_nu, scaling, 1)?;
+    let mut j_buf = [czero];
+    let mut y_buf = [czero];
+    besj::zbesj(z, abs_nu, scaling, &mut j_buf)?;
+    besy::zbesy(z, abs_nu, scaling, &mut y_buf)?;
 
-    let j_val = j_result.values[0];
-    let y_val = y_result.values[0];
-
-    Ok(j_val * cos_nu_pi - y_val * sin_nu_pi)
+    Ok(j_buf[0] * cos_nu_pi - y_buf[0] * sin_nu_pi)
 }
 
 fn bessely_internal<T: BesselFloat>(
@@ -206,9 +217,11 @@ fn bessely_internal<T: BesselFloat>(
     scaling: Scaling,
 ) -> Result<Complex<T>, BesselError> {
     let zero = T::zero();
+    let czero = Complex::new(zero, zero);
     if nu >= zero {
-        let result = besy::zbesy(z, nu, scaling, 1)?;
-        return Ok(result.values[0]);
+        let mut y = [czero];
+        besy::zbesy(z, nu, scaling, &mut y)?;
+        return Ok(y[0]);
     }
 
     // Negative order: Y_{-ν}(z) = sin(νπ)*J_ν(z) + cos(νπ)*Y_ν(z) (DLMF 10.4.2)
@@ -216,22 +229,22 @@ fn bessely_internal<T: BesselFloat>(
 
     // Integer shortcut: Y_{-n}(z) = (-1)^n * Y_n(z)
     if let Some(n) = as_integer(abs_nu) {
-        let result = besy::zbesy(z, abs_nu, scaling, 1)?;
+        let mut y = [czero];
+        besy::zbesy(z, abs_nu, scaling, &mut y)?;
         let sign = if n % 2 == 0 { T::one() } else { -T::one() };
-        return Ok(result.values[0] * sign);
+        return Ok(y[0] * sign);
     }
 
     // General case: need both J and Y at positive |ν|
     let cos_nu_pi = utils::cospi(abs_nu);
     let sin_nu_pi = utils::sinpi(abs_nu);
 
-    let j_result = besj::zbesj(z, abs_nu, scaling, 1)?;
-    let y_result = besy::zbesy(z, abs_nu, scaling, 1)?;
+    let mut j_buf = [czero];
+    let mut y_buf = [czero];
+    besj::zbesj(z, abs_nu, scaling, &mut j_buf)?;
+    besy::zbesy(z, abs_nu, scaling, &mut y_buf)?;
 
-    let j_val = j_result.values[0];
-    let y_val = y_result.values[0];
-
-    Ok(j_val * sin_nu_pi + y_val * cos_nu_pi)
+    Ok(j_buf[0] * sin_nu_pi + y_buf[0] * cos_nu_pi)
 }
 
 fn besseli_internal<T: BesselFloat>(
@@ -240,9 +253,11 @@ fn besseli_internal<T: BesselFloat>(
     scaling: Scaling,
 ) -> Result<Complex<T>, BesselError> {
     let zero = T::zero();
+    let czero = Complex::new(zero, zero);
     if nu >= zero {
-        let result = besi::zbesi(z, nu, scaling, 1)?;
-        return Ok(result.values[0]);
+        let mut y = [czero];
+        besi::zbesi(z, nu, scaling, &mut y)?;
+        return Ok(y[0]);
     }
 
     // Negative order: I_{-ν}(z) = I_ν(z) + (2/π)*sin(νπ)*K_ν(z) (DLMF 10.27.2)
@@ -250,8 +265,9 @@ fn besseli_internal<T: BesselFloat>(
 
     // Integer shortcut: I_{-n}(z) = I_n(z)
     if as_integer(abs_nu).is_some() {
-        let result = besi::zbesi(z, abs_nu, scaling, 1)?;
-        return Ok(result.values[0]);
+        let mut y = [czero];
+        besi::zbesi(z, abs_nu, scaling, &mut y)?;
+        return Ok(y[0]);
     }
 
     // General case: need both I and K at positive |ν|
@@ -259,11 +275,13 @@ fn besseli_internal<T: BesselFloat>(
     let two = T::from(2.0).unwrap();
     let sin_nu_pi = utils::sinpi(abs_nu);
 
-    let i_result = besi::zbesi(z, abs_nu, scaling, 1)?;
-    let k_result = besk::zbesk(z, abs_nu, scaling, 1)?;
+    let mut i_buf = [czero];
+    let mut k_buf = [czero];
+    besi::zbesi(z, abs_nu, scaling, &mut i_buf)?;
+    besk::zbesk(z, abs_nu, scaling, &mut k_buf)?;
 
-    let i_val = i_result.values[0];
-    let mut k_val = k_result.values[0];
+    let i_val = i_buf[0];
+    let mut k_val = k_buf[0];
 
     // Scaling correction: I_scaled = exp(-|Re(z)|)*I, K_scaled = exp(z)*K.
     // To combine them we must convert K to the same scaling as I:
@@ -290,8 +308,10 @@ fn besselk_internal<T: BesselFloat>(
 ) -> Result<Complex<T>, BesselError> {
     // K_{-ν}(z) = K_ν(z) (DLMF 10.27.3) — K is even in ν
     let abs_nu = nu.abs();
-    let result = besk::zbesk(z, abs_nu, scaling, 1)?;
-    Ok(result.values[0])
+    let zero = T::zero();
+    let mut y = [Complex::new(zero, zero)];
+    besk::zbesk(z, abs_nu, scaling, &mut y)?;
+    Ok(y[0])
 }
 
 fn hankel_internal<T: BesselFloat>(
@@ -302,16 +322,18 @@ fn hankel_internal<T: BesselFloat>(
 ) -> Result<Complex<T>, BesselError> {
     let zero = T::zero();
     if nu >= zero {
-        let result = besh::zbesh(z, nu, kind, scaling, 1)?;
-        return Ok(result.values[0]);
+        let mut y = [Complex::new(zero, zero)];
+        besh::zbesh(z, nu, kind, scaling, &mut y)?;
+        return Ok(y[0]);
     }
 
     // Negative order (DLMF 10.4.6, 10.4.7):
     //   H^(1)_{-ν}(z) = exp(νπi) * H^(1)_ν(z)
     //   H^(2)_{-ν}(z) = exp(-νπi) * H^(2)_ν(z)
     let abs_nu = nu.abs();
-    let result = besh::zbesh(z, abs_nu, kind, scaling, 1)?;
-    let h_val = result.values[0];
+    let mut y = [Complex::new(zero, zero)];
+    besh::zbesh(z, abs_nu, kind, scaling, &mut y)?;
+    let h_val = y[0];
 
     let cos_nu_pi = utils::cospi(abs_nu);
     let sin_nu_pi = utils::sinpi(abs_nu);
@@ -631,8 +653,12 @@ pub fn biryprime_scaled<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Bes
     airy::zbiry(z, AiryDerivative::Derivative, Scaling::Exponential)
 }
 
-// ── Sequence functions with scaling option ──
+// ── Sequence functions with scaling option (require alloc) ──
 
+#[cfg(feature = "alloc")]
+extern crate alloc as alloc_crate;
+
+#[cfg(feature = "alloc")]
 /// Compute J_{ν+j}(z) for j = 0, 1, …, n−1 in a single call.
 ///
 /// Returns a [`BesselResult`] containing `n` values and a [`BesselStatus`]:
@@ -655,9 +681,17 @@ pub fn besselj_seq<T: BesselFloat>(
     n: usize,
     scaling: Scaling,
 ) -> Result<BesselResult<T>, BesselError> {
-    besj::zbesj(z, nu, scaling, n)
+    let zero = T::zero();
+    let mut values = alloc_crate::vec![Complex::new(zero, zero); n];
+    let (underflow_count, status) = besj::zbesj(z, nu, scaling, &mut values)?;
+    Ok(BesselResult {
+        values,
+        underflow_count,
+        status,
+    })
 }
 
+#[cfg(feature = "alloc")]
 /// Compute Y_{ν+j}(z) for j = 0, 1, …, n−1 in a single call.
 ///
 /// Returns a [`BesselResult`] containing `n` values and a [`BesselStatus`]:
@@ -680,9 +714,17 @@ pub fn bessely_seq<T: BesselFloat>(
     n: usize,
     scaling: Scaling,
 ) -> Result<BesselResult<T>, BesselError> {
-    besy::zbesy(z, nu, scaling, n)
+    let zero = T::zero();
+    let mut values = alloc_crate::vec![Complex::new(zero, zero); n];
+    let (underflow_count, status) = besy::zbesy(z, nu, scaling, &mut values)?;
+    Ok(BesselResult {
+        values,
+        underflow_count,
+        status,
+    })
 }
 
+#[cfg(feature = "alloc")]
 /// Compute I_{ν+j}(z) for j = 0, 1, …, n−1 in a single call.
 ///
 /// Returns a [`BesselResult`] containing `n` values and a [`BesselStatus`]:
@@ -705,9 +747,17 @@ pub fn besseli_seq<T: BesselFloat>(
     n: usize,
     scaling: Scaling,
 ) -> Result<BesselResult<T>, BesselError> {
-    besi::zbesi(z, nu, scaling, n)
+    let zero = T::zero();
+    let mut values = alloc_crate::vec![Complex::new(zero, zero); n];
+    let (underflow_count, status) = besi::zbesi(z, nu, scaling, &mut values)?;
+    Ok(BesselResult {
+        values,
+        underflow_count,
+        status,
+    })
 }
 
+#[cfg(feature = "alloc")]
 /// Compute K_{ν+j}(z) for j = 0, 1, …, n−1 in a single call.
 ///
 /// Returns a [`BesselResult`] containing `n` values and a [`BesselStatus`]:
@@ -744,9 +794,17 @@ pub fn besselk_seq<T: BesselFloat>(
     n: usize,
     scaling: Scaling,
 ) -> Result<BesselResult<T>, BesselError> {
-    besk::zbesk(z, nu, scaling, n)
+    let zero = T::zero();
+    let mut values = alloc_crate::vec![Complex::new(zero, zero); n];
+    let (underflow_count, status) = besk::zbesk(z, nu, scaling, &mut values)?;
+    Ok(BesselResult {
+        values,
+        underflow_count,
+        status,
+    })
 }
 
+#[cfg(feature = "alloc")]
 /// Compute H_{ν+j}^(1)(z) for j = 0, 1, …, n−1 in a single call.
 ///
 /// Returns a [`BesselResult`] containing `n` values and a [`BesselStatus`]:
@@ -769,9 +827,17 @@ pub fn hankel1_seq<T: BesselFloat>(
     n: usize,
     scaling: Scaling,
 ) -> Result<BesselResult<T>, BesselError> {
-    besh::zbesh(z, nu, HankelKind::First, scaling, n)
+    let zero = T::zero();
+    let mut values = alloc_crate::vec![Complex::new(zero, zero); n];
+    let (underflow_count, status) = besh::zbesh(z, nu, HankelKind::First, scaling, &mut values)?;
+    Ok(BesselResult {
+        values,
+        underflow_count,
+        status,
+    })
 }
 
+#[cfg(feature = "alloc")]
 /// Compute H_{ν+j}^(2)(z) for j = 0, 1, …, n−1 in a single call.
 ///
 /// Returns a [`BesselResult`] containing `n` values and a [`BesselStatus`]:
@@ -794,5 +860,12 @@ pub fn hankel2_seq<T: BesselFloat>(
     n: usize,
     scaling: Scaling,
 ) -> Result<BesselResult<T>, BesselError> {
-    besh::zbesh(z, nu, HankelKind::Second, scaling, n)
+    let zero = T::zero();
+    let mut values = alloc_crate::vec![Complex::new(zero, zero); n];
+    let (underflow_count, status) = besh::zbesh(z, nu, HankelKind::Second, scaling, &mut values)?;
+    Ok(BesselResult {
+        values,
+        underflow_count,
+        status,
+    })
 }

@@ -8,11 +8,6 @@
 #![allow(clippy::excessive_precision)]
 #![allow(clippy::approx_constant)]
 
-#[cfg(not(feature = "std"))]
-use alloc::vec;
-#[cfg(not(feature = "std"))]
-use alloc::vec::Vec;
-
 use num_complex::Complex;
 
 use crate::machine::BesselFloat;
@@ -20,20 +15,22 @@ use crate::utils::{zabs, zdiv};
 
 /// Compute I-function ratios by backward recurrence.
 ///
-/// Returns `cy[k]` = I(fnu+k+1, z) / I(fnu+k, z) for k = 0, 1, ..., n-1.
+/// Writes `cy[k]` = I(fnu+k+1, z) / I(fnu+k, z) for k = 0, 1, ..., n-1.
 ///
 /// Equivalent to Fortran ZRATI in TOMS 644 (zbsubs.f lines 3104-3236).
 ///
 /// # Parameters
 /// - `z`: complex argument (must be nonzero)
 /// - `fnu`: starting order (>= 0)
-/// - `n`: number of ratios to compute (>= 1)
+/// - `cy`: output slice of length n (>= 1)
 /// - `tol`: convergence tolerance
-pub(crate) fn zrati<T: BesselFloat>(z: Complex<T>, fnu: T, n: usize, tol: T) -> Vec<Complex<T>> {
+pub(crate) fn zrati<T: BesselFloat>(z: Complex<T>, fnu: T, cy: &mut [Complex<T>], tol: T) {
     let zero = T::zero();
     let one = T::one();
     // sqrt(2), Fortran DATA constant (zbsubs.f line 3126)
     let rt2 = T::from(1.41421356237309505).unwrap();
+
+    let n = cy.len();
 
     // ── Initialization (Fortran lines 3127-3148) ──
     let az = zabs(z);
@@ -139,11 +136,10 @@ pub(crate) fn zrati<T: BesselFloat>(z: Complex<T>, fnu: T, n: usize, tol: T) -> 
     }
 
     // CY(N) = P2 / P1 (Fortran line 3212)
-    let mut cy = vec![Complex::new(zero, zero); n];
     cy[n - 1] = zdiv(Complex::new(p2r, p2i), Complex::new(p1r, p1i));
 
     if n == 1 {
-        return cy;
+        return;
     }
 
     // ── Stage 3: Forward ratio computation (Fortran lines 3214-3234) ──
@@ -166,8 +162,6 @@ pub(crate) fn zrati<T: BesselFloat>(z: Complex<T>, fnu: T, n: usize, tol: T) -> 
         let rak = one / ak;
         cy[k_idx] = Complex::new(rak * pt_r * rak, -rak * pt_i * rak);
     }
-
-    cy
 }
 
 #[cfg(test)]
@@ -183,7 +177,8 @@ mod tests {
         let fnu = 0.5;
         let n = 5;
         let tol = f64::tol();
-        let cy = zrati(z, fnu, n, tol);
+        let mut cy = [Complex64::new(0.0, 0.0); 5];
+        zrati(z, fnu, &mut cy, tol);
 
         let rz = Complex64::new(2.0, 0.0) / z;
         for k in 0..(n - 1) {
@@ -200,8 +195,8 @@ mod tests {
         let z = Complex64::new(3.0, 0.0);
         let fnu = 1.0;
         let tol = f64::tol();
-        let cy = zrati(z, fnu, 1, tol);
-        assert_eq!(cy.len(), 1);
+        let mut cy = [Complex64::new(0.0, 0.0); 1];
+        zrati(z, fnu, &mut cy, tol);
         // cy[0] = I(2,3)/I(1,3)
         // I(1,3) ≈ 3.95337, I(2,3) ≈ 2.24521 → ratio ≈ 0.5680
         let ratio = cy[0].re;
@@ -219,9 +214,10 @@ mod tests {
         let fnu = 0.0;
         let n = 4;
         let tol = f64::tol();
-        let cy = zrati(z, fnu, n, tol);
+        let mut cy = [Complex64::new(0.0, 0.0); 4];
+        zrati(z, fnu, &mut cy, tol);
 
-        for (k, c) in cy.iter().enumerate() {
+        for (k, c) in cy.iter().enumerate().take(n) {
             assert!(c.re > 0.0, "cy[{k}].re = {} should be positive", c.re);
             assert!(c.im.abs() < 1e-14, "cy[{k}].im = {} should be ~0", c.im);
         }

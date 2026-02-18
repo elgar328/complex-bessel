@@ -13,18 +13,23 @@ use crate::utils::zabs;
 
 /// Miller algorithm for I Bessel function.
 ///
-/// Returns (y, nz) where nz = -2 indicates convergence failure.
+/// Writes results into `y` and returns `nz` where nz = -2 indicates convergence failure.
 pub(crate) fn zmlri<T: BesselFloat>(
     z: Complex<T>,
     fnu: T,
     kode: Scaling,
-    n: usize,
+    y: &mut [Complex<T>],
     tol: T,
-) -> (Vec<Complex<T>>, i32) {
+) -> i32 {
     let zero = T::zero();
     let one = T::one();
     let _two = T::from(2.0).unwrap();
     let czero = Complex::new(zero, zero);
+
+    let n = y.len();
+    for v in y.iter_mut() {
+        *v = czero;
+    }
 
     let scle = T::MACH_TINY / tol;
     let nz: i32 = 0;
@@ -71,8 +76,7 @@ pub(crate) fn zmlri<T: BesselFloat>(
     }
     if i_val == 0 {
         // Convergence failure (Fortran label 110)
-        let y = vec![czero; n];
-        return (y, -2);
+        return -2;
     }
 
     i_val += 1; // Fortran: I = I + 1 (line 3383)
@@ -120,8 +124,7 @@ pub(crate) fn zmlri<T: BesselFloat>(
         }
         if !found && k == 0 {
             // Convergence failure (Fortran label 110)
-            let y = vec![czero; n];
-            return (y, -2);
+            return -2;
         }
     }
 
@@ -160,7 +163,6 @@ pub(crate) fn zmlri<T: BesselFloat>(
     }
 
     // Store Y(N) (Fortran line 3457-3458)
-    let mut y = vec![czero; n];
     y[n - 1] = Complex::new(p2r, p2i);
 
     // Continue backward recurrence storing Y values (Fortran DO 60)
@@ -242,5 +244,5 @@ pub(crate) fn zmlri<T: BesselFloat>(
         *y_item = Complex::new(str_val, sti_val);
     }
 
-    (y, nz)
+    nz
 }

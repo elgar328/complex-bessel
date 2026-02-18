@@ -28,24 +28,29 @@ use crate::utils::zabs;
 /// Same formula as ZACON but with higher-order recurrence removed.
 /// FNU is 1/3 or 2/3, N is always 1.
 ///
-/// Returns (y, nz) where nz < 0 indicates error.
+/// Returns nz where nz < 0 indicates error.
 pub(crate) fn zacai<T: BesselFloat>(
     z: Complex<T>,
     fnu: T,
     kode: Scaling,
     mr: i32,
-    n: usize,
+    y: &mut [Complex<T>],
     rl: T,
     tol: T,
     elim: T,
     alim: T,
-) -> Result<(Vec<Complex<T>>, i32), BesselError> {
+) -> Result<i32, BesselError> {
     let zero = T::zero();
     let one = T::one();
     let two = T::from(2.0).unwrap();
     let pi_t = T::from(PI).unwrap();
+    let czero = Complex::new(zero, zero);
 
     let mut nz: i32 = 0;
+    let n = y.len();
+    for v in y.iter_mut() {
+        *v = czero;
+    }
 
     // ZN = -Z (Fortran line 4703-4704)
     let zn = Complex::new(-z.re, -z.im);
@@ -55,40 +60,40 @@ pub(crate) fn zacai<T: BesselFloat>(
 
     // I function dispatch (Fortran lines 4706-4731)
     // Direct calls to avoid ZBINU → ZBUNI → ZUNI2 → ZAIRY recursion
-    let (mut y, _nw): (Vec<Complex<T>>, i32) =
-        if az <= two || az * az * T::from(0.25).unwrap() <= dfnu + one {
-            // Label 10: power series (Fortran line 4710)
-            zseri(zn, fnu, kode, nn, tol, elim, alim)
-        } else if az >= rl {
-            // Label 20: asymptotic expansion for large z (Fortran line 4718)
-            let result = zasyi(zn, fnu, kode, nn, rl, tol, elim, alim);
-            if result.1 < 0 {
-                // NW < 0 → error (Fortran line 4720 GO TO 80)
-                let nz_err = if result.1 == -2 { -2 } else { -1 };
-                return Err(if nz_err == -2 {
-                    BesselError::ConvergenceFailure
-                } else {
-                    BesselError::Overflow
-                });
-            }
-            result
-        } else {
-            // Label 30: Miller algorithm (Fortran line 4726)
-            let result = zmlri(zn, fnu, kode, nn, tol);
-            if result.1 < 0 {
-                let nz_err = if result.1 == -2 { -2 } else { -1 };
-                return Err(if nz_err == -2 {
-                    BesselError::ConvergenceFailure
-                } else {
-                    BesselError::Overflow
-                });
-            }
-            result
-        };
+    // N is always 1 for acai, so use stack buffer
+    let mut i_buf = [czero];
+    let nw: i32 = if az <= two || az * az * T::from(0.25).unwrap() <= dfnu + one {
+        // Label 10: power series (Fortran line 4710)
+        zseri(zn, fnu, kode, &mut i_buf, tol, elim, alim)
+    } else if az >= rl {
+        // Label 20: asymptotic expansion for large z (Fortran line 4718)
+        let nw_val = zasyi(zn, fnu, kode, &mut i_buf, rl, tol, elim, alim);
+        if nw_val < 0 {
+            return Err(if nw_val == -2 {
+                BesselError::ConvergenceFailure
+            } else {
+                BesselError::Overflow
+            });
+        }
+        nw_val
+    } else {
+        // Label 30: Miller algorithm (Fortran line 4726)
+        let nw_val = zmlri(zn, fnu, kode, &mut i_buf, tol);
+        if nw_val < 0 {
+            return Err(if nw_val == -2 {
+                BesselError::ConvergenceFailure
+            } else {
+                BesselError::Overflow
+            });
+        }
+        nw_val
+    };
+    let _ = (nw, nn); // suppress unused warnings
 
     // Label 40: Analytic continuation (Fortran lines 4732-4777)
     // K function at -z (Fortran line 4736)
-    let (cy, nw_k) = zbknu(zn, fnu, kode, 1, tol, elim, alim)?;
+    let mut k_buf = [czero];
+    let nw_k = zbknu(zn, fnu, kode, &mut k_buf, tol, elim, alim)?;
     if nw_k != 0 {
         // NW != 0 → error (Fortran line 4737 GO TO 80)
         return Err(BesselError::Overflow);
@@ -121,10 +126,10 @@ pub(crate) fn zacai<T: BesselFloat>(
     }
 
     // C1 = K result, C2 = I result (Fortran lines 4760-4763)
-    let mut c1r = cy[0].re;
-    let mut c1i = cy[0].im;
-    let mut c2r = y[0].re;
-    let mut c2i = y[0].im;
+    let mut c1r = k_buf[0].re;
+    let mut c1i = k_buf[0].im;
+    let mut c2r = i_buf[0].re;
+    let mut c2i = i_buf[0].im;
 
     if kode == Scaling::Exponential {
         // Fortran lines 4765-4769: ZS1S2 call for KODE=2
@@ -151,5 +156,5 @@ pub(crate) fn zacai<T: BesselFloat>(
         cspnr * c1i + cspni * c1r + csgnr * c2i + csgni * c2r,
     );
 
-    Ok((y, nz))
+    Ok(nz)
 }

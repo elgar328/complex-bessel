@@ -13,10 +13,8 @@ use crate::machine::BesselFloat;
 use crate::types::Scaling;
 use crate::utils::zabs;
 
-/// Output of ZBUNI.
-pub(crate) struct BuniOutput<T> {
-    /// Computed I function values.
-    pub y: Vec<Complex<T>>,
+/// Output metadata of ZBUNI (no Vec — results written into caller-provided slice).
+pub(crate) struct BuniOutput {
     /// Underflow count. -1 or -2 indicates overflow/convergence failure.
     pub nz: i32,
     /// If nonzero, remaining items need a different method.
@@ -31,7 +29,7 @@ pub(crate) struct BuniOutput<T> {
 /// - `z`: complex argument (Re(z) >= 0)
 /// - `fnu`: starting order
 /// - `kode`: scaling mode
-/// - `n`: number of sequence members
+/// - `y`: output slice for sequence members (length determines n)
 /// - `nui`: number of extra orders to boost
 /// - `fnul`: large-order threshold
 /// - `tol`, `elim`, `alim`: machine-derived thresholds
@@ -39,17 +37,21 @@ pub(crate) fn zbuni<T: BesselFloat>(
     z: Complex<T>,
     fnu: T,
     kode: Scaling,
-    n: usize,
+    y: &mut [Complex<T>],
     nui: usize,
     fnul: T,
     tol: T,
     elim: T,
     alim: T,
-) -> BuniOutput<T> {
+) -> BuniOutput {
     let zero = T::zero();
     let one = T::one();
     let czero = Complex::new(zero, zero);
 
+    let n = y.len();
+    for v in y.iter_mut() {
+        *v = czero;
+    }
     let nz: i32 = 0;
 
     // Region select (Fortran lines 6687-6690)
@@ -59,26 +61,21 @@ pub(crate) fn zbuni<T: BesselFloat>(
 
     // ── NUI == 0: direct call (Fortran lines 6691, 6815-6835) ──
     if nui == 0 {
-        let (y_out, nw, nlast) = if iform == 1 {
-            let result = zuni1(z, fnu, kode, n, fnul, tol, elim, alim);
-            (result.y, result.nz, result.nlast as usize)
+        let (nw, nlast) = if iform == 1 {
+            let result = zuni1(z, fnu, kode, y, fnul, tol, elim, alim);
+            (result.nz, result.nlast as usize)
         } else {
-            let result = zuni2(z, fnu, kode, n, fnul, tol, elim, alim);
-            (result.y, result.nz, result.nlast as usize)
+            let result = zuni2(z, fnu, kode, y, fnul, tol, elim, alim);
+            (result.nz, result.nlast as usize)
         };
         if nw < 0 {
             let nz_out = if nw == -2 { -2 } else { -1 };
             return BuniOutput {
-                y: y_out,
                 nz: nz_out,
                 nlast: 0,
             };
         }
-        return BuniOutput {
-            y: y_out,
-            nz: nw,
-            nlast,
-        };
+        return BuniOutput { nz: nw, nlast };
     }
 
     // ── NUI > 0: boost order and recur backward (Fortran lines 6692-6809) ──
@@ -89,35 +86,24 @@ pub(crate) fn zbuni<T: BesselFloat>(
     // Compute 2 values at boosted order (Fortran lines 6700-6711)
     let mut cy = [czero; 2];
     let (_nlast_val, nw) = if iform == 1 {
-        let result = zuni1(z, gnu, kode, 2, fnul, tol, elim, alim);
-        cy[0] = result.y[0];
-        cy[1] = result.y[1];
+        let result = zuni1(z, gnu, kode, &mut cy, fnul, tol, elim, alim);
         (result.nlast as usize, result.nz)
     } else {
-        let result = zuni2(z, gnu, kode, 2, fnul, tol, elim, alim);
-        cy[0] = result.y[0];
-        cy[1] = result.y[1];
+        let result = zuni2(z, gnu, kode, &mut cy, fnul, tol, elim, alim);
         (result.nlast as usize, result.nz)
     };
 
     if nw < 0 {
         let nz_out = if nw == -2 { -2 } else { -1 };
         return BuniOutput {
-            y: vec![czero; n],
             nz: nz_out,
             nlast: 0,
         };
     }
     if nw != 0 {
         // NLAST = N (Fortran label 90)
-        return BuniOutput {
-            y: vec![czero; n],
-            nz: 0,
-            nlast: n,
-        };
+        return BuniOutput { nz: 0, nlast: n };
     }
-
-    let mut y = vec![czero; n];
 
     // ── Scale backward recurrence (Fortran lines 6714-6772) ──
     let str_val = zabs(Complex::new(cy[0].re, cy[0].im));
@@ -189,7 +175,7 @@ pub(crate) fn zbuni<T: BesselFloat>(
     // Store Y(N) (Fortran line 6773)
     y[n - 1] = Complex::new(s2.re * cscrr, s2.im * cscrr);
     if n == 1 {
-        return BuniOutput { y, nz, nlast: 0 };
+        return BuniOutput { nz, nlast: 0 };
     }
 
     // Backward recurrence for remaining N-1 orders (Fortran DO 40, lines 6779-6809)
@@ -228,5 +214,5 @@ pub(crate) fn zbuni<T: BesselFloat>(
         s2 = Complex::new(s2.re, s2.im); // already rescaled above
     }
 
-    BuniOutput { y, nz, nlast: 0 }
+    BuniOutput { nz, nlast: 0 }
 }

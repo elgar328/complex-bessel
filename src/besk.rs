@@ -11,10 +11,10 @@ use crate::algo::bknu::zbknu;
 use crate::algo::bunk::zbunk;
 use crate::algo::uoik::zuoik;
 use crate::machine::BesselFloat;
-use crate::types::{BesselError, BesselResult, BesselStatus, Scaling};
+use crate::types::{BesselError, BesselStatus, Scaling};
 use crate::utils::zabs;
 
-/// Compute K_{ν+j}(z) for j = 0, 1, ..., n-1.
+/// Compute K_{ν+j}(z) for j = 0, 1, ..., n-1 into the provided slice.
 ///
 /// This is the main entry point for K Bessel function computation,
 /// equivalent to Fortran ZBESK in TOMS 644.
@@ -22,11 +22,12 @@ use crate::utils::zabs;
 /// # Parameters
 /// - `fnu`: starting order ν ≥ 0
 /// - `z`: complex argument (z ≠ 0)
-/// - `n`: number of sequence members ≥ 1
+/// - `y`: output slice of length n ≥ 1; results are written here
 /// - `scaling`: `Unscaled` = K_ν(z), `Exponential` = e^z · K_ν(z)
 ///
 /// # Returns
-/// `BesselResult` with computed values and underflow count.
+/// `(nz, status)` where `nz` is the underflow count and `status`
+/// indicates precision quality.
 ///
 /// # Errors
 /// - `InvalidInput`: z = 0, ν < 0, or n < 1
@@ -37,8 +38,9 @@ pub(crate) fn zbesk<T: BesselFloat>(
     z: Complex<T>,
     fnu: T,
     scaling: Scaling,
-    n: usize,
-) -> Result<BesselResult<T>, BesselError> {
+    y: &mut [Complex<T>],
+) -> Result<(usize, BesselStatus), BesselError> {
+    let n = y.len();
     let zero = T::zero();
     let czero = Complex::new(zero, zero);
 
@@ -100,7 +102,7 @@ pub(crate) fn zbesk<T: BesselFloat>(
         } else {
             1i32
         };
-        let (y, nw) = zbunk(z, fnu, scaling, mr, nn, tol, elim, alim);
+        let nw = zbunk(z, fnu, scaling, mr, &mut y[..nn], tol, elim, alim);
         if nw < 0 {
             return if nw == -1 {
                 Err(BesselError::Overflow)
@@ -114,11 +116,7 @@ pub(crate) fn zbesk<T: BesselFloat>(
         } else {
             BesselStatus::Normal
         };
-        return Ok(BesselResult {
-            values: y,
-            underflow_count: nz,
-            status,
-        });
+        return Ok((nz, status));
     }
 
     // ── Small-to-moderate order path ──
@@ -129,23 +127,21 @@ pub(crate) fn zbesk<T: BesselFloat>(
     if fn_val > T::one() {
         if fn_val > T::from(2.0).unwrap() {
             // FN > 2: ZUOIK overflow/underflow pre-check (Fortran lines 89-95)
-            let (_uoik_y, nuf) = zuoik(z, fnu, scaling, 2, nn, tol, elim, alim);
+            // zuoik zeros the buffer; y[..nn] will be overwritten by actual computation later.
+            let nuf = zuoik(z, fnu, scaling, 2, &mut y[..nn], tol, elim, alim);
             if nuf < 0 {
                 return Err(BesselError::Overflow);
             }
             nz += nuf as usize;
             nn -= nuf as usize;
             if nn == 0 {
+                // All members underflowed; y is already zeroed by zuoik.
                 let status = if precision_warning {
                     BesselStatus::ReducedPrecision
                 } else {
                     BesselStatus::Normal
                 };
-                return Ok(BesselResult {
-                    values: vec![Complex::new(T::zero(), T::zero()); n],
-                    underflow_count: nz,
-                    status,
-                });
+                return Ok((nz, status));
             }
         }
 
@@ -160,18 +156,16 @@ pub(crate) fn zbesk<T: BesselFloat>(
     }
 
     // ── Main computation dispatch ──
-    let y = if z.re >= zero {
+    if z.re >= zero {
         // Right half-plane: direct ZBKNU
-        let (y, nw) = zbknu(z, fnu, scaling, nn, tol, elim, alim)?;
+        let nw = zbknu(z, fnu, scaling, &mut y[..nn], tol, elim, alim)?;
         nz += nw;
-        y
     } else {
         // Left half-plane: analytic continuation (ZACON)
         let mr = if z.im < T::zero() { -1i32 } else { 1i32 };
-        let (y_acon, nw) = zacon(z, fnu, scaling, mr, nn, rl, fnul, tol, elim, alim)?;
+        let nw = zacon(z, fnu, scaling, mr, &mut y[..nn], rl, fnul, tol, elim, alim)?;
         nz += nw;
-        y_acon
-    };
+    }
 
     let status = if precision_warning {
         BesselStatus::ReducedPrecision
@@ -179,11 +173,7 @@ pub(crate) fn zbesk<T: BesselFloat>(
         BesselStatus::Normal
     };
 
-    Ok(BesselResult {
-        values: y,
-        underflow_count: nz,
-        status,
-    })
+    Ok((nz, status))
 }
 
 #[cfg(test)]
@@ -194,8 +184,9 @@ mod tests {
     #[test]
     fn besk_z_zero_returns_error() {
         let z = Complex64::new(0.0, 0.0);
+        let mut buf = [Complex64::new(0.0, 0.0)];
         assert!(matches!(
-            zbesk(z, 0.0, Scaling::Unscaled, 1),
+            zbesk(z, 0.0, Scaling::Unscaled, &mut buf),
             Err(BesselError::InvalidInput)
         ));
     }
@@ -203,8 +194,9 @@ mod tests {
     #[test]
     fn besk_negative_order_returns_error() {
         let z = Complex64::new(1.0, 0.0);
+        let mut buf = [Complex64::new(0.0, 0.0)];
         assert!(matches!(
-            zbesk(z, -1.0, Scaling::Unscaled, 1),
+            zbesk(z, -1.0, Scaling::Unscaled, &mut buf),
             Err(BesselError::InvalidInput)
         ));
     }
@@ -212,8 +204,9 @@ mod tests {
     #[test]
     fn besk_n_zero_returns_error() {
         let z = Complex64::new(1.0, 0.0);
+        let mut buf: [Complex64; 0] = [];
         assert!(matches!(
-            zbesk(z, 0.0, Scaling::Unscaled, 0),
+            zbesk(z, 0.0, Scaling::Unscaled, &mut buf),
             Err(BesselError::InvalidInput)
         ));
     }

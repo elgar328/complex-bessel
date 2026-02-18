@@ -15,7 +15,7 @@ use crate::utils::{zabs, zdiv};
 
 /// Power series computation of I Bessel function.
 ///
-/// Returns (y, nz) where:
+/// Writes results into `y` and returns `nz` where:
 /// - nz > 0: last nz components set to zero due to underflow
 /// - nz < 0: |nz| components underflowed but |z²/4| > fnu+n-nz-1,
 ///   must complete in zbinu with n = n - |nz|
@@ -23,11 +23,11 @@ pub(crate) fn zseri<T: BesselFloat>(
     z: Complex<T>,
     fnu: T,
     kode: Scaling,
-    n: usize,
+    y: &mut [Complex<T>],
     tol: T,
     elim: T,
     alim: T,
-) -> (Vec<Complex<T>>, i32) {
+) -> i32 {
     let zero = T::zero();
     let one = T::one();
     let two = T::from(2.0).unwrap();
@@ -35,7 +35,10 @@ pub(crate) fn zseri<T: BesselFloat>(
     let czero = Complex::new(zero, zero);
     let cone = Complex::new(one, zero);
 
-    let mut y = vec![czero; n];
+    let n = y.len();
+    for v in y.iter_mut() {
+        *v = czero;
+    }
     let mut nz: i32 = 0;
 
     let az = zabs(z);
@@ -46,7 +49,7 @@ pub(crate) fn zseri<T: BesselFloat>(
             y[0] = cone;
         }
         nz = if fnu == zero { n as i32 - 1 } else { n as i32 };
-        return (y, nz);
+        return nz;
     }
 
     // Fortran lines 3651-3654
@@ -61,7 +64,7 @@ pub(crate) fn zseri<T: BesselFloat>(
         if fnu == zero {
             y[0] = cone;
         }
-        return (y, nz);
+        return nz;
     }
 
     // hz = z/2, cz = hz² (Fortran lines 3656-3663)
@@ -100,11 +103,11 @@ pub(crate) fn zseri<T: BesselFloat>(
             if acz > dfnu {
                 // Label 190: nz = -nz
                 nz = -nz;
-                return (y, nz);
+                return nz;
             }
             nn -= 1;
             if nn == 0 {
-                return (y, nz);
+                return nz;
             }
             continue 'outer;
         }
@@ -175,11 +178,11 @@ pub(crate) fn zseri<T: BesselFloat>(
                     y[nn - 1] = czero;
                     if acz > dfnu {
                         nz = -nz;
-                        return (y, nz);
+                        return nz;
                     }
                     nn -= 1;
                     if nn == 0 {
-                        return (y, nz);
+                        return nz;
                     }
                     went_to_30 = true;
                     break;
@@ -204,7 +207,7 @@ pub(crate) fn zseri<T: BesselFloat>(
 
         // Forward recurrence for remaining terms (Fortran lines 3739-3788)
         if nn <= 2 {
-            return (y, nz);
+            return nz;
         }
 
         let mut k: isize = nn as isize - 3; // 0-based (Fortran K=NN-2 → k=NN-3)
@@ -249,10 +252,10 @@ pub(crate) fn zseri<T: BesselFloat>(
                         k -= 1;
                         l += 1;
                     }
-                    return (y, nz);
+                    return nz;
                 }
             }
-            return (y, nz);
+            return nz;
         }
 
         // Unscaled recurrence (Fortran label 100, lines 3749-3756)
@@ -265,7 +268,7 @@ pub(crate) fn zseri<T: BesselFloat>(
             ak_val = ak_val - one;
             k -= 1;
         }
-        return (y, nz);
+        return nz;
     }
 }
 
@@ -278,11 +281,12 @@ mod tests {
     fn seri_i0_at_origin() {
         // I_0(0) = 1
         let z = Complex64::new(0.0, 0.0);
-        let (y, nz) = zseri(
+        let mut y = [Complex64::new(0.0, 0.0)];
+        let nz = zseri(
             z,
             0.0,
             Scaling::Unscaled,
-            1,
+            &mut y,
             f64::tol(),
             f64::elim(),
             f64::alim(),

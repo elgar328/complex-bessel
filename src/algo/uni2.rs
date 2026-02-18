@@ -26,9 +26,7 @@ const CIPR: [f64; 4] = [1.0, 0.0, -1.0, 0.0];
 const CIPI: [f64; 4] = [0.0, 1.0, 0.0, -1.0];
 
 /// Output of ZUNI2.
-pub(crate) struct Uni2Output<T> {
-    /// Computed I function values.
-    pub y: Vec<Complex<T>>,
+pub(crate) struct Uni2Output {
     /// Underflow count (number of zeroed trailing members).
     /// -1 indicates overflow.
     pub nz: i32,
@@ -43,21 +41,24 @@ pub(crate) fn zuni2<T: BesselFloat>(
     z: Complex<T>,
     fnu: T,
     kode: Scaling,
-    n: usize,
+    y: &mut [Complex<T>],
     fnul: T,
     tol: T,
     elim: T,
     alim: T,
-) -> Uni2Output<T> {
+) -> Uni2Output {
     let zero = T::zero();
     let one = T::one();
     let czero = Complex::new(zero, zero);
 
+    let n = y.len();
     let mut nz: i32 = 0;
     let mut nd = n;
     let mut nlast: i32 = 0;
 
-    let mut y = vec![czero; n];
+    for v in y.iter_mut() {
+        *v = czero;
+    }
 
     // ── 3-level scaling (Fortran lines 7090-7097) ──
     let cscl = one / tol;
@@ -112,18 +113,14 @@ pub(crate) fn zuni2<T: BesselFloat>(
 
     if rs1.abs() > elim {
         if rs1 > zero {
-            return Uni2Output {
-                y,
-                nz: -1,
-                nlast: 0,
-            };
+            return Uni2Output { nz: -1, nlast: 0 };
         }
         // All underflow
         nz = n as i32;
         for item in y.iter_mut() {
             *item = czero;
         }
-        return Uni2Output { y, nz, nlast: 0 };
+        return Uni2Output { nz, nlast: 0 };
     }
 
     // ── Label 40: main computation loop (Fortran lines 7145-7263) ──
@@ -162,31 +159,23 @@ pub(crate) fn zuni2<T: BesselFloat>(
             let mut rs1 = s1r;
             if rs1.abs() > elim {
                 if rs1 > zero {
-                    return Uni2Output {
-                        y,
-                        nz: -1,
-                        nlast: 0,
-                    };
+                    return Uni2Output { nz: -1, nlast: 0 };
                 }
                 // Underflow (Fortran label 120)
                 y[nd - 1] = czero;
                 nz += 1;
                 nd -= 1;
                 if nd == 0 {
-                    return Uni2Output { y, nz, nlast: 0 };
+                    return Uni2Output { nz, nlast: 0 };
                 }
-                let (_y_oik, nuf) = zuoik(z, fnu, kode, 1, nd, tol, elim, alim);
+                let nuf = zuoik(z, fnu, kode, 1, &mut y[..nd], tol, elim, alim);
                 if nuf < 0 {
-                    return Uni2Output {
-                        y,
-                        nz: -1,
-                        nlast: 0,
-                    };
+                    return Uni2Output { nz: -1, nlast: 0 };
                 }
                 nd -= nuf as usize;
                 nz += nuf;
                 if nd == 0 {
-                    return Uni2Output { y, nz, nlast: 0 };
+                    return Uni2Output { nz, nlast: 0 };
                 }
                 let fn_check = fnu + T::from((nd - 1) as f64).unwrap();
                 if fn_check >= fnul {
@@ -203,7 +192,7 @@ pub(crate) fn zuni2<T: BesselFloat>(
                     break;
                 }
                 nlast = nd as i32;
-                return Uni2Output { y, nz, nlast };
+                return Uni2Output { nz, nlast };
             }
 
             if i == 0 {
@@ -216,30 +205,22 @@ pub(crate) fn zuni2<T: BesselFloat>(
                 rs1 = rs1 + aphi.ln() - T::from(0.25).unwrap() * aarg.ln() - T::from(AIC).unwrap();
                 if rs1.abs() > elim {
                     if rs1 > zero {
-                        return Uni2Output {
-                            y,
-                            nz: -1,
-                            nlast: 0,
-                        };
+                        return Uni2Output { nz: -1, nlast: 0 };
                     }
                     y[nd - 1] = czero;
                     nz += 1;
                     nd -= 1;
                     if nd == 0 {
-                        return Uni2Output { y, nz, nlast: 0 };
+                        return Uni2Output { nz, nlast: 0 };
                     }
-                    let (_y_oik, nuf) = zuoik(z, fnu, kode, 1, nd, tol, elim, alim);
+                    let nuf = zuoik(z, fnu, kode, 1, &mut y[..nd], tol, elim, alim);
                     if nuf < 0 {
-                        return Uni2Output {
-                            y,
-                            nz: -1,
-                            nlast: 0,
-                        };
+                        return Uni2Output { nz: -1, nlast: 0 };
                     }
                     nd -= nuf as usize;
                     nz += nuf;
                     if nd == 0 {
-                        return Uni2Output { y, nz, nlast: 0 };
+                        return Uni2Output { nz, nlast: 0 };
                     }
                     let fn_check = fnu + T::from((nd - 1) as f64).unwrap();
                     if fn_check >= fnul {
@@ -255,7 +236,7 @@ pub(crate) fn zuni2<T: BesselFloat>(
                         break;
                     }
                     nlast = nd as i32;
-                    return Uni2Output { y, nz, nlast };
+                    return Uni2Output { nz, nlast };
                 }
                 if i == 0 {
                     iflag = 1;
@@ -293,20 +274,16 @@ pub(crate) fn zuni2<T: BesselFloat>(
                 nz += 1;
                 nd -= 1;
                 if nd == 0 {
-                    return Uni2Output { y, nz, nlast: 0 };
+                    return Uni2Output { nz, nlast: 0 };
                 }
-                let (_y_oik, nuf) = zuoik(z, fnu, kode, 1, nd, tol, elim, alim);
+                let nuf = zuoik(z, fnu, kode, 1, &mut y[..nd], tol, elim, alim);
                 if nuf < 0 {
-                    return Uni2Output {
-                        y,
-                        nz: -1,
-                        nlast: 0,
-                    };
+                    return Uni2Output { nz: -1, nlast: 0 };
                 }
                 nd -= nuf as usize;
                 nz += nuf;
                 if nd == 0 {
-                    return Uni2Output { y, nz, nlast: 0 };
+                    return Uni2Output { nz, nlast: 0 };
                 }
                 let fn_check = fnu + T::from((nd - 1) as f64).unwrap();
                 if fn_check >= fnul {
@@ -322,7 +299,7 @@ pub(crate) fn zuni2<T: BesselFloat>(
                     break;
                 }
                 nlast = nd as i32;
-                return Uni2Output { y, nz, nlast };
+                return Uni2Output { nz, nlast };
             }
 
             // Conjugation for ZI <= 0 (Fortran line 7205)
@@ -353,7 +330,7 @@ pub(crate) fn zuni2<T: BesselFloat>(
 
         // ── Forward recurrence for remaining terms (Fortran lines 7218-7263) ──
         if nd <= 2 {
-            return Uni2Output { y, nz, nlast };
+            return Uni2Output { nz, nlast };
         }
 
         let raz = one / zabs(z);
@@ -409,6 +386,6 @@ pub(crate) fn zuni2<T: BesselFloat>(
             c1r = csrr[iflag - 1];
         }
 
-        return Uni2Output { y, nz, nlast };
+        return Uni2Output { nz, nlast };
     }
 }

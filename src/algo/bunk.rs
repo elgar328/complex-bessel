@@ -17,25 +17,25 @@ use crate::types::Scaling;
 /// Equivalent to Fortran ZBUNK in TOMS 644 (zbsubs.f lines 3287-3321).
 ///
 /// # Returns
-/// `(y, nz)` where nz = -1 indicates overflow.
+/// `nz` where nz = -1 indicates overflow.
 pub(crate) fn zbunk<T: BesselFloat>(
     z: Complex<T>,
     fnu: T,
     kode: Scaling,
     mr: i32,
-    n: usize,
+    y: &mut [Complex<T>],
     tol: T,
     elim: T,
     alim: T,
-) -> (Vec<Complex<T>>, i32) {
+) -> i32 {
     let ax = z.re.abs() * T::from(1.7321).unwrap();
     let ay = z.im.abs();
 
     if ay > ax {
         // Region 2: |Im(z)| > |Re(z)|*sqrt(3)
-        zunk2(z, fnu, kode, mr, n, tol, elim, alim)
+        zunk2(z, fnu, kode, mr, y, tol, elim, alim)
     } else {
         // Region 1: |arg(z)| <= pi/3
-        zunk1(z, fnu, kode, mr, n, tol, elim, alim)
+        zunk1(z, fnu, kode, mr, y, tol, elim, alim)
     }
 }

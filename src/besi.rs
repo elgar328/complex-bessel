@@ -10,7 +10,7 @@ use num_complex::Complex;
 use crate::algo::binu::zbinu;
 use crate::algo::constants::PI;
 use crate::machine::BesselFloat;
-use crate::types::{BesselError, BesselResult, BesselStatus, Scaling};
+use crate::types::{BesselError, BesselStatus, Scaling};
 use crate::utils::zabs;
 
 /// Compute I_{fnu+j}(z) for j = 0, 1, ..., n-1.
@@ -20,11 +20,19 @@ pub(crate) fn zbesi<T: BesselFloat>(
     z: Complex<T>,
     fnu: T,
     scaling: Scaling,
-    n: usize,
-) -> Result<BesselResult<T>, BesselError> {
+    y: &mut [Complex<T>],
+) -> Result<(usize, BesselStatus), BesselError> {
     let zero = T::zero();
     let one = T::one();
     let pi_t = T::from(PI).unwrap();
+    let czero = Complex::new(zero, zero);
+
+    let n = y.len();
+
+    // Zero the output buffer
+    for v in y.iter_mut() {
+        *v = czero;
+    }
 
     // Input validation (Fortran IERR=1, lines 518-523)
     if n < 1 {
@@ -87,7 +95,7 @@ pub(crate) fn zbesi<T: BesselFloat>(
     let zn = Complex::new(znr, zni);
 
     // Call ZBINU (Fortran lines 581-583)
-    let (mut cy, nz) = zbinu(zn, fnu, scaling, n, rl, fnul, tol, elim, alim)?;
+    let nz = zbinu(zn, fnu, scaling, y, rl, fnul, tol, elim, alim)?;
 
     let status = if precision_warning {
         BesselStatus::ReducedPrecision
@@ -97,27 +105,19 @@ pub(crate) fn zbesi<T: BesselFloat>(
 
     if z.re >= zero {
         // Right half-plane: done
-        return Ok(BesselResult {
-            values: cy,
-            underflow_count: nz,
-            status,
-        });
+        return Ok((nz, status));
     }
 
     // Analytic continuation to left half-plane (Fortran lines 586-610)
     let nn = n - nz;
     if nn == 0 {
-        return Ok(BesselResult {
-            values: cy,
-            underflow_count: nz,
-            status,
-        });
+        return Ok((nz, status));
     }
 
     let rtol = one / tol;
     let ascle = T::MACH_TINY * rtol * T::from(1.0e3).unwrap();
 
-    for cy_item in cy.iter_mut().take(nn) {
+    for cy_item in y.iter_mut().take(nn) {
         let mut aa_val = cy_item.re;
         let mut bb_val = cy_item.im;
         let mut atol = one;
@@ -134,11 +134,7 @@ pub(crate) fn zbesi<T: BesselFloat>(
         csgni = -csgni;
     }
 
-    Ok(BesselResult {
-        values: cy,
-        underflow_count: nz,
-        status,
-    })
+    Ok((nz, status))
 }
 
 #[cfg(test)]
@@ -149,7 +145,7 @@ mod tests {
     #[test]
     fn besi_input_validation() {
         let z = Complex64::new(1.0, 0.0);
-        assert!(zbesi(z, -1.0, Scaling::Unscaled, 1).is_err());
-        assert!(zbesi(z, 0.0, Scaling::Unscaled, 0).is_err());
+        assert!(zbesi(z, -1.0, Scaling::Unscaled, &mut [Complex64::new(0.0, 0.0)]).is_err());
+        assert!(zbesi(z, 0.0, Scaling::Unscaled, &mut []).is_err());
     }
 }

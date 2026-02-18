@@ -20,7 +20,7 @@ use crate::utils::zabs;
 
 /// Overflow/underflow pre-check using uniform asymptotic leading terms.
 ///
-/// Returns `(y, nuf)` where:
+/// Returns `nuf` where:
 /// - `nuf = 0`: last member is on scale (no overflow/underflow detected)
 /// - `nuf = -1`: overflow would occur
 /// - `nuf > 0` (ikflg=1 only): last `nuf` Y values set to zero (underflow)
@@ -28,21 +28,24 @@ use crate::utils::zabs;
 ///
 /// # Parameters
 /// - `ikflg`: 1 for I function test, 2 for K function test
-/// - `n`: number of sequence members
+/// - `y`: output slice (length determines number of sequence members)
 pub(crate) fn zuoik<T: BesselFloat>(
     z: Complex<T>,
     fnu: T,
     kode: Scaling,
     ikflg: i32,
-    n: usize,
+    y: &mut [Complex<T>],
     tol: T,
     elim: T,
     alim: T,
-) -> (Vec<Complex<T>>, i32) {
+) -> i32 {
     let zero = T::zero();
     let one = T::one();
     let czero = Complex::new(zero, zero);
-    let mut y = vec![czero; n];
+    let n = y.len();
+    for v in y.iter_mut() {
+        *v = czero;
+    }
     let mut nuf: i32 = 0;
     let mut nn = n;
 
@@ -116,7 +119,7 @@ pub(crate) fn zuoik<T: BesselFloat>(
 
     // ── Overflow test (Fortran lines 4075-4080) ──
     if rcz > elim {
-        return (y, -1); // label 210
+        return -1; // label 210
     }
     if rcz >= alim {
         // Between ALIM and ELIM: refine (Fortran lines 4077-4079)
@@ -125,7 +128,7 @@ pub(crate) fn zuoik<T: BesselFloat>(
             rcz = rcz - T::from(0.25).unwrap() * aarg.ln() - aic;
         }
         if rcz > elim {
-            return (y, -1); // label 210
+            return -1; // label 210
         }
         // Falls through to label 130 (on scale)
     } else {
@@ -135,7 +138,7 @@ pub(crate) fn zuoik<T: BesselFloat>(
             for item in y.iter_mut().take(nn) {
                 *item = czero;
             }
-            return (y, nn as i32);
+            return nn as i32;
         }
         if rcz <= -alim {
             // Between -ELIM and -ALIM: refine (Fortran lines 4087-4089)
@@ -148,7 +151,7 @@ pub(crate) fn zuoik<T: BesselFloat>(
                 for item in y.iter_mut().take(nn) {
                     *item = czero;
                 }
-                return (y, nn as i32);
+                return nn as i32;
             }
             // Refined check with ZUCHK (label 110, Fortran lines 4098-4112)
             let ascle = T::from(1.0e3).unwrap() * T::MACH_TINY / tol;
@@ -169,7 +172,7 @@ pub(crate) fn zuoik<T: BesselFloat>(
                 for item in y.iter_mut().take(nn) {
                     *item = czero;
                 }
-                return (y, nn as i32);
+                return nn as i32;
             }
         }
         // else: -ALIM < RCZ < ALIM → on scale (label 130)
@@ -177,10 +180,10 @@ pub(crate) fn zuoik<T: BesselFloat>(
 
     // ── Label 130: on scale (Fortran lines 4114-4115) ──
     if ikflg == 2 {
-        return (y, nuf);
+        return nuf;
     }
     if n == 1 {
-        return (y, nuf);
+        return nuf;
     }
 
     // ── I function per-member underflow chain (label 140, Fortran lines 4119-4168) ──
@@ -221,13 +224,13 @@ pub(crate) fn zuoik<T: BesselFloat>(
             nn -= 1;
             nuf += 1;
             if nn == 0 {
-                return (y, nuf);
+                return nuf;
             }
             continue;
         }
         if rcz > -alim {
             // On scale, done
-            return (y, nuf);
+            return nuf;
         }
 
         // Between -ELIM and -ALIM: refine (Fortran lines 4143-4145)
@@ -241,7 +244,7 @@ pub(crate) fn zuoik<T: BesselFloat>(
             nn -= 1;
             nuf += 1;
             if nn == 0 {
-                return (y, nuf);
+                return nuf;
             }
             continue;
         }
@@ -266,12 +269,12 @@ pub(crate) fn zuoik<T: BesselFloat>(
             nn -= 1;
             nuf += 1;
             if nn == 0 {
-                return (y, nuf);
+                return nuf;
             }
             continue;
         }
 
         // On scale, done
-        return (y, nuf);
+        return nuf;
     }
 }

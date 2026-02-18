@@ -24,12 +24,12 @@ pub(crate) fn zasyi<T: BesselFloat>(
     z: Complex<T>,
     fnu: T,
     kode: Scaling,
-    n: usize,
+    y: &mut [Complex<T>],
     rl: T,
     tol: T,
     elim: T,
     alim: T,
-) -> (Vec<Complex<T>>, i32) {
+) -> i32 {
     let zero = T::zero();
     let one = T::one();
     let _two = T::from(2.0).unwrap();
@@ -40,7 +40,10 @@ pub(crate) fn zasyi<T: BesselFloat>(
     let pi = T::from(PI).unwrap();
     let rtpi = T::from(0.159154943091895336).unwrap(); // 1/(2*pi)
 
-    let mut y = vec![czero; n];
+    let n = y.len();
+    for v in y.iter_mut() {
+        *v = czero;
+    }
     let nz: i32 = 0;
 
     let az = zabs(z);
@@ -73,7 +76,7 @@ pub(crate) fn zasyi<T: BesselFloat>(
 
     if czr.abs() > elim {
         // Overflow (Fortran label 100, line 3972)
-        return (y, -1);
+        return -1;
     }
 
     let dnu2 = dfnu0 + dfnu0;
@@ -165,7 +168,7 @@ pub(crate) fn zasyi<T: BesselFloat>(
 
         if !converged {
             // Convergence failure (Fortran label 110, line 3975)
-            return (y, -2);
+            return -2;
         }
 
         // Label 50: combine CS1 and CS2 (Fortran lines 3931-3947)
@@ -205,7 +208,7 @@ pub(crate) fn zasyi<T: BesselFloat>(
 
     // Forward recurrence for remaining terms (Fortran lines 3949-3970)
     if n <= 2 {
-        return (y, nz);
+        return nz;
     }
 
     let nn = n;
@@ -238,5 +241,5 @@ pub(crate) fn zasyi<T: BesselFloat>(
         }
     }
 
-    (y, nz)
+    nz
 }

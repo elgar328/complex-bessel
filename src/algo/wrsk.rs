@@ -14,38 +14,40 @@ use crate::utils::zabs;
 
 /// Compute I Bessel function for Re(z) >= 0 via Wronskian normalization.
 ///
-/// Returns `(y, nz)` where `y[k]` = I(fnu+k, z) for k = 0, 1, ..., n-1,
-/// and `nz` is the underflow count (always 0 on success).
+/// Writes results into `y` and returns `nz` (underflow count, always 0 on success).
 ///
 /// Equivalent to Fortran ZWRSK in TOMS 644 (zbsubs.f lines 3527-3621).
 ///
 /// # Algorithm
 /// 1. Get K(fnu, z), K(fnu+1, z) from zbknu
-/// 2. Get I-function ratios from zrati
+/// 2. Get I-function ratios from zrati (written directly into y)
 /// 3. Normalize via Wronskian: I(v)·K(v+1) + I(v+1)·K(v) = 1/z
 /// 4. Forward recurrence for remaining values
 pub(crate) fn zwrsk<T: BesselFloat>(
     z: Complex<T>,
     fnu: T,
     kode: Scaling,
-    n: usize,
+    y: &mut [Complex<T>],
     tol: T,
     elim: T,
     alim: T,
-) -> Result<(Vec<Complex<T>>, usize), BesselError> {
+) -> Result<usize, BesselError> {
     let zero = T::zero();
     let one = T::one();
+    let czero = Complex::new(zero, zero);
     let nz: usize = 0;
+    let n = y.len();
 
     // ── Step 1: K(fnu, z) and K(fnu+1, z) via zbknu (Fortran line 3550) ──
-    let (cw, nw) = zbknu(z, fnu, kode, 2, tol, elim, alim)?;
+    let mut cw = [czero; 2];
+    let nw = zbknu(z, fnu, kode, &mut cw, tol, elim, alim)?;
     if nw != 0 {
         // Any nonzero NW (including underflows) is fatal for normalization
         return Err(BesselError::Overflow);
     }
 
-    // ── Step 2: I-function ratios via zrati (Fortran line 3552) ──
-    let mut y = zrati(z, fnu, n, tol);
+    // ── Step 2: I-function ratios via zrati (written directly into y) ──
+    zrati(z, fnu, y, tol);
 
     // ── Step 3: Normalization constant (Fortran lines 3557-3605) ──
     // KODE=1: CINU = 1; KODE=2: CINU = exp(i·Im(z))
@@ -102,7 +104,7 @@ pub(crate) fn zwrsk<T: BesselFloat>(
     y[0] = Complex::new(cinur * csclr, cinui * csclr);
 
     if n == 1 {
-        return Ok((y, nz));
+        return Ok(nz);
     }
 
     // ── Step 4: Forward recurrence (Fortran lines 3607-3615) ──
@@ -117,7 +119,7 @@ pub(crate) fn zwrsk<T: BesselFloat>(
         *item = Complex::new(cinur * csclr, cinui * csclr);
     }
 
-    Ok((y, nz))
+    Ok(nz)
 }
 
 #[cfg(test)]
@@ -133,9 +135,12 @@ mod tests {
         let tol = f64::tol();
         let elim = f64::elim();
         let alim = f64::alim();
+        let czero = Complex64::new(0.0, 0.0);
 
-        let (i_vals, _) = zwrsk(z, fnu, Scaling::Unscaled, 2, tol, elim, alim).unwrap();
-        let (k_vals, _) = zbknu(z, fnu, Scaling::Unscaled, 2, tol, elim, alim).unwrap();
+        let mut i_vals = [czero; 2];
+        let mut k_vals = [czero; 2];
+        zwrsk(z, fnu, Scaling::Unscaled, &mut i_vals, tol, elim, alim).unwrap();
+        zbknu(z, fnu, Scaling::Unscaled, &mut k_vals, tol, elim, alim).unwrap();
 
         let wronskian = i_vals[0] * k_vals[1] + i_vals[1] * k_vals[0];
         let expected = Complex64::new(1.0, 0.0) / z;
@@ -151,7 +156,8 @@ mod tests {
         let elim = f64::elim();
         let alim = f64::alim();
 
-        let (y, nz) = zwrsk(z, 0.0, Scaling::Unscaled, 1, tol, elim, alim).unwrap();
+        let mut y = [Complex64::new(0.0, 0.0)];
+        let nz = zwrsk(z, 0.0, Scaling::Unscaled, &mut y, tol, elim, alim).unwrap();
         assert_eq!(nz, 0);
         let err = (y[0].re - 1.2660658777520084).abs();
         assert!(err < 1e-13, "I(0,1) error = {err:.2e}");
@@ -166,7 +172,8 @@ mod tests {
         let elim = f64::elim();
         let alim = f64::alim();
 
-        let (y, _) = zwrsk(z, 0.0, Scaling::Unscaled, 3, tol, elim, alim).unwrap();
+        let mut y = [Complex64::new(0.0, 0.0); 3];
+        zwrsk(z, 0.0, Scaling::Unscaled, &mut y, tol, elim, alim).unwrap();
         // I(0,2) ≈ 2.2795853023360673
         let err0 = (y[0].re - 2.2795853023360673).abs();
         assert!(err0 < 1e-13, "I(0,2) error = {err0:.2e}");

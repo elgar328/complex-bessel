@@ -289,10 +289,11 @@ fn zairy_large_z<T: BesselFloat>(
 
         // Label 120: ZBKNU (Fortran lines 1784-1785)
         let zta = Complex::new(ztar, ztai);
-        let (cy, nz_k) = zbknu(zta, fnu, kode, 1, tol, elim, alim)?;
+        let mut cy_buf = [czero];
+        let nz_k = zbknu(zta, fnu, kode, &mut cy_buf, tol, elim, alim)?;
         nz += nz_k as i32;
 
-        let s1 = Complex::new(cy[0].re * coef, cy[0].im * coef);
+        let s1 = Complex::new(cy_buf[0].re * coef, cy_buf[0].im * coef);
         return zairy_form_result(z, csq, s1, id, iflag, sfac, nz);
     }
 
@@ -312,7 +313,8 @@ fn zairy_large_z<T: BesselFloat>(
     // Label 100: ZACAI call (Fortran lines 1766-1772)
     let mr: i32 = if z.im < zero { -1 } else { 1 };
     let zta = Complex::new(ztar, ztai);
-    let (cy, nn) = zacai(zta, fnu, kode, mr, 1, rl, tol, elim, alim)?;
+    let mut cy_buf = [czero];
+    let nn = zacai(zta, fnu, kode, mr, &mut cy_buf, rl, tol, elim, alim)?;
     if nn < 0 {
         // Fortran label 280
         return if nn == -1 {
@@ -323,7 +325,7 @@ fn zairy_large_z<T: BesselFloat>(
     }
     nz += nn;
 
-    let s1 = Complex::new(cy[0].re * coef, cy[0].im * coef);
+    let s1 = Complex::new(cy_buf[0].re * coef, cy_buf[0].im * coef);
     zairy_form_result(z, csq, s1, id, iflag, sfac, nz)
 }
 
@@ -535,21 +537,24 @@ fn zbiry_large_z<T: BesselFloat>(
     let zta = Complex::new(ztar, ztai);
 
     // First ZBINU: I_{fnu}(zta) (Fortran lines 2163-2164)
-    let (cy1, _nz1) = zbinu(zta, fnu, kode, 1, rl, fnul, tol, elim, alim)?;
+    let czero = Complex::new(zero, zero);
+    let mut cy1_buf = [czero];
+    let _nz1 = zbinu(zta, fnu, kode, &mut cy1_buf, rl, fnul, tol, elim, alim)?;
 
     // S1 = exp(i*FMR*FNU) * CY(1) * SFAC (Fortran lines 2166-2171)
     let aa_fmr = fmr * fnu;
     let z3r = sfac;
     let str_cos = aa_fmr.cos();
     let sti_sin = aa_fmr.sin();
-    let mut s1r = (str_cos * cy1[0].re - sti_sin * cy1[0].im) * z3r;
-    let mut s1i = (str_cos * cy1[0].im + sti_sin * cy1[0].re) * z3r;
+    let mut s1r = (str_cos * cy1_buf[0].re - sti_sin * cy1_buf[0].im) * z3r;
+    let mut s1i = (str_cos * cy1_buf[0].im + sti_sin * cy1_buf[0].re) * z3r;
 
     // Second ZBINU: I_{fnu2}(zta), I_{fnu2+1}(zta) (Fortran lines 2172-2178)
     let fnu2 = (two - fid) / three;
-    let (cy2, _nz2) = zbinu(zta, fnu2, kode, 2, rl, fnul, tol, elim, alim)?;
-    let cy2_0 = Complex::new(cy2[0].re * z3r, cy2[0].im * z3r);
-    let cy2_1 = Complex::new(cy2[1].re * z3r, cy2[1].im * z3r);
+    let mut cy2_buf = [czero; 2];
+    let _nz2 = zbinu(zta, fnu2, kode, &mut cy2_buf, rl, fnul, tol, elim, alim)?;
+    let cy2_0 = Complex::new(cy2_buf[0].re * z3r, cy2_buf[0].im * z3r);
+    let cy2_1 = Complex::new(cy2_buf[1].re * z3r, cy2_buf[1].im * z3r);
 
     // Backward recurrence: I_{fnu2-1} = 2*fnu2*(CY(1)/ZTA) + CY(2)
     // (Fortran lines 2182-2184)

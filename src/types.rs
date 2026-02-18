@@ -1,11 +1,13 @@
 //! Core types for Bessel function computation.
 
-#[cfg(not(feature = "std"))]
+#[cfg(all(feature = "alloc", not(feature = "std")))]
 use alloc::vec::Vec;
 use core::fmt;
 
+#[cfg(feature = "alloc")]
 use num_complex::Complex;
 
+#[cfg(feature = "alloc")]
 use crate::machine::BesselFloat;
 
 /// Status of the computation result.
@@ -19,6 +21,7 @@ pub enum BesselStatus {
 }
 
 /// Result of a Bessel function sequence computation.
+#[cfg(feature = "alloc")]
 pub struct BesselResult<T: BesselFloat> {
     /// Computed function values for orders ν, ν+1, ..., ν+n-1.
     pub values: Vec<Complex<T>>,

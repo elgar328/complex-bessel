@@ -41,21 +41,22 @@ const CIPI: [f64; 4] = [0.0, -1.0, 0.0, 1.0];
 /// - `fnu`: starting order ν >= 0
 /// - `kode`: scaling mode
 /// - `mr`: analytic continuation direction (0 = none, ±1 = left half plane)
-/// - `n`: number of sequence members
+/// - `y`: output slice for sequence members (length determines n)
 /// - `tol`, `elim`, `alim`: machine-derived thresholds
 ///
 /// # Returns
-/// `(y, nz)` where nz = -1 indicates overflow.
+/// `nz` where nz = -1 indicates overflow.
 pub(crate) fn zunk2<T: BesselFloat>(
     z: Complex<T>,
     fnu: T,
     kode: Scaling,
     mr: i32,
-    n: usize,
+    y: &mut [Complex<T>],
     tol: T,
     elim: T,
     alim: T,
-) -> (Vec<Complex<T>>, i32) {
+) -> i32 {
+    let n = y.len();
     let zero = T::zero();
     let one = T::one();
     let czero = Complex::new(zero, zero);
@@ -68,7 +69,9 @@ pub(crate) fn zunk2<T: BesselFloat>(
     let cr2r = T::from(CR2R).unwrap();
     let cr2i = T::from(CR2I).unwrap();
 
-    let mut y = vec![czero; n];
+    for v in y.iter_mut() {
+        *v = czero;
+    }
     let mut kdflg: usize = 1;
     let mut nz: i32 = 0;
 
@@ -165,10 +168,10 @@ pub(crate) fn zunk2<T: BesselFloat>(
         if rs1.abs() > elim {
             // label 70
             if rs1 > zero {
-                return (y, -1);
+                return -1;
             }
             if z.re < zero {
-                return (y, -1);
+                return -1;
             }
             kdflg = 1;
             y[i] = czero;
@@ -193,10 +196,10 @@ pub(crate) fn zunk2<T: BesselFloat>(
             rs1 = rs1 + aphi.ln() - T::from(0.25).unwrap() * aarg.ln() - aic_t;
             if rs1.abs() > elim {
                 if rs1 > zero {
-                    return (y, -1);
+                    return -1;
                 }
                 if z.re < zero {
-                    return (y, -1);
+                    return -1;
                 }
                 kdflg = 1;
                 y[i] = czero;
@@ -257,10 +260,10 @@ pub(crate) fn zunk2<T: BesselFloat>(
         if kflag == 1 && zuchk(Complex::new(s2r, s2i), bry[0], tol) {
             // label 70: underflow
             if rs1 > zero {
-                return (y, -1);
+                return -1;
             }
             if z.re < zero {
-                return (y, -1);
+                return -1;
             }
             kdflg = 1;
             y[i] = czero;
@@ -330,32 +333,32 @@ pub(crate) fn zunk2<T: BesselFloat>(
         let mut rs1 = s1r_last;
         if rs1.abs() > elim {
             if rs1 > zero {
-                return (y, -1);
+                return -1;
             }
             if z.re < zero {
-                return (y, -1);
+                return -1;
             }
             nz = n as i32;
             for item in y.iter_mut() {
                 *item = czero;
             }
-            return (y, nz);
+            return nz;
         }
         if rs1.abs() >= alim {
             let aphi = zabs(result_last.phi);
             rs1 = rs1 + aphi.ln();
             if rs1.abs() >= elim {
                 if rs1 > zero {
-                    return (y, -1);
+                    return -1;
                 }
                 if z.re < zero {
-                    return (y, -1);
+                    return -1;
                 }
                 nz = n as i32;
                 for item in y.iter_mut() {
                     *item = czero;
                 }
-                return (y, nz);
+                return nz;
             }
         }
 
@@ -396,7 +399,7 @@ pub(crate) fn zunk2<T: BesselFloat>(
 
     // ── Phase 3: Analytic continuation (Fortran lines 6444-6660) ──
     if mr == 0 {
-        return (y, nz);
+        return nz;
     }
 
     nz = 0;
@@ -501,7 +504,7 @@ pub(crate) fn zunk2<T: BesselFloat>(
         if rs1.abs() > elim {
             // label 280
             if rs1 > zero {
-                return (y, -1);
+                return -1;
             }
             // S2 = 0
             let c2_save = czero;
@@ -555,7 +558,7 @@ pub(crate) fn zunk2<T: BesselFloat>(
             rs1 = rs1 + aphi.ln() - T::from(0.25).unwrap() * aarg.ln() - aic_t;
             if rs1.abs() > elim {
                 if rs1 > zero {
-                    return (y, -1);
+                    return -1;
                 }
                 // S2 = 0 path (goto 250)
                 let c2_save = czero;
@@ -676,7 +679,7 @@ pub(crate) fn zunk2<T: BesselFloat>(
     // ── Backward recurrence for remaining I terms (Fortran lines 6604-6660) ──
     let il = n - k_exit;
     if il == 0 {
-        return (y, nz);
+        return nz;
     }
 
     let mut s1 = cy[0];
@@ -730,5 +733,5 @@ pub(crate) fn zunk2<T: BesselFloat>(
         csr_rec = csrr[iflag - 1];
     }
 
-    (y, nz)
+    nz
 }

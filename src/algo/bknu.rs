@@ -6,6 +6,7 @@
 // Exact Fortran constants — preserve verbatim.
 #![allow(clippy::excessive_precision)]
 #![allow(clippy::approx_constant)]
+#![allow(clippy::needless_range_loop)]
 #![allow(unused_assignments)]
 
 use num_complex::Complex;
@@ -64,17 +65,22 @@ pub(crate) fn zbknu<T: BesselFloat>(
     z: Complex<T>,
     fnu: T,
     kode: Scaling,
-    n: usize,
+    y: &mut [Complex<T>],
     tol: T,
     elim: T,
     alim: T,
-) -> Result<(Vec<Complex<T>>, usize), BesselError> {
+) -> Result<usize, BesselError> {
     // Convenience conversions
     let zero = T::zero();
     let one = T::one();
     let two = T::from(2.0).unwrap();
     let half = T::from(0.5).unwrap();
     let czero = Complex::new(zero, zero);
+
+    let n = y.len();
+    for v in y.iter_mut() {
+        *v = czero;
+    }
 
     let caz = zabs(z);
     let csclr = one / tol;
@@ -90,8 +96,6 @@ pub(crate) fn zbknu<T: BesselFloat>(
         one / (T::from(1.0e3).unwrap() * T::MACH_TINY / tol),
         T::MACH_HUGE,
     ];
-
-    let mut y = vec![czero; n];
     let mut nz: usize = 0;
     let mut iflag = 0_i32;
     let mut koded = kode;
@@ -266,13 +270,13 @@ pub(crate) fn zbknu<T: BesselFloat>(
                 let ez = z.exp();
                 y[0] = s1 * ez;
             }
-            return Ok((y, nz));
+            return Ok(nz);
         }
 
         // ── Forward recurrence: label 210 ──
         return forward_recurrence(
-            z, fnu, &koded, n, &mut y, &mut nz, tol, elim, alim, iflag, s1, s2, rz, inu, kflag,
-            &cssr, &csrr, &bry,
+            z, fnu, &koded, n, y, &mut nz, tol, elim, alim, iflag, s1, s2, rz, inu, kflag, &cssr,
+            &csrr, &bry,
         );
     }
 
@@ -315,8 +319,8 @@ pub(crate) fn zbknu<T: BesselFloat>(
         let s1 = coef;
         let s2 = coef;
         return forward_recurrence(
-            z, fnu, &koded, n, &mut y, &mut nz, tol, elim, alim, iflag, s1, s2, rz, inu, kflag,
-            &cssr, &csrr, &bry,
+            z, fnu, &koded, n, y, &mut nz, tol, elim, alim, iflag, s1, s2, rz, inu, kflag, &cssr,
+            &csrr, &bry,
         );
     }
 
@@ -329,8 +333,8 @@ pub(crate) fn zbknu<T: BesselFloat>(
         let s1 = coef;
         let s2 = coef;
         return forward_recurrence(
-            z, fnu, &koded, n, &mut y, &mut nz, tol, elim, alim, iflag, s1, s2, rz, inu, kflag,
-            &cssr, &csrr, &bry,
+            z, fnu, &koded, n, y, &mut nz, tol, elim, alim, iflag, s1, s2, rz, inu, kflag, &cssr,
+            &csrr, &bry,
         );
     }
 
@@ -446,13 +450,13 @@ pub(crate) fn zbknu<T: BesselFloat>(
         let zd = z;
         if iflag == 1 {
             return handle_iflag1_final(
-                zd, fnu, n, &mut y, &mut nz, tol, elim, alim, s1, s1, rz, &cssr, &csrr, &bry,
+                zd, fnu, n, y, &mut nz, tol, elim, alim, s1, s1, rz, &cssr, &csrr, &bry,
             );
         }
         // Label 240: store and return
         let str_scale = csrr[kflag];
         y[0] = s1 * str_scale;
-        return Ok((y, nz));
+        return Ok(nz);
     }
 
     // ── Compute P1/P2 ratio for S2 (label 200) ──
@@ -479,7 +483,7 @@ pub(crate) fn zbknu<T: BesselFloat>(
 
     // ── Forward recurrence (label 210) ──
     forward_recurrence(
-        z, fnu, &koded, n, &mut y, &mut nz, tol, elim, alim, iflag, s1, s2, rz, inu, kflag, &cssr,
+        z, fnu, &koded, n, y, &mut nz, tol, elim, alim, iflag, s1, s2, rz, inu, kflag, &cssr,
         &csrr, &bry,
     )
 }
@@ -511,7 +515,7 @@ fn forward_recurrence<T: BesselFloat>(
     cssr: &[T; 3],
     csrr: &[T; 3],
     bry: &[T; 3],
-) -> Result<(Vec<Complex<T>>, usize), BesselError> {
+) -> Result<usize, BesselError> {
     let zero = T::zero();
     let one = T::one();
     let _czero = Complex::new(zero, zero);
@@ -583,18 +587,18 @@ fn forward_recurrence<T: BesselFloat>(
     let str_scale = csrr[kflag];
     y[0] = s1 * str_scale;
     if n == 1 {
-        return Ok((y.to_vec(), *nz));
+        return Ok(*nz);
     }
     y[1] = s2 * str_scale;
     if n == 2 {
-        return Ok((y.to_vec(), *nz));
+        return Ok(*nz);
     }
 
     // ── Label 250-260: additional values via recurrence ──
     let mut kk = 2_usize; // next index to fill (0-based)
     loop {
         if kk >= n {
-            return Ok((y.to_vec(), *nz));
+            return Ok(*nz);
         }
 
         let mut p1r = csrr[kflag];
@@ -629,12 +633,12 @@ fn forward_recurrence<T: BesselFloat>(
             }
 
             if i == n - 1 {
-                return Ok((y.to_vec(), *nz));
+                return Ok(*nz);
             }
         }
         // If we didn't break early, we've filled all values
         if kk >= n {
-            return Ok((y.to_vec(), *nz));
+            return Ok(*nz);
         }
     }
 }
@@ -658,7 +662,7 @@ fn iflag1_recurrence<T: BesselFloat>(
     cssr: &[T; 3],
     csrr: &[T; 3],
     bry: &[T; 3],
-) -> Result<(Vec<Complex<T>>, usize), BesselError> {
+) -> Result<usize, BesselError> {
     let zero = T::zero();
     let _one = T::one();
     let czero = Complex::new(zero, zero);
@@ -765,11 +769,11 @@ fn iflag1_recurrence<T: BesselFloat>(
             let str_scale = csrr[kflag_inner];
             y[0] = s1 * str_scale;
             if n == 1 {
-                return Ok((y.to_vec(), *nz));
+                return Ok(*nz);
             }
             y[1] = s2 * str_scale;
             if n == 2 {
-                return Ok((y.to_vec(), *nz));
+                return Ok(*nz);
             }
 
             // Continue with label 250-260 recurrence (with KFLAG tracking)
@@ -778,7 +782,7 @@ fn iflag1_recurrence<T: BesselFloat>(
             let mut kk_idx = 2_usize;
             loop {
                 if kk_idx >= n {
-                    return Ok((y.to_vec(), *nz));
+                    return Ok(*nz);
                 }
                 let mut p1r = csrr[kflag_inner];
                 let mut ascle_loop = bry[kflag_inner];
@@ -811,11 +815,11 @@ fn iflag1_recurrence<T: BesselFloat>(
                     }
 
                     if i == n - 1 {
-                        return Ok((y.to_vec(), *nz));
+                        return Ok(*nz);
                     }
                 }
                 if kk_idx >= n {
-                    return Ok((y.to_vec(), *nz));
+                    return Ok(*nz);
                 }
             }
         }
@@ -828,13 +832,13 @@ fn iflag1_recurrence<T: BesselFloat>(
         let str_scale = csrr[kflag];
         y[0] = s1 * str_scale;
         if n == 1 {
-            return Ok((y.to_vec(), *nz));
+            return Ok(*nz);
         }
         y[1] = s2 * str_scale;
         if n == 2 {
-            return Ok((y.to_vec(), *nz));
+            return Ok(*nz);
         }
-        return Ok((y.to_vec(), *nz));
+        return Ok(*nz);
     }
 
     // Loop completed without finding two consecutive (label 270)
@@ -864,7 +868,7 @@ fn handle_iflag1_final<T: BesselFloat>(
     cssr: &[T; 3],
     csrr: &[T; 3],
     bry: &[T; 3],
-) -> Result<(Vec<Complex<T>>, usize), BesselError> {
+) -> Result<usize, BesselError> {
     let _zero = T::zero();
     let _one = T::one();
 
@@ -878,21 +882,21 @@ fn handle_iflag1_final<T: BesselFloat>(
     *nz = zkscl(zd, fnu, y, rz, ascle, tol, elim);
     let inu_remaining = n as i32 - *nz as i32;
     if inu_remaining <= 0 {
-        return Ok((y.to_vec(), *nz));
+        return Ok(*nz);
     }
 
     let kk = *nz; // 0-based index of first non-zero value
     let mut s1_local = y[kk];
     y[kk] = s1_local * csrr[0];
     if inu_remaining == 1 {
-        return Ok((y.to_vec(), *nz));
+        return Ok(*nz);
     }
 
     let kk2 = *nz + 1;
     let mut s2_local = y[kk2];
     y[kk2] = s2_local * csrr[0];
     if inu_remaining == 2 {
-        return Ok((y.to_vec(), *nz));
+        return Ok(*nz);
     }
 
     // Continue recurrence for remaining values (label 250-260 with KFLAG tracking)
@@ -903,7 +907,7 @@ fn handle_iflag1_final<T: BesselFloat>(
     let mut kk_idx = kk2 + 1; // 0-based next index to fill
     loop {
         if kk_idx >= n {
-            return Ok((y.to_vec(), *nz));
+            return Ok(*nz);
         }
         let mut p1r = csrr[kflag];
         let mut ascle = bry[kflag];
@@ -936,11 +940,11 @@ fn handle_iflag1_final<T: BesselFloat>(
             }
 
             if i == n - 1 {
-                return Ok((y.to_vec(), *nz));
+                return Ok(*nz);
             }
         }
         if kk_idx >= n {
-            return Ok((y.to_vec(), *nz));
+            return Ok(*nz);
         }
     }
 }

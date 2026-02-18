@@ -20,7 +20,7 @@ use crate::algo::bunk::zbunk;
 use crate::algo::constants::HPI;
 use crate::algo::uoik::zuoik;
 use crate::machine::BesselFloat;
-use crate::types::{BesselError, BesselResult, BesselStatus, HankelKind, Scaling};
+use crate::types::{BesselError, BesselStatus, HankelKind, Scaling};
 use crate::utils::zabs;
 
 /// Compute H_{fnu+j}^(m)(z) for j = 0, 1, ..., n-1.
@@ -33,18 +33,22 @@ use crate::utils::zabs;
 /// - `fnu`: starting order (>= 0)
 /// - `kind`: `First` (m=1) or `Second` (m=2)
 /// - `scaling`: `Unscaled` = H(m,v,z), `Exponential` = H(m,v,z)*exp(-(3-2m)*i*z)
-/// - `n`: number of sequence members (>= 1)
+/// - `y`: output slice; length determines n (must be >= 1)
 ///
+/// # Returns
+/// `(nz, status)` where `nz` is the underflow count.
 pub(crate) fn zbesh<T: BesselFloat>(
     z: Complex<T>,
     fnu: T,
     kind: HankelKind,
     scaling: Scaling,
-    n: usize,
-) -> Result<BesselResult<T>, BesselError> {
+    y: &mut [Complex<T>],
+) -> Result<(usize, BesselStatus), BesselError> {
     let zero = T::zero();
     let one = T::one();
     let two = T::from(2.0).unwrap();
+
+    let n = y.len();
 
     // ── Input validation (Fortran IERR=1, lines 176-183) ──
     if n < 1 {
@@ -107,7 +111,12 @@ pub(crate) fn zbesh<T: BesselFloat>(
     let mut nz: usize = 0;
     let mut nn_eff = nn;
 
-    let cy = if fnu > fnul {
+    // Initialize output to zero
+    for v in y.iter_mut() {
+        *v = Complex::new(zero, zero);
+    }
+
+    if fnu > fnul {
         // Large order: uniform asymptotic expansions (ZBUNK)
         // Fortran ZBESH label 90-100 (zbsubs.f lines 269-284)
         let mut mr = 0i32;
@@ -120,7 +129,7 @@ pub(crate) fn zbesh<T: BesselFloat>(
                 zn_call = Complex::new(-znr, -zni);
             }
         }
-        let (y, nw) = zbunk(zn_call, fnu, scaling, mr, nn_eff, tol, elim, alim);
+        let nw = zbunk(zn_call, fnu, scaling, mr, &mut y[..nn_eff], tol, elim, alim);
         if nw < 0 {
             return if nw == -1 {
                 Err(BesselError::Overflow)
@@ -129,13 +138,12 @@ pub(crate) fn zbesh<T: BesselFloat>(
             };
         }
         nz += nw as usize;
-        y
     } else {
         // ── Small-to-moderate order overflow checks (Fortran lines 232-249) ──
         if fn_val > one {
             if fn_val > two {
                 // fn > 2: ZUOIK overflow/underflow pre-check (Fortran lines 238-248)
-                let (_uoik_y, nuf) = zuoik(zn, fnu, scaling, 2, nn_eff, tol, elim, alim);
+                let nuf = zuoik(zn, fnu, scaling, 2, &mut y[..nn_eff], tol, elim, alim);
                 if nuf < 0 {
                     return Err(BesselError::Overflow);
                 }
@@ -147,18 +155,13 @@ pub(crate) fn zbesh<T: BesselFloat>(
                     if znr < zero {
                         return Err(BesselError::Overflow);
                     }
-                    // All underflowed — return zero values
-                    let cy_zero = vec![Complex::new(zero, zero); nn];
+                    // All underflowed — y is already zeroed, return early
                     let status = if precision_warning {
                         BesselStatus::ReducedPrecision
                     } else {
                         BesselStatus::Normal
                     };
-                    return Ok(BesselResult {
-                        values: cy_zero,
-                        underflow_count: nz,
-                        status,
-                    });
+                    return Ok((nz, status));
                 }
             }
 
@@ -178,14 +181,23 @@ pub(crate) fn zbesh<T: BesselFloat>(
             // Left half-plane of rotated argument: analytic continuation (ZACON)
             let mr = -mm; // Fortran: MR = -MM (zbsubs.f line 263)
             let rl = T::rl();
-            let (y_acon, nw) = zacon(zn, fnu, scaling, mr, nn_eff, rl, fnul, tol, elim, alim)?;
+            let nw = zacon(
+                zn,
+                fnu,
+                scaling,
+                mr,
+                &mut y[..nn_eff],
+                rl,
+                fnul,
+                tol,
+                elim,
+                alim,
+            )?;
             nz = nw; // Fortran: NZ=NW (zbsubs.f line 267, assignment not accumulation)
-            y_acon
         } else {
             // Right half-plane: direct zbknu on rotated argument
-            let (y, nw) = zbknu(zn, fnu, scaling, nn_eff, tol, elim, alim)?;
+            let nw = zbknu(zn, fnu, scaling, &mut y[..nn_eff], tol, elim, alim)?;
             nz += nw;
-            y
         }
     };
 
@@ -217,8 +229,7 @@ pub(crate) fn zbesh<T: BesselFloat>(
     let ascle = ufl * rtol;
 
     // Apply phase factor to each component (Fortran lines 314-336)
-    let mut result = cy;
-    for item in result.iter_mut().take(nn_eff) {
+    for item in y.iter_mut().take(nn_eff) {
         let mut aa_val = item.re;
         let mut bb_val = item.im;
         let mut atol = one;
@@ -247,11 +258,7 @@ pub(crate) fn zbesh<T: BesselFloat>(
         BesselStatus::Normal
     };
 
-    Ok(BesselResult {
-        values: result,
-        underflow_count: nz,
-        status,
-    })
+    Ok((nz, status))
 }
 
 #[cfg(test)]
@@ -264,8 +271,9 @@ mod tests {
     #[test]
     fn besh_z_zero_returns_error() {
         let z = Complex64::new(0.0, 0.0);
+        let mut y = [Complex64::new(0.0, 0.0)];
         assert!(matches!(
-            zbesh(z, 0.0, HankelKind::First, Scaling::Unscaled, 1),
+            zbesh(z, 0.0, HankelKind::First, Scaling::Unscaled, &mut y),
             Err(BesselError::InvalidInput)
         ));
     }
@@ -273,8 +281,9 @@ mod tests {
     #[test]
     fn besh_negative_order_returns_error() {
         let z = Complex64::new(1.0, 0.0);
+        let mut y = [Complex64::new(0.0, 0.0)];
         assert!(matches!(
-            zbesh(z, -1.0, HankelKind::First, Scaling::Unscaled, 1),
+            zbesh(z, -1.0, HankelKind::First, Scaling::Unscaled, &mut y),
             Err(BesselError::InvalidInput)
         ));
     }
@@ -282,8 +291,9 @@ mod tests {
     #[test]
     fn besh_n_zero_returns_error() {
         let z = Complex64::new(1.0, 0.0);
+        let mut y: [Complex64; 0] = [];
         assert!(matches!(
-            zbesh(z, 0.0, HankelKind::First, Scaling::Unscaled, 0),
+            zbesh(z, 0.0, HankelKind::First, Scaling::Unscaled, &mut y),
             Err(BesselError::InvalidInput)
         ));
     }
@@ -295,10 +305,12 @@ mod tests {
         // For real x > 0: H^(1)(v, x) = conj(H^(2)(v, x))
         let z = Complex64::new(2.0, 0.0);
         let fnu = 0.5;
-        let h1 = zbesh(z, fnu, HankelKind::First, Scaling::Unscaled, 1).unwrap();
-        let h2 = zbesh(z, fnu, HankelKind::Second, Scaling::Unscaled, 1).unwrap();
-        let diff = (h1.values[0] - h2.values[0].conj()).norm();
-        let scale = h1.values[0].norm();
+        let mut y1 = [Complex64::new(0.0, 0.0)];
+        let mut y2 = [Complex64::new(0.0, 0.0)];
+        zbesh(z, fnu, HankelKind::First, Scaling::Unscaled, &mut y1).unwrap();
+        zbesh(z, fnu, HankelKind::Second, Scaling::Unscaled, &mut y2).unwrap();
+        let diff = (y1[0] - y2[0].conj()).norm();
+        let scale = y1[0].norm();
         assert!(
             diff / scale < 1e-14,
             "H^(1) != conj(H^(2)) on real axis, err = {:.2e}",

@@ -21,6 +21,8 @@ use crate::utils::zabs;
 
 /// Analytic continuation of K function from right to left half-plane.
 ///
+/// Writes results into `y` and returns nz (underflow count).
+///
 /// # Parameters
 /// - `mr`: +1 or -1 (sign of Im(z) determines continuation direction)
 pub(crate) fn zacon<T: BesselFloat>(
@@ -28,36 +30,37 @@ pub(crate) fn zacon<T: BesselFloat>(
     fnu: T,
     kode: Scaling,
     mr: i32,
-    n: usize,
+    y: &mut [Complex<T>],
     rl: T,
     fnul: T,
     tol: T,
     elim: T,
     alim: T,
-) -> Result<(Vec<Complex<T>>, usize), BesselError> {
+) -> Result<usize, BesselError> {
     let zero = T::zero();
     let one = T::one();
     let pi_t = T::from(PI).unwrap();
+    let czero = Complex::new(zero, zero);
 
+    let n = y.len();
     let mut nz: usize = 0;
 
     // ZN = -Z (Fortran lines 4203-4204)
     let zn = Complex::new(-z.re, -z.im);
-    let nn = n;
 
-    // Compute I function at -z via ZBINU (Fortran lines 4206-4208)
-    let (mut y, _nw) = zbinu(zn, fnu, kode, nn, rl, fnul, tol, elim, alim)?;
-    // nw is returned as usize from zbinu; if it failed, we already got an Err
+    // Compute I function at -z via ZBINU, written directly into y (Fortran lines 4206-4208)
+    let _nw = zbinu(zn, fnu, kode, y, rl, fnul, tol, elim, alim)?;
 
     // Compute K function at -z via ZBKNU (Fortran lines 4212-4213)
     let nn_k = if n < 2 { n } else { 2 };
-    let (cy, nw_k) = zbknu(zn, fnu, kode, nn_k, tol, elim, alim)?;
+    let mut k_buf = [czero; 2];
+    let nw_k = zbknu(zn, fnu, kode, &mut k_buf[..nn_k], tol, elim, alim)?;
     if nw_k != 0 {
         return Err(BesselError::Overflow);
     }
 
     // Analytic continuation formula (Fortran lines 4214-4276)
-    let s1 = cy[0];
+    let s1 = k_buf[0];
     let fmr = T::from(mr as f64).unwrap();
     let sgn = -pi_t.copysign(fmr); // -sign(pi, fmr)
 
@@ -94,7 +97,7 @@ pub(crate) fn zacon<T: BesselFloat>(
 
     let mut c1r = s1.re;
     let mut c1i = s1.im;
-    let mut c2r = y[0].re;
+    let mut c2r = y[0].re; // I value from zbinu
     let mut c2i = y[0].im;
 
     let mut sc1r = zero;
@@ -129,16 +132,16 @@ pub(crate) fn zacon<T: BesselFloat>(
     y[0] = Complex::new(str + ptr, sti + pti);
 
     if n == 1 {
-        return Ok((y, nz));
+        return Ok(nz);
     }
 
     // Second term (Fortran lines 4258-4275)
     cspnr = -cspnr;
     cspni = -cspni;
-    let s2 = cy[1];
+    let s2 = k_buf[1];
     c1r = s2.re;
     c1i = s2.im;
-    c2r = y[1].re;
+    c2r = y[1].re; // I value from zbinu
     c2i = y[1].im;
 
     if kode != Scaling::Unscaled {
@@ -167,7 +170,7 @@ pub(crate) fn zacon<T: BesselFloat>(
     y[1] = Complex::new(str2 + ptr2, sti2 + pti2);
 
     if n == 2 {
-        return Ok((y, nz));
+        return Ok(nz);
     }
 
     // Forward recurrence on K function for n > 2 (Fortran lines 4277-4371)
@@ -218,7 +221,7 @@ pub(crate) fn zacon<T: BesselFloat>(
         c1i = s2i_k * csr;
         let mut str_c1 = c1r;
         let mut sti_c1 = c1i;
-        c2r = y_item.re;
+        c2r = y_item.re; // I value from zbinu
         c2i = y_item.im;
 
         if kode != Scaling::Unscaled && iuf >= 0 {
@@ -285,5 +288,5 @@ pub(crate) fn zacon<T: BesselFloat>(
         }
     }
 
-    Ok((y, nz))
+    Ok(nz)
 }

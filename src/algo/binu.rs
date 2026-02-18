@@ -20,23 +20,27 @@ use crate::utils::zabs;
 /// Compute I Bessel function in the right half z-plane.
 ///
 /// Dispatches to the appropriate algorithm based on |z|, fnu, and n.
-///
-/// Returns (y, nz) on success, where nz is the underflow count.
+/// Writes results into `cy` and returns nz (underflow count) on success.
 pub(crate) fn zbinu<T: BesselFloat>(
     z: Complex<T>,
     fnu: T,
     kode: Scaling,
-    n: usize,
+    cy: &mut [Complex<T>],
     rl: T,
     fnul: T,
     tol: T,
     elim: T,
     alim: T,
-) -> Result<(Vec<Complex<T>>, usize), BesselError> {
+) -> Result<usize, BesselError> {
     let zero = T::zero();
     let one = T::one();
     let two = T::from(2.0).unwrap();
     let czero = Complex::new(zero, zero);
+
+    let n = cy.len();
+    for v in cy.iter_mut() {
+        *v = czero;
+    }
 
     let mut nz: usize = 0;
     let az = zabs(z);
@@ -46,29 +50,25 @@ pub(crate) fn zbinu<T: BesselFloat>(
     // Dispatch: power series first (Fortran lines 4398-4411)
     if az <= two || az * az * T::from(0.25).unwrap() <= dfnu + one {
         // Label 10: power series (ZSERI)
-        let (mut cy, nw) = zseri(z, fnu, kode, nn, tol, elim, alim);
+        let nw = zseri(z, fnu, kode, &mut cy[..nn], tol, elim, alim);
         let inw = nw.unsigned_abs() as usize;
         nz += inw;
         nn -= inw;
         if nn == 0 {
-            return Ok((cy, nz));
+            return Ok(nz);
         }
         if nw >= 0 {
             // Normal return from ZSERI
-            return Ok((cy, nz));
+            return Ok(nz);
         }
         // nw < 0: need to continue with remaining terms
         dfnu = fnu + T::from((nn - 1) as f64).unwrap();
         // Fall through to label 20
-        return dispatch_20(
-            z, fnu, kode, nn, nz, az, dfnu, rl, fnul, tol, elim, alim, &mut cy,
-        );
     }
 
-    // Label 20: check asymptotic vs Miller
-    let mut cy = vec![czero; n];
+    // Label 20 onwards: dispatch to asymptotic, Miller, or Wronskian
     dispatch_20(
-        z, fnu, kode, nn, nz, az, dfnu, rl, fnul, tol, elim, alim, &mut cy,
+        z, fnu, kode, &mut nn, &mut nz, az, &mut dfnu, rl, fnul, tol, elim, alim, cy,
     )
 }
 
@@ -77,150 +77,98 @@ fn dispatch_20<T: BesselFloat>(
     z: Complex<T>,
     fnu: T,
     kode: Scaling,
-    mut nn: usize,
-    mut nz: usize,
+    nn: &mut usize,
+    nz: &mut usize,
     az: T,
-    mut dfnu: T,
+    dfnu: &mut T,
     rl: T,
     fnul: T,
     tol: T,
     elim: T,
     alim: T,
     cy: &mut [Complex<T>],
-) -> Result<(Vec<Complex<T>>, usize), BesselError> {
+) -> Result<usize, BesselError> {
     let zero = T::zero();
     let one = T::one();
-    let _czero = Complex::new(zero, zero);
+    let czero = Complex::new(zero, zero);
 
     // Fortran lines 4412-4422: check for asymptotic expansion
     if az >= rl {
-        if dfnu <= one {
-            // Goto 30: use asymptotic expansion
-            return call_zasyi(z, fnu, kode, nn, nz, rl, tol, elim, alim, cy);
+        if *dfnu <= one || az + az >= *dfnu * *dfnu {
+            // Label 30: use asymptotic expansion
+            let nw = zasyi(z, fnu, kode, &mut cy[..*nn], rl, tol, elim, alim);
+            if nw < 0 {
+                return handle_error(nw);
+            }
+            return Ok(*nz);
         }
-        if az + az >= dfnu * dfnu {
-            // Goto 30: use asymptotic expansion
-            return call_zasyi(z, fnu, kode, nn, nz, rl, tol, elim, alim, cy);
+    } else if *dfnu <= one {
+        // Label 70: use Miller algorithm (series normalization)
+        let nw = zmlri(z, fnu, kode, &mut cy[..*nn], tol);
+        if nw < 0 {
+            return handle_error(nw);
         }
-    } else if dfnu <= one {
-        // Goto 70: use Miller algorithm (series normalization)
-        return call_zmlri(z, fnu, kode, nn, nz, tol, cy);
+        return Ok(*nz);
     }
 
     // Label 50: overflow/underflow test on I sequence for Miller algorithm
     // (Fortran lines 4429-4437)
-    let (_uoik_y, nw) = zuoik(z, fnu, kode, 1, nn, tol, elim, alim);
+    let nw = zuoik(z, fnu, kode, 1, &mut cy[..*nn], tol, elim, alim);
     if nw < 0 {
         return handle_error(nw);
     }
-    nz += nw as usize;
-    nn -= nw as usize;
-    if nn == 0 {
-        return Ok((cy.to_vec(), nz));
+    *nz += nw as usize;
+    *nn -= nw as usize;
+    if *nn == 0 {
+        return Ok(*nz);
     }
-    dfnu = fnu + T::from((nn - 1) as f64).unwrap();
+    *dfnu = fnu + T::from((*nn - 1) as f64).unwrap();
 
-    if dfnu > fnul || az > fnul {
+    if *dfnu > fnul || az > fnul {
         // Label 110: increment fnu+nn-1 up to fnul, compute and recur backward
         // (Fortran lines 4469-4481)
-        let nui_f = (fnul - dfnu).to_f64().unwrap() as i32 + 1;
+        let nui_f = (fnul - *dfnu).to_f64().unwrap() as i32 + 1;
         let nui = nui_f.max(0) as usize;
-        let result = zbuni(z, fnu, kode, nn, nui, fnul, tol, elim, alim);
+        let result = zbuni(z, fnu, kode, &mut cy[..*nn], nui, fnul, tol, elim, alim);
         if result.nz < 0 {
             return handle_error(result.nz);
         }
-        nz += result.nz as usize;
-        cy[..nn].copy_from_slice(&result.y[..nn]);
+        *nz += result.nz as usize;
         if result.nlast == 0 {
-            return Ok((cy.to_vec(), nz));
+            return Ok(*nz);
         }
         // NLAST != 0: retry from label 60 with reduced nn (Fortran GO TO 60)
-        nn = result.nlast;
+        *nn = result.nlast;
     }
 
     // Label 60: check az vs rl (Fortran lines 4438-4439)
     if az > rl {
         // Label 80: Miller algorithm normalized by Wronskian
-        return call_zwrsk(z, fnu, kode, nn, nz, tol, elim, alim, cy);
+        // Overflow test on K functions used in Wronskian (Fortran lines 4454-4456)
+        let mut cw_buf = [czero; 2];
+        let nw = zuoik(z, fnu, kode, 2, &mut cw_buf, tol, elim, alim);
+        if nw < 0 {
+            // All values underflow to zero (Fortran lines 4457-4462)
+            *nz = *nn;
+            for cy_item in cy.iter_mut().take(*nn) {
+                *cy_item = czero;
+            }
+            return Ok(*nz);
+        }
+        if nw > 0 {
+            return handle_error(-1);
+        }
+        // Call ZWRSK (Fortran lines 4465-4467)
+        let _nw_wrsk = zwrsk(z, fnu, kode, &mut cy[..*nn], tol, elim, alim)?;
+        return Ok(*nz);
     }
 
     // Label 70: Miller algorithm normalized by series
-    call_zmlri(z, fnu, kode, nn, nz, tol, cy)
-}
-
-/// Call ZASYI (asymptotic expansion for large z).
-fn call_zasyi<T: BesselFloat>(
-    z: Complex<T>,
-    fnu: T,
-    kode: Scaling,
-    nn: usize,
-    nz: usize,
-    rl: T,
-    tol: T,
-    elim: T,
-    alim: T,
-    cy: &mut [Complex<T>],
-) -> Result<(Vec<Complex<T>>, usize), BesselError> {
-    let (result, nw) = zasyi(z, fnu, kode, nn, rl, tol, elim, alim);
+    let nw = zmlri(z, fnu, kode, &mut cy[..*nn], tol);
     if nw < 0 {
         return handle_error(nw);
     }
-    // Copy results into cy
-    cy[..nn].copy_from_slice(&result[..nn]);
-    Ok((cy.to_vec(), nz))
-}
-
-/// Call ZMLRI (Miller algorithm, series normalization).
-fn call_zmlri<T: BesselFloat>(
-    z: Complex<T>,
-    fnu: T,
-    kode: Scaling,
-    nn: usize,
-    nz: usize,
-    tol: T,
-    cy: &mut [Complex<T>],
-) -> Result<(Vec<Complex<T>>, usize), BesselError> {
-    let (result, nw) = zmlri(z, fnu, kode, nn, tol);
-    if nw < 0 {
-        return handle_error(nw);
-    }
-    cy[..nn].copy_from_slice(&result[..nn]);
-    Ok((cy.to_vec(), nz))
-}
-
-/// Call ZWRSK (Miller algorithm, Wronskian normalization).
-fn call_zwrsk<T: BesselFloat>(
-    z: Complex<T>,
-    fnu: T,
-    kode: Scaling,
-    nn: usize,
-    mut nz: usize,
-    tol: T,
-    elim: T,
-    alim: T,
-    cy: &mut [Complex<T>],
-) -> Result<(Vec<Complex<T>>, usize), BesselError> {
-    let zero = T::zero();
-    let czero = Complex::new(zero, zero);
-
-    // Overflow test on K functions used in Wronskian (Fortran lines 4454-4456)
-    let (_cw_y, nw) = zuoik(z, fnu, kode, 2, 2, tol, elim, alim);
-    if nw < 0 {
-        // All values underflow to zero (Fortran lines 4457-4462)
-        nz = nn;
-        for cy_item in cy.iter_mut().take(nn) {
-            *cy_item = czero;
-        }
-        return Ok((cy.to_vec(), nz));
-    }
-    if nw > 0 {
-        return handle_error(-1);
-    }
-
-    // Call ZWRSK (Fortran lines 4465-4467)
-    let (result, _nw_wrsk) = zwrsk(z, fnu, kode, nn, tol, elim, alim)?;
-    cy[..nn].copy_from_slice(&result[..nn]);
-    Ok((cy.to_vec(), nz))
+    Ok(*nz)
 }
 
 /// Map Fortran NW error codes to BesselError.
