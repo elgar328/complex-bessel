@@ -10,7 +10,7 @@ use crate::algo::bknu::zbknu;
 use crate::algo::rati::zrati;
 use crate::machine::BesselFloat;
 use crate::types::{BesselError, Scaling};
-use crate::utils::zabs;
+use crate::utils::{zabs, zdiv};
 
 /// Compute I Bessel function for Re(z) >= 0 via Wronskian normalization.
 ///
@@ -51,9 +51,9 @@ pub(crate) fn zwrsk<T: BesselFloat>(
 
     // ── Step 3: Normalization constant (Fortran lines 3557-3605) ──
     // KODE=1: CINU = 1; KODE=2: CINU = exp(i·Im(z))
-    let (mut cinur, mut cinui) = match kode {
-        Scaling::Unscaled => (one, zero),
-        Scaling::Exponential => (z.im.cos(), z.im.sin()),
+    let mut cinu = match kode {
+        Scaling::Unscaled => Complex::new(one, zero),
+        Scaling::Exponential => Complex::new(z.im.cos(), z.im.sin()),
     };
 
     // 3-level scaling to prevent under/overflow (Fortran lines 3569-3579)
@@ -72,51 +72,34 @@ pub(crate) fn zwrsk<T: BesselFloat>(
     }
 
     // Scale K values (Fortran lines 3580-3583)
-    let c1r = cw[0].re * csclr;
-    let c1i = cw[0].im * csclr;
-    let c2r = cw[1].re * csclr;
-    let c2i = cw[1].im * csclr;
+    let c1 = cw[0] * csclr;
+    let c2 = cw[1] * csclr;
 
     // Save first ratio before overwriting (Fortran lines 3584-3585)
-    let str_saved = y[0].re;
-    let sti_saved = y[0].im;
+    let mut ratio_saved = y[0];
 
     // PT = ratio * C1 + C2 = (ratio * K(fnu) + K(fnu+1)) * csclr
     // (Fortran lines 3590-3593)
-    let ptr = str_saved * c1r - sti_saved * c1i + c2r;
-    let pti = str_saved * c1i + sti_saved * c1r + c2i;
+    let pt = ratio_saved * c1 + c2;
 
     // CT = z * PT (Fortran lines 3594-3595)
-    let ctr = z.re * ptr - z.im * pti;
-    let cti = z.re * pti + z.im * ptr;
+    let ct = z * pt;
 
-    // CINU = CINU * conj(CT)/|CT|^2 = CINU / CT (Fortran lines 3596-3603)
-    let act = zabs(Complex::new(ctr, cti));
-    let ract = one / act;
-    let ct_hat_r = ctr * ract; // Re(conj(CT)/|CT|)
-    let ct_hat_i = -cti * ract; // Im(conj(CT)/|CT|)
-    let ptr2 = cinur * ract;
-    let pti2 = cinui * ract;
-    cinur = ptr2 * ct_hat_r - pti2 * ct_hat_i;
-    cinui = ptr2 * ct_hat_i + pti2 * ct_hat_r;
+    // CINU = CINU / CT (overflow-safe) (Fortran lines 3596-3603)
+    cinu = zdiv(cinu, ct);
 
     // Y(1) = CINU * csclr = I(fnu, z) (Fortran lines 3604-3605)
-    y[0] = Complex::new(cinur * csclr, cinui * csclr);
+    y[0] = cinu * csclr;
 
     if n == 1 {
         return Ok(nz);
     }
 
     // ── Step 4: Forward recurrence (Fortran lines 3607-3615) ──
-    let mut str_val = str_saved;
-    let mut sti_val = sti_saved;
     for item in y.iter_mut().skip(1) {
-        let ptr = str_val * cinur - sti_val * cinui;
-        cinui = str_val * cinui + sti_val * cinur;
-        cinur = ptr;
-        str_val = item.re; // save next ratio before overwriting
-        sti_val = item.im;
-        *item = Complex::new(cinur * csclr, cinui * csclr);
+        cinu = ratio_saved * cinu;
+        ratio_saved = *item; // save next ratio before overwriting
+        *item = cinu * csclr;
     }
 
     Ok(nz)
