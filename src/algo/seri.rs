@@ -66,13 +66,8 @@ pub(crate) fn zseri<T: BesselFloat>(
     }
 
     // hz = z/2, cz = hz² (Fortran lines 3656-3663)
-    let hz = Complex::new(z.re * half, z.im * half);
-    let cz = if az > rtr1 {
-        // zmlt(hz, hz)
-        Complex::new(hz.re * hz.re - hz.im * hz.im, two * hz.re * hz.im)
-    } else {
-        czero
-    };
+    let hz = z * half;
+    let cz = if az > rtr1 { hz * hz } else { czero };
     let acz = zabs(cz);
     let mut nn = n;
 

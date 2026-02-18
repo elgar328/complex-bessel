@@ -694,10 +694,7 @@ fn iflag1_recurrence<T: BesselFloat>(
 
             for _i in inub..inu {
                 let st = s2;
-                s2 = Complex::new(
-                    ck.re * st.re - ck.im * st.im + s1.re,
-                    ck.im * st.re + ck.re * st.im + s1.im,
-                );
+                s2 = ck * st + s1;
                 s1 = st;
                 ck = ck + rz;
 
@@ -734,7 +731,7 @@ fn iflag1_recurrence<T: BesselFloat>(
 
             // Continue with label 250-260 recurrence (with KFLAG tracking)
             let t2_val = fnu + T::from_f64(2.0); // FNU + (KK-1) where KK=3
-            ck = Complex::new(t2_val * rz.re, t2_val * rz.im);
+            ck = rz * t2_val;
             let mut kk_idx = 2_usize;
             loop {
                 if kk_idx >= n {
@@ -745,10 +742,7 @@ fn iflag1_recurrence<T: BesselFloat>(
 
                 for i in kk_idx..n {
                     let p2_val = s2;
-                    s2 = Complex::new(
-                        ck.re * p2_val.re - ck.im * p2_val.im + s1.re,
-                        ck.im * p2_val.re + ck.re * p2_val.im + s1.im,
-                    );
+                    s2 = ck * p2_val + s1;
                     s1 = p2_val;
                     ck = ck + rz;
                     let p2_scaled = s2 * p1r;

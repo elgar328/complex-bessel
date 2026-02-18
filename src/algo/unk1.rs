@@ -173,10 +173,7 @@ pub(crate) fn zunk1<T: BesselFloat>(
         let s2_raw = result.phi * result.sum;
         let str_exp = s1r.exp() * cssr[kflag - 1];
         let s1_scaled = Complex::new(str_exp * s1i.cos(), str_exp * s1i.sin());
-        let s2 = Complex::new(
-            s2_raw.re * s1_scaled.re - s2_raw.im * s1_scaled.im,
-            s1_scaled.re * s2_raw.im + s2_raw.re * s1_scaled.im,
-        );
+        let s2 = s2_raw * s1_scaled;
 
         if kflag == 1 && zuchk(s2, bry[0], tol) {
             // label 60: underflow

@@ -288,10 +288,7 @@ fn besseli_internal<T: BesselFloat>(
     //   factor = exp(-|Re(z)|) / exp(z) = exp(-i*Im(z)) * [exp(-2*Re(z)) if Re(z)>0]
     if scaling == Scaling::Exponential {
         let (sin_a, cos_a) = (-z.im).sin_cos();
-        k_val = Complex::new(
-            k_val.re * cos_a - k_val.im * sin_a,
-            k_val.re * sin_a + k_val.im * cos_a,
-        );
+        k_val = k_val * Complex::new(cos_a, sin_a);
         if z.re > T::zero() {
             let scale = (-two * z.re).exp();
             k_val = k_val * scale;

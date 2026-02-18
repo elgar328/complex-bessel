@@ -93,7 +93,7 @@ pub(crate) fn zkscl<T: BesselFloat>(
     // Recurrence: K_{ν+k+1}(z) = ck·K_{ν+k}(z) + K_{ν+k-1}(z)
     // where ck = (ν+k+1) · rz
     let fn_val = fnu + one;
-    let mut ck = Complex::new(fn_val * rz.re, fn_val * rz.im);
+    let mut ck = rz * fn_val;
     let mut s1 = cy[0];
     let mut s2 = cy[1];
     let helim = T::from_f64(0.5) * elim;
@@ -109,10 +109,7 @@ pub(crate) fn zkscl<T: BesselFloat>(
 
         // Recurrence step: s2_new = ck*s2 + s1
         let cs = s2;
-        s2 = Complex::new(
-            ck.re * cs.re - ck.im * cs.im + s1.re,
-            ck.im * cs.re + ck.re * cs.im + s1.im,
-        );
+        s2 = ck * cs + s1;
         s1 = cs;
         ck = ck + rz;
 
