@@ -63,18 +63,12 @@ pub(crate) fn zacon<T: BesselFloat>(
     let sgn = -pi_t.copysign(fmr); // -sign(pi, fmr)
 
     // CSGN = (0, sgn) (Fortran lines 4219-4220)
-    let mut csgnr = zero;
-    let mut csgni = sgn;
+    let mut csgn = Complex::new(zero, sgn);
 
     if kode == Scaling::Exponential {
-        // Multiply CSGN by exp(-i*zn.im) (Fortran lines 4222-4225)
+        // Multiply CSGN by exp(i*yy) (Fortran lines 4222-4225)
         let yy = -zn.im;
-        let cpn = yy.cos();
-        let spn = yy.sin();
-        let new_r = csgnr * cpn - csgni * spn;
-        let new_i = csgnr * spn + csgni * cpn;
-        csgnr = new_r;
-        csgni = new_i;
+        csgn = csgn * Complex::new(yy.cos(), yy.sin());
     }
 
     // CSPN = exp(fnu*pi*i) with precision preservation (Fortran lines 4231-4239)
@@ -82,109 +76,68 @@ pub(crate) fn zacon<T: BesselFloat>(
     let arg = (fnu - T::from_f64(inu as f64)) * sgn;
     let cpn = arg.cos();
     let spn = arg.sin();
-    let mut cspnr = cpn;
-    let mut cspni = spn;
+    let mut cspn = Complex::new(cpn, spn);
     if inu % 2 != 0 {
-        cspnr = -cspnr;
-        cspni = -cspni;
+        cspn = -cspn;
     }
 
     // First two terms (Fortran lines 4241-4276)
     let mut iuf: i32 = 0;
     let ascle = T::from_f64(1.0e3) * T::MACH_TINY / tol;
 
-    let mut c1r = s1.re;
-    let mut c1i = s1.im;
-    let mut c2r = y[0].re; // I value from zbinu
-    let mut c2i = y[0].im;
-
-    let mut sc1r = zero;
-    let mut sc1i = zero;
-    let mut sc2r = zero;
-    let mut sc2i = zero;
+    let mut c1 = s1;
+    let mut c2 = y[0]; // I value from zbinu
+    let mut sc1 = czero;
+    let mut sc2 = czero;
 
     if kode != Scaling::Unscaled {
-        let s1s2_out = zs1s2(
-            zn,
-            Complex::new(c1r, c1i),
-            Complex::new(c2r, c2i),
-            ascle,
-            alim,
-            iuf,
-        );
-        c1r = s1s2_out.s1.re;
-        c1i = s1s2_out.s1.im;
-        c2r = s1s2_out.s2.re;
-        c2i = s1s2_out.s2.im;
+        let s1s2_out = zs1s2(zn, c1, c2, ascle, alim, iuf);
+        c1 = s1s2_out.s1;
+        c2 = s1s2_out.s2;
         nz += s1s2_out.nz as usize;
-        sc1r = c1r;
-        sc1i = c1i;
+        sc1 = c1;
         iuf = s1s2_out.iuf;
     }
 
     // Y(1) = CSPN*C1 + CSGN*C2 (Fortran lines 4253-4256)
-    let str = cspnr * c1r - cspni * c1i;
-    let sti = cspnr * c1i + cspni * c1r;
-    let ptr = csgnr * c2r - csgni * c2i;
-    let pti = csgnr * c2i + csgni * c2r;
-    y[0] = Complex::new(str + ptr, sti + pti);
+    y[0] = cspn * c1 + csgn * c2;
 
     if n == 1 {
         return Ok(nz);
     }
 
     // Second term (Fortran lines 4258-4275)
-    cspnr = -cspnr;
-    cspni = -cspni;
+    cspn = -cspn;
     let s2 = k_buf[1];
-    c1r = s2.re;
-    c1i = s2.im;
-    c2r = y[1].re; // I value from zbinu
-    c2i = y[1].im;
+    c1 = s2;
+    c2 = y[1]; // I value from zbinu
 
     if kode != Scaling::Unscaled {
-        let s1s2_out = zs1s2(
-            zn,
-            Complex::new(c1r, c1i),
-            Complex::new(c2r, c2i),
-            ascle,
-            alim,
-            iuf,
-        );
-        c1r = s1s2_out.s1.re;
-        c1i = s1s2_out.s1.im;
-        c2r = s1s2_out.s2.re;
-        c2i = s1s2_out.s2.im;
+        let s1s2_out = zs1s2(zn, c1, c2, ascle, alim, iuf);
+        c1 = s1s2_out.s1;
+        c2 = s1s2_out.s2;
         nz += s1s2_out.nz as usize;
-        sc2r = c1r;
-        sc2i = c1i;
+        sc2 = c1;
         iuf = s1s2_out.iuf;
     }
 
-    let str2 = cspnr * c1r - cspni * c1i;
-    let sti2 = cspnr * c1i + cspni * c1r;
-    let ptr2 = csgnr * c2r - csgni * c2i;
-    let pti2 = csgnr * c2i + csgni * c2r;
-    y[1] = Complex::new(str2 + ptr2, sti2 + pti2);
+    y[1] = cspn * c1 + csgn * c2;
 
     if n == 2 {
         return Ok(nz);
     }
 
     // Forward recurrence on K function for n > 2 (Fortran lines 4277-4371)
-    cspnr = -cspnr;
-    cspni = -cspni;
+    cspn = -cspn;
 
     let azn = zabs(zn);
     let razn = one / azn;
     let str_rz = zn.re * razn;
     let sti_rz = -zn.im * razn;
-    let rzr = (str_rz + str_rz) * razn;
-    let rzi = (sti_rz + sti_rz) * razn;
+    let rz = Complex::new((str_rz + str_rz) * razn, (sti_rz + sti_rz) * razn);
 
     let fn_val = fnu + one;
-    let mut ckr = fn_val * rzr;
-    let mut cki = fn_val * rzi;
+    let mut ck = rz * fn_val;
 
     // Scale near exponent extremes (Fortran lines 4291-4316)
     let cscl = one / tol;
@@ -201,86 +154,53 @@ pub(crate) fn zacon<T: BesselFloat>(
     };
 
     let mut bscle = bry[kflag];
-    let mut s1r = s1.re * cssr[kflag];
-    let mut s1i = s1.im * cssr[kflag];
-    let mut s2r_k = s2.re * cssr[kflag];
-    let mut s2i_k = s2.im * cssr[kflag];
+    let mut s1_k = s1 * cssr[kflag];
+    let mut s2_k = s2 * cssr[kflag];
     let mut csr = csrr[kflag];
 
     for y_item in y[2..n].iter_mut() {
-        let str_k = s2r_k;
-        let sti_k = s2i_k;
-        s2r_k = ckr * str_k - cki * sti_k + s1r;
-        s2i_k = ckr * sti_k + cki * str_k + s1i;
-        s1r = str_k;
-        s1i = sti_k;
+        let prev = s2_k;
+        s2_k = ck * prev + s1_k;
+        s1_k = prev;
 
-        c1r = s2r_k * csr;
-        c1i = s2i_k * csr;
-        let mut str_c1 = c1r;
-        let mut sti_c1 = c1i;
-        c2r = y_item.re; // I value from zbinu
-        c2i = y_item.im;
+        c1 = s2_k * csr;
+        let mut saved_c1 = c1;
+        c2 = *y_item; // I value from zbinu
 
         if kode != Scaling::Unscaled && iuf >= 0 {
-            let s1s2_out = zs1s2(
-                zn,
-                Complex::new(c1r, c1i),
-                Complex::new(c2r, c2i),
-                ascle,
-                alim,
-                iuf,
-            );
-            c1r = s1s2_out.s1.re;
-            c1i = s1s2_out.s1.im;
-            c2r = s1s2_out.s2.re;
-            c2i = s1s2_out.s2.im;
+            let s1s2_out = zs1s2(zn, c1, c2, ascle, alim, iuf);
+            c1 = s1s2_out.s1;
+            c2 = s1s2_out.s2;
             nz += s1s2_out.nz as usize;
-            sc1r = sc2r;
-            sc1i = sc2i;
-            sc2r = c1r;
-            sc2i = c1i;
+            sc1 = sc2;
+            sc2 = c1;
             iuf = s1s2_out.iuf;
 
             if iuf == 3 {
                 // IUF=3 special handling (Fortran lines 4339-4345)
                 iuf = -4;
-                s1r = sc1r * cssr[kflag];
-                s1i = sc1i * cssr[kflag];
-                s2r_k = sc2r * cssr[kflag];
-                s2i_k = sc2i * cssr[kflag];
-                str_c1 = sc2r;
-                sti_c1 = sc2i;
+                s1_k = sc1 * cssr[kflag];
+                s2_k = sc2 * cssr[kflag];
+                saved_c1 = sc2;
             }
         }
 
         // Y(I) = CSPN*C1 + CSGN*C2 (Fortran lines 4347-4350)
-        let ptr_k = cspnr * c1r - cspni * c1i;
-        let pti_k = cspnr * c1i + cspni * c1r;
-        *y_item = Complex::new(
-            ptr_k + csgnr * c2r - csgni * c2i,
-            pti_k + csgnr * c2i + csgni * c2r,
-        );
+        *y_item = cspn * c1 + csgn * c2;
 
-        ckr = ckr + rzr;
-        cki = cki + rzi;
-        cspnr = -cspnr;
-        cspni = -cspni;
+        ck = ck + rz;
+        cspn = -cspn;
 
         // KFLAG scaling check (Fortran lines 4355-4370)
         if kflag < 2 {
-            let c1m = c1r.abs().max(c1i.abs());
+            let c1m = c1.re.abs().max(c1.im.abs());
             if c1m > bscle {
                 kflag += 1;
                 bscle = bry[kflag];
-                s1r = s1r * csr;
-                s1i = s1i * csr;
-                s2r_k = str_c1;
-                s2i_k = sti_c1;
-                s1r = s1r * cssr[kflag];
-                s1i = s1i * cssr[kflag];
-                s2r_k = s2r_k * cssr[kflag];
-                s2i_k = s2i_k * cssr[kflag];
+                s1_k = s1_k * csr;
+                s2_k = saved_c1;
+                s1_k = s1_k * cssr[kflag];
+                s2_k = s2_k * cssr[kflag];
                 csr = csrr[kflag];
             }
         }
