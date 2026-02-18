@@ -516,9 +516,7 @@ fn forward_recurrence<T: BesselFloat>(
     csrr: &[T; 3],
     bry: &[T; 3],
 ) -> Result<usize, BesselError> {
-    let zero = T::zero();
     let one = T::one();
-    let _czero = Complex::new(zero, zero);
 
     // CK = (DNU + 1) * RZ
     let str_init = fnu - T::from(inu).unwrap() + one;
@@ -664,7 +662,6 @@ fn iflag1_recurrence<T: BesselFloat>(
     bry: &[T; 3],
 ) -> Result<usize, BesselError> {
     let zero = T::zero();
-    let _one = T::one();
     let czero = Complex::new(zero, zero);
     let half = T::from(0.5).unwrap();
 
@@ -869,9 +866,6 @@ fn handle_iflag1_final<T: BesselFloat>(
     csrr: &[T; 3],
     bry: &[T; 3],
 ) -> Result<usize, BesselError> {
-    let _zero = T::zero();
-    let _one = T::one();
-
     y[0] = s1;
     if n > 1 {
         y[1] = s2;

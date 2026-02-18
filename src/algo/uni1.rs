@@ -108,18 +108,12 @@ pub(crate) fn zuni1<T: BesselFloat>(
         let mut iflag: usize = 2; // default scaling level (1-based for cssr/csrr indexing)
         let mut cy = [czero; 2]; // CYR, CYI workspace
 
-        let mut _last_phi = czero;
-        let mut _last_sum = czero;
-
         let mut computed_ok = true;
         #[allow(clippy::needless_range_loop)]
         for i in 0..nn {
             // fn = fnu + (nd - 1 - i) (Fortran: FN = FNU + FLOAT(ND-I), with Fortran I=1..NN)
             let fn_val = fnu + T::from((nd - 1 - i) as f64).unwrap();
             let result = zunik(z, fn_val, 1, 0, tol, None);
-
-            _last_phi = result.phi;
-            _last_sum = result.sum;
 
             let (s1r, s1i) = if kode == Scaling::Exponential {
                 // KODE=2 (Fortran lines 6916-6922)

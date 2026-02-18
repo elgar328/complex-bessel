@@ -23,7 +23,6 @@ pub(crate) fn zmlri<T: BesselFloat>(
 ) -> i32 {
     let zero = T::zero();
     let one = T::one();
-    let _two = T::from(2.0).unwrap();
     let czero = Complex::new(zero, zero);
 
     let n = y.len();

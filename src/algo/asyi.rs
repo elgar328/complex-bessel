@@ -32,7 +32,6 @@ pub(crate) fn zasyi<T: BesselFloat>(
 ) -> i32 {
     let zero = T::zero();
     let one = T::one();
-    let _two = T::from(2.0).unwrap();
     let eight = T::from(8.0).unwrap();
     let czero = Complex::new(zero, zero);
 
