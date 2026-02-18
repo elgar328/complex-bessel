@@ -430,7 +430,7 @@ pub(crate) fn zbknu<T: BesselFloat>(
     let tm2 = zabs(p2);
     let ptr2 = one / tm2;
     let p1_scaled = p1 * ptr2;
-    let p2_conj = Complex::new(p2.re * ptr2, -p2.im * ptr2);
+    let p2_conj = p2.conj() * ptr2;
     let pt_ratio = p1_scaled * p2_conj;
 
     // S2 = S1 * (DNU + 0.5 - P1/P2·conj(P2)/|P2|) / z + S1... wait
