@@ -143,7 +143,7 @@ fn compute_sum<T: BesselFloat>(ikflg: IkFlag, cache: &UnikCache<T>) -> UnikOutpu
     };
 
     let con_val = T::from_f64(CON[con_idx]);
-    let phi = Complex::new(cache.cwrk[15].re * con_val, cache.cwrk[15].im * con_val);
+    let phi = cache.cwrk[15] * con_val;
 
     UnikOutput {
         phi,
@@ -211,7 +211,7 @@ pub(crate) fn zunik<T: BesselFloat>(
     }
 
     // t = z / fnu (Fortran lines 4935-4936)
-    let t = Complex::new(zr.re * rfn, zr.im * rfn);
+    let t = zr * rfn;
 
     // s = 1 + t^2 (Fortran lines 4937-4938)
     let s = cone + t * t;
@@ -224,14 +224,14 @@ pub(crate) fn zunik<T: BesselFloat>(
 
     // zeta1 = fnu * log(zn) (Fortran lines 4943-4945)
     let ln_zn = zn.ln();
-    let zeta1 = Complex::new(fnu * ln_zn.re, fnu * ln_zn.im);
+    let zeta1 = ln_zn * fnu;
 
     // zeta2 = fnu * sr (Fortran lines 4946-4947)
-    let zeta2 = Complex::new(fnu * sr.re, fnu * sr.im);
+    let zeta2 = sr * fnu;
 
     // sr_new = 1/(fnu*sr) (Fortran lines 4948-4950)
     let t_inv = zdiv(cone, sr);
-    let sr_new = Complex::new(t_inv.re * rfn, t_inv.im * rfn);
+    let sr_new = t_inv * rfn;
 
     // cwrk[15] = sqrt(1/(fnu*sr)) (Fortran line 4951)
     let mut cwrk = [czero; 16];
@@ -242,7 +242,7 @@ pub(crate) fn zunik<T: BesselFloat>(
         IkFlag::I => CON[0],
         IkFlag::K => CON[1],
     });
-    let phi = Complex::new(cwrk[15].re * con_val, cwrk[15].im * con_val);
+    let phi = cwrk[15] * con_val;
 
     // If ipmtr == SkipSum, return phi/zeta1/zeta2 only (Fortran line 4954)
     if ipmtr == SumOption::SkipSum {

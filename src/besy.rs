@@ -78,7 +78,7 @@ pub(crate) fn zbesy<T: BesselFloat>(
     csgn = csgn * cip_table[i4];
 
     let rhpi = one / hpi_t;
-    let mut cspn = Complex::new(csgn.re * rhpi, -csgn.im * rhpi);
+    let mut cspn = csgn.conj() * rhpi;
     // CSGN *= i (Fortran lines 1371-1373)
     csgn = csgn * Complex::new(zero, one);
 

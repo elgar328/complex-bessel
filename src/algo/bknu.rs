@@ -192,14 +192,10 @@ pub(crate) fn zbknu<T: BesselFloat>(
                     qi = qi * str_ak2;
                     let rak = one / ak;
                     ck = ck * cz * rak;
-                    s1 = s1 + Complex::new(ck.re * fr - ck.im * fi, ck.re * fi + ck.im * fr);
+                    s1 = s1 + ck * Complex::new(fr, fi);
                     let str_s2 = pr - fr * ak;
                     let sti_s2 = pi_val - fi * ak;
-                    s2 = s2
-                        + Complex::new(
-                            ck.re * str_s2 - ck.im * sti_s2,
-                            ck.re * sti_s2 + ck.im * str_s2,
-                        );
+                    s2 = s2 + ck * Complex::new(str_s2, sti_s2);
                     a1 = a1 * t1_sq * rak;
                     bk = bk + ak + ak + one;
                     ak = ak + one;
@@ -242,7 +238,7 @@ pub(crate) fn zbknu<T: BesselFloat>(
                     qi = qi * str_ak2;
                     let rak = one / ak;
                     ck = ck * cz * rak;
-                    s1 = s1 + Complex::new(ck.re * fr - ck.im * fi, ck.re * fi + ck.im * fr);
+                    s1 = s1 + ck * Complex::new(fr, fi);
                     a1 = a1 * t1_sq * rak;
                     bk = bk + ak + ak + one;
                     ak = ak + one;
@@ -412,7 +408,7 @@ pub(crate) fn zbknu<T: BesselFloat>(
     let tm = zabs(cs);
     let ptr = one / tm;
     let s1_raw = p2 * ptr;
-    let cs_conj = Complex::new(cs.re * ptr, -cs.im * ptr);
+    let cs_conj = cs.conj() * ptr;
     // S1 = COEF * (P2/|CS|) * (conj(CS)/|CS|)
     let s1 = coef * s1_raw * cs_conj;
 
