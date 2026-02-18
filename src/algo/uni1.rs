@@ -16,6 +16,7 @@ use crate::types::Scaling;
 use crate::utils::zabs;
 
 /// Output of ZUNI1.
+#[derive(Debug, Clone, Copy)]
 pub(crate) struct Uni1Output {
     /// Underflow count (number of zeroed trailing members).
     /// -1 indicates overflow.

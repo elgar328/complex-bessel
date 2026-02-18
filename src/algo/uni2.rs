@@ -24,6 +24,7 @@ const CIPR: [f64; 4] = [1.0, 0.0, -1.0, 0.0];
 const CIPI: [f64; 4] = [0.0, 1.0, 0.0, -1.0];
 
 /// Output of ZUNI2.
+#[derive(Debug, Clone, Copy)]
 pub(crate) struct Uni2Output {
     /// Underflow count (number of zeroed trailing members).
     /// -1 indicates overflow.

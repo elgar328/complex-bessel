@@ -14,6 +14,7 @@ use crate::types::Scaling;
 use crate::utils::zabs;
 
 /// Output metadata of ZBUNI (no Vec — results written into caller-provided slice).
+#[derive(Debug, Clone, Copy)]
 pub(crate) struct BuniOutput {
     /// Underflow count. -1 or -2 indicates overflow/convergence failure.
     pub nz: i32,

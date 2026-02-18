@@ -101,6 +101,7 @@ pub(crate) struct UnikCache<T: BesselFloat> {
 }
 
 /// Output of the ZUNIK parameter computation.
+#[derive(Debug, Clone, Copy)]
 pub(crate) struct UnikOutput<T: BesselFloat> {
     pub phi: Complex<T>,
     pub zeta1: Complex<T>,

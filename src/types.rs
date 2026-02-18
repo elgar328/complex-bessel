@@ -22,6 +22,7 @@ pub enum BesselStatus {
 
 /// Result of a Bessel function sequence computation.
 #[cfg(feature = "alloc")]
+#[derive(Debug, Clone)]
 pub struct BesselResult<T: BesselFloat> {
     /// Computed function values for orders ν, ν+1, ..., ν+n-1.
     pub values: Vec<Complex<T>>,

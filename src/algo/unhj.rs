@@ -330,6 +330,7 @@ use crate::algo::constants::{HPI, PI};
 const THPI: f64 = 4.71238898038468986e+00; // 3*pi/2
 
 /// Output of the ZUNHJ parameter computation.
+#[derive(Debug, Clone, Copy)]
 pub(crate) struct UnhjOutput<T: BesselFloat> {
     pub phi: Complex<T>,
     pub arg: Complex<T>,

@@ -8,6 +8,7 @@ use crate::machine::BesselFloat;
 use crate::utils::zabs;
 
 /// Result of the Stokes multiplier normalization.
+#[derive(Debug, Clone, Copy)]
 pub(crate) struct S1S2Output<T> {
     /// Rescaled K-function component.
     pub s1: Complex<T>,
