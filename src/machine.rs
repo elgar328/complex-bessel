@@ -31,11 +31,9 @@ pub trait BesselFloat: Float + core::fmt::Debug + 'static {
 
     /// Tolerance: max(MACH_EPSILON, 1e-18).
     fn tol() -> Self;
-    /// Decimal digits: log10(2) * (DIGITS - 1).
-    fn dig() -> Self;
-    /// Large order threshold: 10 + 6*(DIG - 3).
+    /// Large order threshold: 10 + 6*(DIG - 3), where DIG = log10(2) * (DIGITS - 1).
     fn fnul() -> Self;
-    /// Asymptotic region boundary: 1.2*DIG + 3.
+    /// Asymptotic region boundary: 1.2*DIG + 3, where DIG = log10(2) * (DIGITS - 1).
     fn rl() -> Self;
     /// Underflow elimination threshold: 2.303*(K*R1M5 - 3), K = min(|MIN_EXP|, MAX_EXP).
     fn elim() -> Self;
@@ -59,10 +57,6 @@ impl BesselFloat for f64 {
     fn tol() -> f64 {
         2.220446049250313e-16
     } // max(EPSILON, 1e-18)
-    #[inline]
-    fn dig() -> f64 {
-        15.653559774527022
-    } // R1M5 * (DIGITS - 1)
     #[inline]
     fn fnul() -> f64 {
         85.92135864716212
@@ -100,10 +94,6 @@ impl BesselFloat for f32 {
     fn tol() -> f32 {
         1.1920929e-7
     } // max(EPSILON, 1e-18)
-    #[inline]
-    fn dig() -> f32 {
-        6.923689900271568
-    } // R1M5 * (DIGITS - 1)
     #[inline]
     fn fnul() -> f32 {
         33.542139401629406
