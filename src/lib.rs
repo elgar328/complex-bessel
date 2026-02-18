@@ -656,6 +656,21 @@ pub fn biryprime_scaled<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Bes
 extern crate alloc as alloc_crate;
 
 #[cfg(feature = "alloc")]
+fn seq_helper<T: BesselFloat>(
+    n: usize,
+    f: impl FnOnce(&mut [Complex<T>]) -> Result<(usize, BesselStatus), BesselError>,
+) -> Result<BesselResult<T>, BesselError> {
+    let zero = T::zero();
+    let mut values = alloc_crate::vec![Complex::new(zero, zero); n];
+    let (underflow_count, status) = f(&mut values)?;
+    Ok(BesselResult {
+        values,
+        underflow_count,
+        status,
+    })
+}
+
+#[cfg(feature = "alloc")]
 /// Compute J_{ν+j}(z) for j = 0, 1, …, n−1 in a single call.
 ///
 /// Returns a [`BesselResult`] containing `n` values and a [`BesselStatus`]:
@@ -678,14 +693,7 @@ pub fn besselj_seq<T: BesselFloat>(
     n: usize,
     scaling: Scaling,
 ) -> Result<BesselResult<T>, BesselError> {
-    let zero = T::zero();
-    let mut values = alloc_crate::vec![Complex::new(zero, zero); n];
-    let (underflow_count, status) = besj::zbesj(z, nu, scaling, &mut values)?;
-    Ok(BesselResult {
-        values,
-        underflow_count,
-        status,
-    })
+    seq_helper(n, |y| besj::zbesj(z, nu, scaling, y))
 }
 
 #[cfg(feature = "alloc")]
@@ -711,14 +719,7 @@ pub fn bessely_seq<T: BesselFloat>(
     n: usize,
     scaling: Scaling,
 ) -> Result<BesselResult<T>, BesselError> {
-    let zero = T::zero();
-    let mut values = alloc_crate::vec![Complex::new(zero, zero); n];
-    let (underflow_count, status) = besy::zbesy(z, nu, scaling, &mut values)?;
-    Ok(BesselResult {
-        values,
-        underflow_count,
-        status,
-    })
+    seq_helper(n, |y| besy::zbesy(z, nu, scaling, y))
 }
 
 #[cfg(feature = "alloc")]
@@ -744,14 +745,7 @@ pub fn besseli_seq<T: BesselFloat>(
     n: usize,
     scaling: Scaling,
 ) -> Result<BesselResult<T>, BesselError> {
-    let zero = T::zero();
-    let mut values = alloc_crate::vec![Complex::new(zero, zero); n];
-    let (underflow_count, status) = besi::zbesi(z, nu, scaling, &mut values)?;
-    Ok(BesselResult {
-        values,
-        underflow_count,
-        status,
-    })
+    seq_helper(n, |y| besi::zbesi(z, nu, scaling, y))
 }
 
 #[cfg(feature = "alloc")]
@@ -791,14 +785,7 @@ pub fn besselk_seq<T: BesselFloat>(
     n: usize,
     scaling: Scaling,
 ) -> Result<BesselResult<T>, BesselError> {
-    let zero = T::zero();
-    let mut values = alloc_crate::vec![Complex::new(zero, zero); n];
-    let (underflow_count, status) = besk::zbesk(z, nu, scaling, &mut values)?;
-    Ok(BesselResult {
-        values,
-        underflow_count,
-        status,
-    })
+    seq_helper(n, |y| besk::zbesk(z, nu, scaling, y))
 }
 
 #[cfg(feature = "alloc")]
@@ -824,14 +811,7 @@ pub fn hankel1_seq<T: BesselFloat>(
     n: usize,
     scaling: Scaling,
 ) -> Result<BesselResult<T>, BesselError> {
-    let zero = T::zero();
-    let mut values = alloc_crate::vec![Complex::new(zero, zero); n];
-    let (underflow_count, status) = besh::zbesh(z, nu, HankelKind::First, scaling, &mut values)?;
-    Ok(BesselResult {
-        values,
-        underflow_count,
-        status,
-    })
+    seq_helper(n, |y| besh::zbesh(z, nu, HankelKind::First, scaling, y))
 }
 
 #[cfg(feature = "alloc")]
@@ -857,12 +837,5 @@ pub fn hankel2_seq<T: BesselFloat>(
     n: usize,
     scaling: Scaling,
 ) -> Result<BesselResult<T>, BesselError> {
-    let zero = T::zero();
-    let mut values = alloc_crate::vec![Complex::new(zero, zero); n];
-    let (underflow_count, status) = besh::zbesh(z, nu, HankelKind::Second, scaling, &mut values)?;
-    Ok(BesselResult {
-        values,
-        underflow_count,
-        status,
-    })
+    seq_helper(n, |y| besh::zbesh(z, nu, HankelKind::Second, scaling, y))
 }
