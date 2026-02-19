@@ -45,8 +45,10 @@ pub(crate) fn zseri<T: BesselFloat>(
     if az == zero {
         if fnu == zero {
             y[0] = cone;
+            nz = n as i32 - 1;
+        } else {
+            nz = n as i32;
         }
-        nz = if fnu == zero { n as i32 - 1 } else { n as i32 };
         return nz;
     }
 

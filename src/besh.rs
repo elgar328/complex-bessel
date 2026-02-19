@@ -43,6 +43,7 @@ pub(crate) fn zbesh<T: BesselFloat>(
     let zero = T::zero();
     let one = T::one();
     let two = T::from_f64(2.0);
+    let czero = Complex::new(zero, zero);
 
     let n = y.len();
 
@@ -53,7 +54,7 @@ pub(crate) fn zbesh<T: BesselFloat>(
     if fnu < zero {
         return Err(BesselError::InvalidInput);
     }
-    if z == Complex::new(zero, zero) {
+    if z == czero {
         return Err(BesselError::InvalidInput);
     }
 
@@ -109,7 +110,7 @@ pub(crate) fn zbesh<T: BesselFloat>(
 
     // Initialize output to zero
     for v in y.iter_mut() {
-        *v = Complex::new(zero, zero);
+        *v = czero;
     }
 
     if fnu > fnul {

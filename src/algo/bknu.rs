@@ -410,10 +410,9 @@ pub(crate) fn zbknu<T: BesselFloat>(
 
     if inu == 0 && n == 1 {
         // Direct output path
-        let zd = z;
         if iflag == 1 {
             return handle_iflag1_final(
-                zd, fnu, n, y, &mut nz, tol, elim, alim, s1, s1, rz, &cssr, &csrr, &bry,
+                z, fnu, n, y, &mut nz, tol, elim, alim, s1, s1, rz, &cssr, &csrr, &bry,
             );
         }
         // Label 240: store and return
