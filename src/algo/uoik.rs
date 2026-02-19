@@ -7,7 +7,6 @@
 
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::excessive_precision)]
-#![allow(unused_assignments)]
 
 use num_complex::Complex;
 
@@ -157,12 +156,10 @@ pub(crate) fn zuoik<T: BesselFloat>(
             // Refined check with ZUCHK (label 110, Fortran lines 4098-4112)
             let ascle = T::from_f64(1.0e3) * T::MACH_TINY / tol;
             let log_phi = phi.ln();
-            czr = czr + log_phi.re;
             czi = czi + log_phi.im;
             if iform == 2 {
                 // Fortran lines 4103-4105: subtract 0.25*ln(arg) + AIC
                 let log_arg = Complex::new(aarg, zero).ln();
-                czr = czr - T::from_f64(0.25) * log_arg.re - aic;
                 czi = czi - T::from_f64(0.25) * log_arg.im;
             }
             // label 120 (Fortran lines 4107-4111)
@@ -252,12 +249,10 @@ pub(crate) fn zuoik<T: BesselFloat>(
         // Refined check with ZUCHK (label 190, Fortran lines 4154-4168)
         let ascle = T::from_f64(1.0e3) * T::MACH_TINY / tol;
         let log_phi2 = phi2.ln();
-        czr = czr + log_phi2.re;
         czi = czi + log_phi2.im;
         if iform == 2 {
             // Fortran lines 4159-4161
             let log_arg2 = Complex::new(aarg2, zero).ln();
-            czr = czr - T::from_f64(0.25) * log_arg2.re - aic;
             czi = czi - T::from_f64(0.25) * log_arg2.im;
         }
         // label 200 (Fortran lines 4163-4167)

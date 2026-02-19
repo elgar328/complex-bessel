@@ -6,7 +6,6 @@
 // Exact Fortran constants — preserve verbatim.
 #![allow(clippy::excessive_precision)]
 #![allow(clippy::approx_constant)]
-#![allow(clippy::needless_range_loop)]
 
 use num_complex::Complex;
 
@@ -215,7 +214,7 @@ pub(crate) fn zbknu<T: BesselFloat>(
             s2 = p2 * rz;
             s1 = s1 * scale;
 
-            if matches!(koded, Scaling::Exponential) {
+            if koded == Scaling::Exponential {
                 let ez = z.exp();
                 s1 = s1 * ez;
                 s2 = s2 * ez;
@@ -248,7 +247,7 @@ pub(crate) fn zbknu<T: BesselFloat>(
             }
 
             y[0] = s1;
-            if matches!(koded, Scaling::Exponential) {
+            if koded == Scaling::Exponential {
                 let ez = z.exp();
                 y[0] = s1 * ez;
             }
@@ -274,7 +273,7 @@ pub(crate) fn zbknu<T: BesselFloat>(
     let mut kflag: usize = 1; // KFLAG=2 in Fortran
 
     let coef;
-    if matches!(koded, Scaling::Unscaled) {
+    if koded == Scaling::Unscaled {
         if z.re > alim {
             // Label 290: scale by exp(z), iflag=1
             koded = Scaling::Exponential;
@@ -450,7 +449,7 @@ pub(crate) fn zbknu<T: BesselFloat>(
 ///   K_{ν+1}(z) = (2(ν+1)/z) K_ν(z) + K_{ν-1}(z)
 ///
 /// Handles scaling (KFLAG) and underflow (IFLAG=1) paths.
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, clippy::needless_range_loop)]
 fn forward_recurrence<T: BesselFloat>(
     z: Complex<T>,
     fnu: T,
@@ -589,7 +588,7 @@ fn forward_recurrence<T: BesselFloat>(
 }
 
 /// Handle IFLAG=1 forward recurrence on scaled values (Fortran labels 261-280).
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, clippy::needless_range_loop)]
 fn iflag1_recurrence<T: BesselFloat>(
     z: Complex<T>,
     fnu: T,
@@ -784,7 +783,7 @@ fn iflag1_recurrence<T: BesselFloat>(
 }
 
 /// Handle IFLAG=1 final path: store values and call ZKSCL (labels 270-280).
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, clippy::needless_range_loop)]
 fn handle_iflag1_final<T: BesselFloat>(
     zd: Complex<T>,
     fnu: T,
