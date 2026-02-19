@@ -17,7 +17,7 @@ use crate::algo::uchk::zuchk;
 use crate::algo::unhj::zunhj;
 use crate::machine::BesselFloat;
 use crate::types::{AiryDerivative, Scaling, SumOption};
-use crate::utils::{reciprocal_z, zabs};
+use crate::utils::{mul_neg_i, reciprocal_z, zabs};
 
 /// CR1 = (1, sqrt(3)) (Fortran line 6196-6197)
 const CR1: [f64; 2] = [1.0, 1.73205080756887729];
@@ -162,7 +162,7 @@ pub(crate) fn zunk2<T: BesselFloat>(
             kdflg = 1;
             y[i] = czero;
             nz += 1;
-            cs = Complex::new(cs.im, -cs.re);
+            cs = mul_neg_i(cs);
             if i > 0 && (y[i - 1] != czero) {
                 y[i - 1] = czero;
                 nz += 1;
@@ -188,7 +188,7 @@ pub(crate) fn zunk2<T: BesselFloat>(
                 kdflg = 1;
                 y[i] = czero;
                 nz += 1;
-                cs = Complex::new(cs.im, -cs.re);
+                cs = mul_neg_i(cs);
                 if i > 0 && (y[i - 1] != czero) {
                     y[i - 1] = czero;
                     nz += 1;
@@ -229,7 +229,7 @@ pub(crate) fn zunk2<T: BesselFloat>(
             kdflg = 1;
             y[i] = czero;
             nz += 1;
-            cs = Complex::new(cs.im, -cs.re);
+            cs = mul_neg_i(cs);
             if i > 0 && (y[i - 1] != czero) {
                 y[i - 1] = czero;
                 nz += 1;
@@ -245,7 +245,7 @@ pub(crate) fn zunk2<T: BesselFloat>(
         y[i] = s2 * csrr[kflag - 1];
 
         // CS rotation: CS *= -i (Fortran lines 6328-6330)
-        cs = Complex::new(cs.im, -cs.re);
+        cs = mul_neg_i(cs);
 
         if kdflg == 2 {
             i_exit = i + 1;
@@ -468,7 +468,7 @@ pub(crate) fn zunk2<T: BesselFloat>(
             y[kk_idx - 1] = cspn * s1_k + s2_k_final;
             kk_idx -= 1;
             cspn = -cspn;
-            cs_ac = Complex::new(cs_ac.im, -cs_ac.re);
+            cs_ac = mul_neg_i(cs_ac);
 
             if c2_save == czero {
                 kdflg = 1;
@@ -509,7 +509,7 @@ pub(crate) fn zunk2<T: BesselFloat>(
                 y[kk_idx - 1] = cspn * s1_k + s2_k_final;
                 kk_idx -= 1;
                 cspn = -cspn;
-                cs_ac = Complex::new(cs_ac.im, -cs_ac.re);
+                cs_ac = mul_neg_i(cs_ac);
 
                 if c2_save == czero {
                     kdflg = 1;
@@ -566,7 +566,7 @@ pub(crate) fn zunk2<T: BesselFloat>(
         y[kk_idx - 1] = cspn * s1_k + s2_k;
         kk_idx -= 1;
         cspn = -cspn;
-        cs_ac = Complex::new(cs_ac.im, -cs_ac.re);
+        cs_ac = mul_neg_i(cs_ac);
 
         // KDFLG state machine (Fortran lines 6591-6597)
         if c2_save == czero {

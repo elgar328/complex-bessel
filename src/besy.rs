@@ -14,6 +14,7 @@ use crate::besi::zbesi;
 use crate::besk::zbesk;
 use crate::machine::BesselFloat;
 use crate::types::{BesselError, BesselStatus, Scaling};
+use crate::utils::{mul_i, mul_neg_i};
 
 /// Compute Y_{fnu+j}(z) for j = 0, 1, ..., n-1.
 ///
@@ -54,27 +55,23 @@ pub(crate) fn zbesy<T: BesselFloat>(
     let zn = Complex::new(z.im.abs(), -z.re);
 
     // Compute coefficients CC and CSPN (Fortran lines 1359-1373)
-    // Powers of i: [1, i, -1, -i]
-    let cip_table: [Complex<T>; 4] = [
-        Complex::new(one, zero),
-        Complex::new(zero, one),
-        Complex::new(-one, zero),
-        Complex::new(zero, -one),
-    ];
-
     let ifnu = fnu.to_i32().unwrap();
     let ffnu = fnu - T::from_f64(ifnu as f64);
     let arg = hpi_t * ffnu;
     let mut csgn = Complex::from_polar(one, arg);
 
     // Multiply by i^(ifnu mod 4) (Fortran lines 1364-1367)
-    let i4 = (ifnu % 4) as usize;
-    csgn = csgn * cip_table[i4];
+    csgn = match (ifnu % 4) as usize {
+        0 => csgn,
+        1 => mul_i(csgn),
+        2 => -csgn,
+        _ => mul_neg_i(csgn),
+    };
 
     let rhpi = one / hpi_t;
     let mut cspn = csgn.conj() * rhpi;
     // CSGN *= i (Fortran lines 1371-1373)
-    csgn = csgn * Complex::new(zero, one);
+    csgn = mul_i(csgn);
 
     // For n == 1: use stack arrays (no alloc needed)
     if n == 1 {
@@ -161,9 +158,9 @@ pub(crate) fn zbesy<T: BesselFloat>(
                 y[i] = cy_val;
 
                 // Advance CSGN *= i (rotate by pi/2) (Fortran lines 1383-1385)
-                csgn = csgn * Complex::new(zero, one);
+                csgn = mul_i(csgn);
                 // Advance CSPN *= -i (rotate by -pi/2) (Fortran lines 1386-1388)
-                cspn = cspn * Complex::new(zero, -one);
+                cspn = mul_neg_i(cspn);
             }
 
             // Conjugate if original Im(z) < 0 (Fortran lines 1390-1394)
@@ -222,8 +219,8 @@ pub(crate) fn zbesy<T: BesselFloat>(
             }
 
             // Advance CSGN *= i, CSPN *= -i (Fortran lines 1450-1455)
-            csgn = csgn * Complex::new(zero, one);
-            cspn = cspn * Complex::new(zero, -one);
+            csgn = mul_i(csgn);
+            cspn = mul_neg_i(cspn);
         }
 
         Ok((nz_out, BesselStatus::Normal))

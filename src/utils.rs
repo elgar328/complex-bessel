@@ -6,6 +6,18 @@ use num_complex::Complex;
 
 use crate::machine::BesselFloat;
 
+/// Multiply a complex number by i: (a+bi)·i = -b+ai.
+#[inline]
+pub(crate) fn mul_i<T: BesselFloat>(c: Complex<T>) -> Complex<T> {
+    Complex::new(-c.im, c.re)
+}
+
+/// Multiply a complex number by -i: (a+bi)·(-i) = b-ai.
+#[inline]
+pub(crate) fn mul_neg_i<T: BesselFloat>(c: Complex<T>) -> Complex<T> {
+    Complex::new(c.im, -c.re)
+}
+
 /// Overflow-safe complex absolute value.
 ///
 /// Computes `|z| = sqrt(re² + im²)` without intermediate overflow by
