@@ -141,8 +141,8 @@ pub(crate) fn zkscl<T: BesselFloat>(
         // Value underflowed; if recurrence values are getting too large, rescale
         if alas >= helim {
             zd = Complex::new(zd.re - elim, zd.im);
-            s1 = Complex::new(s1.re * celmr, s1.im * celmr);
-            s2 = Complex::new(s2.re * celmr, s2.im * celmr);
+            s1 = s1 * celmr;
+            s2 = s2 * celmr;
         }
     }
 

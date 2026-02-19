@@ -81,7 +81,7 @@ pub(crate) fn zbesj<T: BesselFloat>(
     let mut zn = Complex::new(z.im, -z.re);
     if z.im < zero {
         zn = -zn;
-        csgn = Complex::new(csgn.re, -csgn.im);
+        csgn = csgn.conj();
         cii = -cii;
     }
 

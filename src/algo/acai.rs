@@ -53,7 +53,7 @@ pub(crate) fn zacai<T: BesselFloat>(
     }
 
     // ZN = -Z (Fortran line 4703-4704)
-    let zn = Complex::new(-z.re, -z.im);
+    let zn = -z;
     let az = zabs(z);
     let dfnu = fnu + T::from_f64((n - 1) as f64);
 

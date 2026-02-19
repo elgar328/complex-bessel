@@ -44,7 +44,7 @@ pub(crate) fn zacon<T: BesselFloat>(
     let mut nz: usize = 0;
 
     // ZN = -Z (Fortran lines 4203-4204)
-    let zn = Complex::new(-z.re, -z.im);
+    let zn = -z;
 
     // Compute I function at -z via ZBINU, written directly into y (Fortran lines 4206-4208)
     zbinu(zn, fnu, kode, y, rl, fnul, tol, elim, alim)?;
