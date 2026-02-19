@@ -175,7 +175,7 @@ pub(crate) fn zunik<T: BesselFloat>(
     let zero = T::zero();
     let one = T::one();
     let czero = Complex::new(zero, zero);
-    let cone = Complex::new(one, zero);
+    let cone = Complex::from(one);
 
     // If cache is valid, skip initialization (Fortran: IF(INIT.NE.0) GO TO 40)
     if let Some(c) = cache {

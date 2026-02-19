@@ -40,10 +40,9 @@ fn airy_power_series<T: BesselFloat>(
     tol: T,
 ) -> (Complex<T>, Complex<T>) {
     let one = T::one();
-    let zero = T::zero();
 
-    let mut s1 = Complex::new(one, zero);
-    let mut s2 = Complex::new(one, zero);
+    let mut s1 = Complex::from(one);
+    let mut s2 = Complex::from(one);
 
     let aa = az * az;
     if aa < tol / az {
@@ -51,8 +50,8 @@ fn airy_power_series<T: BesselFloat>(
         return (s1, s2);
     }
 
-    let mut trm1 = Complex::new(one, zero);
-    let mut trm2 = Complex::new(one, zero);
+    let mut trm1 = Complex::from(one);
+    let mut trm2 = Complex::from(one);
     let mut atrm = one;
 
     // z³ (Fortran lines 1629-1633)
@@ -500,7 +499,7 @@ fn zbiry_large_z<T: BesselFloat>(
 
     // S1 = exp(i*FMR*FNU) * CY(1) * SFAC (Fortran lines 2166-2171)
     let aa_fmr = fmr * fnu;
-    let phase = Complex::new(aa_fmr.cos(), aa_fmr.sin());
+    let phase = Complex::from_polar(one, aa_fmr);
     let mut s1 = phase * cy1_buf[0] * sfac;
 
     // Second ZBINU: I_{fnu2}(zta), I_{fnu2+1}(zta) (Fortran lines 2172-2178)
@@ -516,7 +515,7 @@ fn zbiry_large_z<T: BesselFloat>(
 
     // Final combination (Fortran lines 2185-2189)
     let aa_rot = fmr * (fnu2 - one);
-    let phase2 = Complex::new(aa_rot.cos(), aa_rot.sin());
+    let phase2 = Complex::from_polar(one, aa_rot);
     s1 = (s1 + phase2 * s2) * coef;
 
     // Form result (Fortran lines 2190-2202)

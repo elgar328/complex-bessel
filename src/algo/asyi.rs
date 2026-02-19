@@ -108,9 +108,9 @@ pub(crate) fn zasyi<T: BesselFloat>(
         let sqk0 = fdn - one;
         let atol = s * sqk0.abs();
         let mut sgn = one;
-        let mut cs1 = Complex::new(one, zero);
-        let mut cs2 = Complex::new(one, zero);
-        let mut ck = Complex::new(one, zero);
+        let mut cs1 = Complex::from(one);
+        let mut cs2 = Complex::from(one);
+        let mut ck = Complex::from(one);
         let mut ak_val = zero;
         let mut aa = one;
         let mut bb = aez;

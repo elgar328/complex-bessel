@@ -160,7 +160,7 @@ pub(crate) fn zbknu<T: BesselFloat>(
         let mut pi_val = half * efmu.im / t2;
 
         // Q = 0.5 / (exp(FMU) * T1)
-        let q_tmp = zdiv(Complex::new(half, zero), efmu);
+        let q_tmp = zdiv(Complex::from(half), efmu);
         let mut qr = q_tmp.re / t1;
         let mut qi = q_tmp.im / t1;
 
@@ -168,7 +168,7 @@ pub(crate) fn zbknu<T: BesselFloat>(
         let mut s2 = Complex::new(pr, pi_val);
         let mut ak = one;
         let mut a1 = one;
-        let mut ck = Complex::new(one, zero);
+        let mut ck = Complex::from(one);
         let mut bk = one - dnu2;
 
         let mut kflag: usize; // 0-based index into cssr/csrr arrays
@@ -268,7 +268,7 @@ pub(crate) fn zbknu<T: BesselFloat>(
 
     // COEF = RTHPI / sqrt(z) = sqrt(π/2) / sqrt(z) = sqrt(π/(2z))
     let sz = z.sqrt();
-    let coef_base = zdiv(Complex::new(T::from_f64(RTHPI), zero), sz);
+    let coef_base = zdiv(Complex::from(T::from_f64(RTHPI)), sz);
 
     let mut kflag: usize = 1; // KFLAG=2 in Fortran
 
@@ -432,7 +432,7 @@ pub(crate) fn zbknu<T: BesselFloat>(
     //          STR = STR + 1.0
     //          CALL ZMLT(STR, STI, S1R, S1I, S2R, S2I)
     let ratio = Complex::new(dnu + half - pt_ratio.re, -pt_ratio.im);
-    let ratio_div_z = zdiv(ratio, z) + Complex::new(one, zero);
+    let ratio_div_z = zdiv(ratio, z) + Complex::from(one);
     let s2 = ratio_div_z * s1;
 
     // ── Forward recurrence (label 210) ──

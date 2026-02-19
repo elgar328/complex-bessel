@@ -373,7 +373,7 @@ pub(crate) fn zunk2<T: BesselFloat>(
     }
     let ifn = inu + n - 1;
     let ang2 = fnf * sgn;
-    let mut cspn = Complex::new(ang2.cos(), ang2.sin());
+    let mut cspn = Complex::from_polar(one, ang2);
     if ifn % 2 != 0 {
         cspn = -cspn;
     }

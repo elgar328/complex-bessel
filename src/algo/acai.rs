@@ -104,13 +104,13 @@ pub(crate) fn zacai<T: BesselFloat>(
     if kode == Scaling::Exponential {
         // Fortran lines 4743-4745: KODE=2 adjustment
         let yy = -zn.im;
-        csgn = csgn * Complex::new(yy.cos(), yy.sin());
+        csgn = csgn * Complex::from_polar(one, yy);
     }
 
     // CSPN = exp(FNU*PI*I) with precision preservation (Fortran lines 4751-4758)
     let inu = fnu.to_i32().unwrap();
     let arg = (fnu - T::from_f64(inu as f64)) * sgn;
-    let mut cspn = Complex::new(arg.cos(), arg.sin());
+    let mut cspn = Complex::from_polar(one, arg);
     if inu % 2 != 0 {
         cspn = -cspn;
     }

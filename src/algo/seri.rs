@@ -31,7 +31,7 @@ pub(crate) fn zseri<T: BesselFloat>(
     let two = T::from_f64(2.0);
     let half = T::from_f64(0.5);
     let czero = Complex::new(zero, zero);
-    let cone = Complex::new(one, zero);
+    let cone = Complex::from(one);
 
     let n = y.len();
     for v in y.iter_mut() {

@@ -55,7 +55,7 @@ pub(crate) fn zrati<T: BesselFloat>(z: Complex<T>, fnu: T, cy: &mut [Complex<T>]
     // P2 = -T1 (Fortran lines 3142-3143)
     let mut p2 = -t1;
     // P1 = CONE (Fortran lines 3144-3145)
-    let mut p1 = Complex::new(one, zero);
+    let mut p1 = Complex::from(one);
     // T1 += RZ (Fortran lines 3146-3147)
     t1 = t1 + rz;
 
@@ -98,7 +98,7 @@ pub(crate) fn zrati<T: BesselFloat>(z: Complex<T>, fnu: T, cy: &mut [Complex<T>]
     // ── Stage 2: Backward recurrence (Fortran label 20, lines 3186-3212) ──
     let kk = (k + 1 - id) as usize;
     let dfnu = fnu + T::from_f64((n - 1) as f64);
-    let mut p1 = Complex::new(one / ap2, zero);
+    let mut p1 = Complex::from(one / ap2);
     let mut p2 = Complex::new(zero, zero);
     let mut t1r_bk = T::from_f64(kk as f64);
 
@@ -137,7 +137,7 @@ pub(crate) fn zrati<T: BesselFloat>(z: Complex<T>, fnu: T, cy: &mut [Complex<T>]
             ak = tol * rt2;
         }
         // CY(K) = conj(PT)/|PT|^2 = 1/PT (Fortran lines 3229-3231)
-        cy[k_idx] = zdiv(Complex::new(one, zero), pt);
+        cy[k_idx] = zdiv(Complex::from(one), pt);
     }
 }
 

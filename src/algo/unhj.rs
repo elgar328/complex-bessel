@@ -359,7 +359,7 @@ pub(crate) fn zunhj<T: BesselFloat>(
     let zero = T::zero();
     let one = T::one();
     let czero = Complex::new(zero, zero);
-    let cone = Complex::new(one, zero);
+    let cone = Complex::from(one);
 
     let rfnu = one / fnu;
 
@@ -422,7 +422,7 @@ fn small_w2_branch<T: BesselFloat>(
     let mut p = [czero; 30];
     let mut ap = [zero; 30];
 
-    p[0] = Complex::new(one, zero);
+    p[0] = Complex::from(one);
     let mut suma = Complex::new(T::from_f64(GAMA[0]), zero);
     ap[0] = one;
 
@@ -676,7 +676,7 @@ fn large_w2_branch<T: BesselFloat>(
 
     if rfnu < tol {
         // Skip refinement
-        asum = Complex::new(one, zero);
+        asum = Complex::from(one);
         let bsum_div = zdiv(-bsum * rfn13, rzth);
         return UnhjOutput {
             phi,
@@ -693,7 +693,7 @@ fn large_w2_branch<T: BesselFloat>(
     let mut ptfn = tfn;
 
     let mut up = [czero; 14];
-    up[0] = Complex::new(one, zero); // UP(1) = 1
+    up[0] = Complex::from(one); // UP(1) = 1
     up[1] = up1; // UP(2) already computed
 
     let mut cr = [czero; 14];

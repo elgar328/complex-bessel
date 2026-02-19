@@ -52,8 +52,8 @@ pub(crate) fn zwrsk<T: BesselFloat>(
     // ── Step 3: Normalization constant (Fortran lines 3557-3605) ──
     // KODE=1: CINU = 1; KODE=2: CINU = exp(i·Im(z))
     let mut cinu = match kode {
-        Scaling::Unscaled => Complex::new(one, zero),
-        Scaling::Exponential => Complex::new(z.im.cos(), z.im.sin()),
+        Scaling::Unscaled => Complex::from(one),
+        Scaling::Exponential => Complex::from_polar(one, z.im),
     };
 
     // 3-level scaling to prevent under/overflow (Fortran lines 3569-3579)

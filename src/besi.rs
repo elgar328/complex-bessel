@@ -67,7 +67,7 @@ pub(crate) fn zbesi<T: BesselFloat>(
     // (Fortran lines 561-610)
     let mut znr = z.re;
     let mut zni = z.im;
-    let mut csgn = Complex::new(one, zero);
+    let mut csgn = Complex::from(one);
 
     if z.re < zero {
         // Left half-plane: use I(fnu, -z) * exp(fnu*pi*i)
@@ -80,7 +80,7 @@ pub(crate) fn zbesi<T: BesselFloat>(
         if z.im < zero {
             arg = -arg;
         }
-        csgn = Complex::new(arg.cos(), arg.sin());
+        csgn = Complex::from_polar(one, arg);
         if inu % 2 != 0 {
             csgn = -csgn;
         }

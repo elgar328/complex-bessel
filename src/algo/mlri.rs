@@ -39,7 +39,7 @@ pub(crate) fn zmlri<T: BesselFloat>(
     let rz = reciprocal_z(z);
     let mut ck = rz * (at * T::from_f64(0.5));
     let mut p1 = czero;
-    let mut p2 = Complex::new(one, zero);
+    let mut p2 = Complex::from(one);
     let ack = (at + one) * raz;
     let rho = ack + (ack * ack - one).sqrt();
     let rho2 = rho * rho;
@@ -72,7 +72,7 @@ pub(crate) fn zmlri<T: BesselFloat>(
     if inu >= iaz {
         // Compute relative truncation error for ratios (Fortran lines 3388-3420)
         p1 = czero;
-        p2 = Complex::new(one, zero);
+        p2 = Complex::from(one);
         let at2 = T::from_f64(inu as f64 + 1.0);
         ck = z.conj() * (at2 * raz * raz);
         let ack2 = at2 * raz;

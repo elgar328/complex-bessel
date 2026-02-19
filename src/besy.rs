@@ -71,7 +71,7 @@ pub(crate) fn zbesy<T: BesselFloat>(
     let ifnu = fnu.to_i32().unwrap();
     let ffnu = fnu - T::from_f64(ifnu as f64);
     let arg = hpi_t * ffnu;
-    let mut csgn = Complex::new(arg.cos(), arg.sin());
+    let mut csgn = Complex::from_polar(one, arg);
 
     // Multiply by i^(ifnu mod 4) (Fortran lines 1364-1367)
     let i4 = (ifnu % 4) as usize;
