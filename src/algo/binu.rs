@@ -71,6 +71,7 @@ pub(crate) fn zbinu<T: BesselFloat>(
 }
 
 /// Dispatch logic from Fortran label 20 onwards.
+#[inline]
 fn dispatch_20<T: BesselFloat>(
     z: Complex<T>,
     fnu: T,
