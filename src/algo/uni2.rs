@@ -65,11 +65,9 @@ pub(crate) fn zuni2<T: BesselFloat>(
     let bry0 = T::from_f64(1.0e3) * T::MACH_TINY / tol;
 
     // ── Rotate z to right half plane (Fortran lines 7102-7106) ──
-    let mut znr = z.im; // ZNR = ZI
-    let zni = -z.re; // ZNI = -ZR
-    let zbr = z.re;
-    let mut zbi = z.im;
-    let mut cidi = -one; // CIDI = -1
+    let zn = Complex::new(z.im.abs(), -z.re);
+    let zb = Complex::new(z.re, z.im.abs());
+    let cidi = if z.im <= zero { one } else { -one };
 
     let inu = fnu.to_i32().unwrap() as usize;
     let ang = T::from_f64(HPI) * (fnu - T::from_f64(inu as f64));
@@ -80,19 +78,15 @@ pub(crate) fn zuni2<T: BesselFloat>(
     let mut c2 = c2_base * Complex::new(T::from_f64(CIPR[in_idx]), T::from_f64(CIPI[in_idx]));
 
     if z.im <= zero {
-        // Fortran lines 7119-7122
-        znr = -znr;
-        zbi = -zbi;
-        cidi = -cidi;
         c2 = c2.conj();
     }
 
     // ── Check first member for overflow/underflow (Fortran lines 7127-7144) ──
     let fn_val = fnu.max(one);
-    let result0 = zunhj(Complex::new(znr, zni), fn_val, SumOption::SkipSum, tol);
+    let result0 = zunhj(zn, fn_val, SumOption::SkipSum, tol);
 
     let rs1 = if kode == Scaling::Exponential {
-        let st = Complex::new(zbr, zbi) + result0.zeta2;
+        let st = zb + result0.zeta2;
         let rast = fn_val / zabs(st);
         -result0.zeta1.re + st.re * rast * rast
     } else {
@@ -120,12 +114,12 @@ pub(crate) fn zuni2<T: BesselFloat>(
         #[allow(clippy::needless_range_loop)]
         for i in 0..nn {
             let fn_val = fnu + T::from_f64((nd - 1 - i) as f64);
-            let result = zunhj(Complex::new(znr, zni), fn_val, SumOption::Full, tol);
+            let result = zunhj(zn, fn_val, SumOption::Full, tol);
 
             let s1_exp = if kode == Scaling::Exponential {
                 // KODE=2 path (Fortran lines 7151-7158)
                 // NOTE: s1i += |zi| (absolute value!), NOT zi like ZUNI1
-                let st = Complex::new(zbr, zbi) + result.zeta2;
+                let st = zb + result.zeta2;
                 let rast = fn_val / zabs(st);
                 let mut s = st.conj() * (rast * rast) - result.zeta1;
                 s.im = s.im + z.im.abs();
