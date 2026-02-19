@@ -14,14 +14,18 @@ use crate::machine::BesselFloat;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum BesselStatus {
-    /// Computation within normal precision bounds (~14-15 digits for f64).
+    /// Computation within normal precision bounds (full machine precision).
     Normal,
     /// Result computed but may have lost more than half of significant digits.
     /// Occurs when |z| or ν exceeds ~32767 for f64.
     ReducedPrecision,
 }
 
-/// Result of a Bessel function sequence computation.
+/// Result of a sequence computation, returned by `_seq` functions
+/// (e.g., [`besselk_seq`](crate::besselk_seq)).
+///
+/// Single-value convenience functions (`besselj`, `besselk`, …) do not expose
+/// this type; they return only the computed value and discard the status.
 #[cfg(feature = "alloc")]
 #[derive(Debug, Clone, PartialEq)]
 pub struct BesselResult<T: BesselFloat> {
@@ -30,6 +34,9 @@ pub struct BesselResult<T: BesselFloat> {
     /// Number of leading components set to zero due to underflow.
     pub underflow_count: usize,
     /// Precision status of the computation.
+    ///
+    /// Single-value convenience functions do not expose this status;
+    /// use a `_seq` function to inspect it when needed.
     pub status: BesselStatus,
 }
 
@@ -102,7 +109,7 @@ pub enum BesselError {
     InvalidInput,
     /// Overflow: |z| or ν too large, or |z| too small.
     Overflow,
-    /// Argument reduction caused loss of all significant digits.
+    /// Complete loss of significant digits; |z| or ν too large for meaningful computation.
     TotalPrecisionLoss,
     /// Algorithm did not meet termination criteria.
     ConvergenceFailure,

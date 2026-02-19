@@ -9,12 +9,12 @@ Pure Rust implementation of complex Bessel functions based on **Amos Algorithm 6
 
 ## Features
 
-- **Dual precision** — all functions accept `Complex<f64>` or `Complex<f32>`
-- **Full TOMS 644 coverage** — J, Y, I, K, H<sup>(1)</sup>, H<sup>(2)</sup>, Ai, Bi
+- **f32 & f64** — all functions accept `Complex<f64>` or `Complex<f32>`
+- **Complete function set** — J, Y, I, K, H<sup>(1)</sup>, H<sup>(2)</sup>, Ai, Bi
 - **Consecutive orders** — `_seq` variants return ν, ν+1, …, ν+n−1 in one call
 - **Exponential scaling** — `_scaled` variants prevent overflow/underflow
 - **Negative orders** — single-value functions accept ν < 0 via reflection formulas
-- **`no_std`** — works with `alloc` only
+- **`no_std` support** — 3-tier: bare `no_std` (no allocator), `alloc`, `std` (default)
 
 ## Quick start
 
@@ -58,10 +58,77 @@ let ai_prime = airyprime(z).unwrap();
 
 where ζ = (2/3) z√z.
 
+## API design
+
+The `_seq` functions (`besselj_seq`, `besselk_seq`, …) correspond directly to the
+original Amos TOMS 644 subroutines. They compute values at consecutive orders
+ν, ν+1, …, ν+n−1 in a single call, sharing internal recurrence work, and return
+a `BesselResult` that includes a `BesselStatus` field.
+
+The single-value functions (`besselj`, `besselk`, …) are convenience wrappers
+that call the `_seq` variant with n=1 and discard the status.
+
+**`BesselStatus`:**
+
+| Status | Meaning |
+|--------|---------|
+| `Normal` | Full machine precision |
+| `ReducedPrecision` | More than half of significant digits may be lost; occurs only when \|z\| or ν exceeds ~32767 |
+
+`ReducedPrecision` is extremely rare in practice. SciPy's Bessel wrappers also
+silently discard the equivalent Amos IERR=3 flag by default.
+
+To check precision status, use a `_seq` function:
+
+```rust
+use complex_bessel::*;
+use num_complex::Complex;
+
+let z = Complex::new(1.0, 2.0);
+let result = besselk_seq(0.0, z, 1, Scaling::Unscaled).unwrap();
+assert!(matches!(result.status, BesselStatus::Normal));
+```
+
+## `no_std` support
+
+| Cargo features | Available API | Allocator required |
+|---------------|---------------|:------------------:|
+| `default-features = false` | 20 single-value functions | No |
+| `features = ["alloc"]` | + 6 `_seq` variants + `BesselResult` | Yes |
+| `features = ["std"]` (default) | + `impl Error for BesselError` | Yes |
+
+The 20 single-value functions include 12 Bessel (J/Y/I/K/H⁽¹⁾/H⁽²⁾ × unscaled/scaled)
+and 8 Airy (Ai/Ai'/Bi/Bi' × unscaled/scaled).
+
+```toml
+# Bare no_std — no allocator needed:
+complex-bessel = { version = "0.1", default-features = false }
+
+# no_std with alloc (adds _seq functions and BesselResult):
+complex-bessel = { version = "0.1", default-features = false, features = ["alloc"] }
+```
+
+## Error handling
+
+All functions return `Result<_, BesselError>`. The four error variants are:
+
+| Variant | Cause |
+|---------|-------|
+| `InvalidInput` | z = 0 for K/Y/H, ν < 0 in `_seq`, n < 1 |
+| `Overflow` | \|z\| or ν too large (or too small) for finite result |
+| `TotalPrecisionLoss` | Complete loss of significant digits; \|z\| or ν too large |
+| `ConvergenceFailure` | Internal algorithm did not converge |
+
+`BesselError` implements `Display` always and `std::error::Error` with the `std` feature.
+
 ## Accuracy
 
 Results agree with the original Fortran TOMS 644 to ~14 significant digits (f64).
 Comprehensive accuracy analysis is maintained in a [separate repository](https://github.com/elgar328/complex-bessel-accuracy).
+
+## Minimum supported Rust version
+
+1.85 — The MSRV may be bumped in minor releases.
 
 ## License
 

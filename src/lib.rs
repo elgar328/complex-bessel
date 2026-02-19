@@ -5,12 +5,12 @@
 //!
 //! # Features
 //!
-//! - **Dual precision** — all functions accept `Complex<f64>` or `Complex<f32>`
-//! - **Full TOMS 644 coverage** — J, Y, I, K, H⁽¹⁾, H⁽²⁾, Ai, Bi
+//! - **f32 & f64** — all functions accept `Complex<f64>` or `Complex<f32>`
+//! - **Complete function set** — J, Y, I, K, H⁽¹⁾, H⁽²⁾, Ai, Bi
 //! - **Consecutive orders** — `_seq` variants return ν, ν+1, …, ν+n−1 in one call
 //! - **Exponential scaling** — `_scaled` variants prevent overflow/underflow
 //! - **Negative orders** — single-value functions accept ν < 0 via reflection formulas
-//! - **`no_std`** — works with `alloc` only
+//! - **`no_std` support** — 3-tier: bare `no_std` (no allocator), `alloc`, `std` (default)
 //!
 //! # Quick start
 //!
@@ -51,9 +51,13 @@
 //!
 //! # Consecutive orders
 //!
-//! The `_seq` variants compute values at consecutive orders ν, ν+1, …, ν+n−1
-//! in a single call. Internal recurrence is shared, so this is more efficient
-//! than calling the single-value function n times.
+//! The `_seq` variants (`besselj_seq`, `besselk_seq`, …) correspond directly to the
+//! original Amos TOMS 644 subroutines. They compute values at consecutive orders
+//! ν, ν+1, …, ν+n−1 in a single call, sharing internal recurrence work, and return
+//! a [`BesselResult`] that includes a [`BesselStatus`] field.
+//!
+//! The single-value functions (`besselj`, `besselk`, …) are convenience wrappers
+//! that call the `_seq` variant with n=1 and discard the status.
 //!
 //! ```
 //! # #[cfg(feature = "alloc")] {
@@ -69,10 +73,25 @@
 //! ```
 //!
 //! Sequence results include a [`BesselStatus`] field:
-//! - [`BesselStatus::Normal`] — full precision (~14 digits for f64)
-//! - [`BesselStatus::ReducedPrecision`] — some precision lost (|z| or ν very large)
+//! - [`BesselStatus::Normal`] — full machine precision
+//! - [`BesselStatus::ReducedPrecision`] — more than half of significant digits may be lost (|z| or ν very large)
 //!
-//! Single-value functions silently return the best available result.
+//! [`BesselStatus::ReducedPrecision`] occurs only when |z| or ν exceeds ~32767,
+//! which is extremely rare in practice. SciPy's Bessel wrappers also silently
+//! discard the equivalent Amos IERR=3 flag by default.
+//!
+//! To check precision status explicitly, use a `_seq` function:
+//!
+//! ```
+//! # #[cfg(feature = "alloc")] {
+//! use complex_bessel::*;
+//! use num_complex::Complex;
+//!
+//! let z = Complex::new(1.0, 2.0);
+//! let result = besselk_seq(0.0, z, 1, Scaling::Unscaled).unwrap();
+//! assert!(matches!(result.status, BesselStatus::Normal));
+//! # }
+//! ```
 //!
 //! Sequence variants require ν ≥ 0. Use single-value functions for negative orders.
 //!
@@ -97,7 +116,8 @@
 //!
 //! | Function | Scaled variant returns |
 //! |----------|-----------------------|
-//! | J, Y | exp(−\|Im(z)\|) · J(z), Y(z) |
+//! | J | exp(−\|Im(z)\|) · J(z) |
+//! | Y | exp(−\|Im(z)\|) · Y(z) |
 //! | I | exp(−\|Re(z)\|) · I(z) |
 //! | K | exp(z) · K(z) |
 //! | H<sup>(1)</sup> | exp(−iz) · H<sup>(1)</sup>(z) |
@@ -125,17 +145,20 @@
 //!
 //! Three tiers of feature support:
 //!
-//! | Feature | API | Allocator |
-//! |---------|-----|-----------|
-//! | (none) | 30 single-value + 8 Airy | **Not required** |
-//! | `alloc` | + `_seq` variants + `BesselResult` | Required |
-//! | `std` (default) | Full + `impl Error` | Required |
+//! | Cargo features | Available API | Allocator |
+//! |---------------|---------------|-----------|
+//! | `default-features = false` | 20 single-value functions | **Not required** |
+//! | `features = ["alloc"]` | + 6 `_seq` variants + [`BesselResult`] | Required |
+//! | `features = ["std"]` (default) | + `impl Error for BesselError` | Required |
+//!
+//! The 20 single-value functions include 12 Bessel (J/Y/I/K/H⁽¹⁾/H⁽²⁾ × unscaled/scaled)
+//! and 8 Airy (Ai/Ai'/Bi/Bi' × unscaled/scaled).
 //!
 //! ```toml
-//! # Pure no_std, no allocator needed:
+//! # Bare no_std, no allocator needed:
 //! complex-bessel = { version = "0.1", default-features = false }
 //!
-//! # no_std with alloc (adds _seq functions):
+//! # no_std with alloc (adds _seq functions and BesselResult):
 //! complex-bessel = { version = "0.1", default-features = false, features = ["alloc"] }
 //! ```
 
@@ -496,6 +519,17 @@ pub fn hankel1<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Besse
 /// For negative ν, the DLMF 10.4.7 reflection formula is applied:
 /// `H^(2)_{-ν}(z) = exp(-νπi) H^(2)_ν(z)`.
 ///
+/// # Example
+///
+/// ```
+/// use complex_bessel::hankel2;
+/// use num_complex::Complex;
+///
+/// let z = Complex::new(1.0_f64, 0.0);
+/// let h = hankel2(0.0, z).unwrap();
+/// assert!(h.re > 0.0 && h.im < 0.0); // H^(2)_0(1) = J_0(1) - iY_0(1)
+/// ```
+///
 /// # Errors
 ///
 /// Returns [`BesselError`] if the computation fails (overflow, z = 0, etc.).
@@ -534,6 +568,17 @@ pub fn airy<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, BesselError> {
 ///
 /// Computes the derivative of the Airy function of the first kind for complex z.
 ///
+/// # Example
+///
+/// ```
+/// use complex_bessel::airyprime;
+/// use num_complex::Complex;
+///
+/// let z = Complex::new(0.0_f64, 0.0);
+/// let ai_prime = airyprime(z).unwrap();
+/// assert!(ai_prime.re < -0.25 && ai_prime.re > -0.26); // Ai'(0) ≈ -0.2588
+/// ```
+///
 /// # Errors
 ///
 /// Returns [`BesselError`] if the computation fails.
@@ -571,6 +616,17 @@ pub fn biry<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, BesselError> {
 /// Derivative of the Airy function of the second kind, Bi'(z).
 ///
 /// Computes the derivative of Bi(z) for complex z.
+///
+/// # Example
+///
+/// ```
+/// use complex_bessel::biryprime;
+/// use num_complex::Complex;
+///
+/// let z = Complex::new(0.0_f64, 0.0);
+/// let bi_prime = biryprime(z).unwrap();
+/// assert!(bi_prime.re > 0.44 && bi_prime.re < 0.45); // Bi'(0) ≈ 0.4483
+/// ```
 ///
 /// # Errors
 ///
@@ -780,8 +836,8 @@ fn seq_helper<T: BesselFloat>(
 /// Compute J_{ν+j}(z) for j = 0, 1, …, n−1 in a single call.
 ///
 /// Returns a [`BesselResult`] containing `n` values and a [`BesselStatus`]:
-/// - [`BesselStatus::Normal`] — full precision (~14 digits for f64)
-/// - [`BesselStatus::ReducedPrecision`] — some precision lost (|z| or ν very large)
+/// - [`BesselStatus::Normal`] — full machine precision
+/// - [`BesselStatus::ReducedPrecision`] — more than half of significant digits may be lost (|z| or ν very large)
 ///
 /// The `scaling` parameter selects [`Scaling::Unscaled`] or [`Scaling::Exponential`];
 /// see [crate-level docs](crate#exponential-scaling) for details.
@@ -820,8 +876,8 @@ pub fn besselj_seq<T: BesselFloat>(
 /// Compute Y_{ν+j}(z) for j = 0, 1, …, n−1 in a single call.
 ///
 /// Returns a [`BesselResult`] containing `n` values and a [`BesselStatus`]:
-/// - [`BesselStatus::Normal`] — full precision (~14 digits for f64)
-/// - [`BesselStatus::ReducedPrecision`] — some precision lost (|z| or ν very large)
+/// - [`BesselStatus::Normal`] — full machine precision
+/// - [`BesselStatus::ReducedPrecision`] — more than half of significant digits may be lost (|z| or ν very large)
 ///
 /// The `scaling` parameter selects [`Scaling::Unscaled`] or [`Scaling::Exponential`];
 /// see [crate-level docs](crate#exponential-scaling) for details.
@@ -846,8 +902,8 @@ pub fn bessely_seq<T: BesselFloat>(
 /// Compute I_{ν+j}(z) for j = 0, 1, …, n−1 in a single call.
 ///
 /// Returns a [`BesselResult`] containing `n` values and a [`BesselStatus`]:
-/// - [`BesselStatus::Normal`] — full precision (~14 digits for f64)
-/// - [`BesselStatus::ReducedPrecision`] — some precision lost (|z| or ν very large)
+/// - [`BesselStatus::Normal`] — full machine precision
+/// - [`BesselStatus::ReducedPrecision`] — more than half of significant digits may be lost (|z| or ν very large)
 ///
 /// The `scaling` parameter selects [`Scaling::Unscaled`] or [`Scaling::Exponential`];
 /// see [crate-level docs](crate#exponential-scaling) for details.
@@ -872,8 +928,8 @@ pub fn besseli_seq<T: BesselFloat>(
 /// Compute K_{ν+j}(z) for j = 0, 1, …, n−1 in a single call.
 ///
 /// Returns a [`BesselResult`] containing `n` values and a [`BesselStatus`]:
-/// - [`BesselStatus::Normal`] — full precision (~14 digits for f64)
-/// - [`BesselStatus::ReducedPrecision`] — some precision lost (|z| or ν very large)
+/// - [`BesselStatus::Normal`] — full machine precision
+/// - [`BesselStatus::ReducedPrecision`] — more than half of significant digits may be lost (|z| or ν very large)
 ///
 /// The `scaling` parameter selects [`Scaling::Unscaled`] or [`Scaling::Exponential`];
 /// see [crate-level docs](crate#exponential-scaling) for details.
@@ -912,8 +968,8 @@ pub fn besselk_seq<T: BesselFloat>(
 /// Compute H_{ν+j}^(1)(z) for j = 0, 1, …, n−1 in a single call.
 ///
 /// Returns a [`BesselResult`] containing `n` values and a [`BesselStatus`]:
-/// - [`BesselStatus::Normal`] — full precision (~14 digits for f64)
-/// - [`BesselStatus::ReducedPrecision`] — some precision lost (|z| or ν very large)
+/// - [`BesselStatus::Normal`] — full machine precision
+/// - [`BesselStatus::ReducedPrecision`] — more than half of significant digits may be lost (|z| or ν very large)
 ///
 /// The `scaling` parameter selects [`Scaling::Unscaled`] or [`Scaling::Exponential`];
 /// see [crate-level docs](crate#exponential-scaling) for details.
@@ -938,8 +994,8 @@ pub fn hankel1_seq<T: BesselFloat>(
 /// Compute H_{ν+j}^(2)(z) for j = 0, 1, …, n−1 in a single call.
 ///
 /// Returns a [`BesselResult`] containing `n` values and a [`BesselStatus`]:
-/// - [`BesselStatus::Normal`] — full precision (~14 digits for f64)
-/// - [`BesselStatus::ReducedPrecision`] — some precision lost (|z| or ν very large)
+/// - [`BesselStatus::Normal`] — full machine precision
+/// - [`BesselStatus::ReducedPrecision`] — more than half of significant digits may be lost (|z| or ν very large)
 ///
 /// The `scaling` parameter selects [`Scaling::Unscaled`] or [`Scaling::Exponential`];
 /// see [crate-level docs](crate#exponential-scaling) for details.
