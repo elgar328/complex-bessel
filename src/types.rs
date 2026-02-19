@@ -11,7 +11,7 @@ use num_complex::Complex;
 use crate::machine::BesselFloat;
 
 /// Status of the computation result.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum BesselStatus {
     /// Computation within normal precision bounds (~14-15 digits for f64).
@@ -23,7 +23,7 @@ pub enum BesselStatus {
 
 /// Result of a Bessel function sequence computation.
 #[cfg(feature = "alloc")]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct BesselResult<T: BesselFloat> {
     /// Computed function values for orders ν, ν+1, ..., ν+n-1.
     pub values: Vec<Complex<T>>,
@@ -43,7 +43,7 @@ pub struct BesselResult<T: BesselFloat> {
 /// - H^(2): `exp(iz)`
 /// - Ai, Ai': `exp(ζ)` where `ζ = (2/3) · z · √z`
 /// - Bi, Bi': `exp(-|Re(ζ)|)` where `ζ = (2/3) · z · √z`
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum Scaling {
     /// No scaling applied.
@@ -95,7 +95,7 @@ pub(crate) enum AiryDerivative {
 }
 
 /// Error type for Bessel function computation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum BesselError {
     /// Invalid input (e.g., z=0 for K/Y/H, negative order in sequence functions).

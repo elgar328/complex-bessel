@@ -17,6 +17,17 @@
 //!
 //! These sentinel values are converted to the appropriate `BesselError` variant
 //! before reaching the public API.
+//!
+//! # Clippy suppressions
+//!
+//! Most algorithm modules carry module-level `#![allow(...)]` attributes:
+//!
+//! - `clippy::excessive_precision` / `clippy::approx_constant` — Fortran DATA
+//!   constants are transcribed at full f64 precision for 1:1 traceability against
+//!   zbsubs.f. Letting clippy round them would silently break verification.
+//! - `clippy::too_many_arguments` — internal functions mirror Fortran subroutine
+//!   signatures (often 8–12 parameters). Restructuring would obscure the
+//!   correspondence with the reference implementation.
 
 pub(crate) mod constants;
 
