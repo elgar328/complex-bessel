@@ -53,17 +53,7 @@ pub(crate) fn zasyi<T: BesselFloat>(
 
     // Overflow test (Fortran lines 3846-3858)
     let raz = one / az;
-    let str = z.re * raz;
-    let sti = -z.im * raz;
-    let mut ak1 = Complex::new(rtpi * str * raz, rtpi * sti * raz);
-    // zsqrt(ak1) - use standard formula
-    let ak1_abs = zabs(ak1);
-    if ak1_abs > zero {
-        let ak1_arg = ak1.im.atan2(ak1.re);
-        let sqrt_abs = ak1_abs.sqrt();
-        let half_arg = ak1_arg * T::from_f64(0.5);
-        ak1 = Complex::new(sqrt_abs * half_arg.cos(), sqrt_abs * half_arg.sin());
-    }
+    let mut ak1 = (z.conj() * (rtpi * raz * raz)).sqrt();
 
     let mut czr = z.re;
     let czi = z.im;
@@ -152,10 +142,7 @@ pub(crate) fn zasyi<T: BesselFloat>(
         // Label 50: combine CS1 and CS2 (Fortran lines 3931-3947)
         let mut s2 = cs1;
         if z.re + z.re < elim {
-            let tzr = z.re + z.re;
-            let tzi = z.im + z.im;
-            // zexp(-2z) * p1 * cs2
-            let exp_2z = Complex::new(-tzr, -tzi).exp();
+            let exp_2z = (-(z + z)).exp();
             s2 = s2 + exp_2z * p1 * cs2;
         }
 

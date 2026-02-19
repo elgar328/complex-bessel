@@ -74,9 +74,7 @@ pub(crate) fn zmlri<T: BesselFloat>(
         p1 = czero;
         p2 = Complex::new(one, zero);
         let at2 = T::from_f64(inu as f64 + 1.0);
-        let str2 = z.re * raz;
-        let sti2 = -z.im * raz;
-        ck = Complex::new(str2 * at2 * raz, sti2 * at2 * raz);
+        ck = z.conj() * (at2 * raz * raz);
         let ack2 = at2 * raz;
         tst = (ack2 / tol).sqrt();
         let mut itime = 1;
@@ -170,27 +168,21 @@ pub(crate) fn zmlri<T: BesselFloat>(
     }
 
     // Label 90: compute normalization constant (Fortran lines 3494-3521)
-    let mut ptr = z.re;
-    let pti = z.im;
-    if kode == Scaling::Exponential {
-        ptr = zero;
-    }
-    // zlog(rz)
-    let rz_abs = zabs(rz);
-    let str_log = rz_abs.ln();
-    let sti_log = rz.im.atan2(rz.re);
-    let p1r_norm = -fnf * str_log + ptr;
-    let p1i_norm = -fnf * sti_log + pti;
+    let pt = if kode == Scaling::Exponential {
+        Complex::new(zero, z.im)
+    } else {
+        z
+    };
+    let rz_ln = rz.ln();
+    let p1_norm = pt - rz_ln * fnf;
     let ap = gamln(one + fnf).unwrap();
-    let ptr_norm = p1r_norm - ap;
-    let pti_norm = p1i_norm;
+    let pt_norm = Complex::new(p1_norm.re - ap, p1_norm.im);
 
     // Division cexp(pt)/(sum+p2) avoiding overflow (Fortran lines 3507-3521)
     p2 = p2 + sum;
     let ap2 = zabs(p2);
     let p1_inv = one / ap2;
-    // zexp(ptr_norm, pti_norm)
-    let ck_n = Complex::new(ptr_norm, pti_norm).exp() * p1_inv;
+    let ck_n = pt_norm.exp() * p1_inv;
     let pt_n = p2.conj() * p1_inv;
     // zmlt(ck, pt) → cnorm
     let cnorm = ck_n * pt_n;

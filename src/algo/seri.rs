@@ -74,8 +74,7 @@ pub(crate) fn zseri<T: BesselFloat>(
     let mut nn = n;
 
     // ck = log(hz) (Fortran line 3665)
-    let hz_r = zabs(hz);
-    let ck = Complex::new(hz_r.ln(), hz.im.atan2(hz.re));
+    let ck = hz.ln();
 
     // Outer loop: underflow scan (Fortran labels 20-30)
     'outer: loop {
@@ -118,11 +117,10 @@ pub(crate) fn zseri<T: BesselFloat>(
         }
 
         // Label 50: compute coefficient (Fortran lines 3693-3698)
-        let mut aa = ak1r.exp();
+        let mut coef = Complex::new(ak1r, ak1i).exp();
         if iflag == 1 {
-            aa = aa * ss;
+            coef = coef * ss;
         }
-        let mut coef = Complex::new(aa * ak1i.cos(), aa * ak1i.sin());
         let atol = tol * acz / fnup;
 
         let il = if nn < 2 { nn } else { 2 };

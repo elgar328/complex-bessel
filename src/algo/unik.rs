@@ -134,8 +134,7 @@ fn compute_sum<T: BesselFloat>(ikflg: IkFlag, cache: &UnikCache<T>) -> UnikOutpu
             let mut sr = czero;
             let mut tr = one;
             for i in 0..cache.init {
-                sr.re = sr.re + tr * cache.cwrk[i].re;
-                sr.im = sr.im + tr * cache.cwrk[i].im;
+                sr = sr + cache.cwrk[i] * tr;
                 tr = -tr;
             }
             (sr, 1usize)
