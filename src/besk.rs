@@ -1,6 +1,6 @@
 //! K Bessel function upper interface.
 //!
-//! Translation of Fortran ZBESK from TOMS 644 / SLATEC.
+//! Translation of Fortran ZBESK from TOMS 644 (zbsubs.f lines 894-1176).
 //! Dispatches to `zbknu` (right half-plane), `zacon` (left half-plane),
 //! and `zbunk` (large order uniform asymptotics).
 

@@ -1,6 +1,6 @@
 //! Complex hyperbolic sine and cosine.
 //!
-//! Translation of Fortran ZSHCH from TOMS 644 / SLATEC.
+//! Translation of Fortran ZSHCH from TOMS 644 (zbsubs.f lines 3082-3103).
 
 use num_complex::Complex;
 

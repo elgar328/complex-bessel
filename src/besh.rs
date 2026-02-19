@@ -1,6 +1,6 @@
 //! Hankel function upper interface.
 //!
-//! Translation of Fortran ZBESH from TOMS 644 / SLATEC.
+//! Translation of Fortran ZBESH from TOMS 644 (zbsubs.f lines 5-354).
 //! Dispatches to `zbknu` (right half-plane of rotated argument),
 //! `zacon` (left half-plane), and `zbunk` (large order uniform asymptotics).
 //!

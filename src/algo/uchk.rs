@@ -1,6 +1,6 @@
 //! Underflow check for scaled complex values.
 //!
-//! Translation of Fortran ZUCHK from TOMS 644 / SLATEC.
+//! Translation of Fortran ZUCHK from TOMS 644 (zbsubs.f lines 4778-4805).
 
 use num_complex::Complex;
 

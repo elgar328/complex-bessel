@@ -1,6 +1,6 @@
 //! Natural logarithm of the Gamma function.
 //!
-//! Translation of Fortran DGAMLN from TOMS 644 / SLATEC.
+//! Translation of Fortran DGAMLN from TOMS 644 (zbsubs.f lines 4489-4677).
 //! Uses table lookup for integer arguments 1..100 and Stirling's
 //! asymptotic expansion for general z > 0.
 

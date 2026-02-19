@@ -1,6 +1,6 @@
 //! K function scaling to handle underflow in the recurrence.
 //!
-//! Translation of Fortran ZKSCL from TOMS 644 / SLATEC.
+//! Translation of Fortran ZKSCL from TOMS 644 (zbsubs.f lines 2960-3081).
 
 #![allow(unused_assignments)]
 

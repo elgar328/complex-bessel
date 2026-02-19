@@ -1,6 +1,6 @@
 //! I Bessel function via Wronskian normalization.
 //!
-//! Translation of Fortran ZWRSK from TOMS 644.
+//! Translation of Fortran ZWRSK from TOMS 644 (zbsubs.f lines 3527-3621).
 //! Computes I(fnu+k, z) for Re(z) >= 0 by normalizing the I-function
 //! ratios from ZRATI using the Wronskian with K(fnu, z) and K(fnu+1, z).
 

@@ -1,6 +1,6 @@
 //! Core computation of the K Bessel function in the right half z-plane.
 //!
-//! Translation of Fortran ZBKNU from TOMS 644 / SLATEC.
+//! Translation of Fortran ZBKNU from TOMS 644 (zbsubs.f lines 2391-2959).
 //! This is the largest and most complex routine in the Amos algorithm.
 
 // Exact Fortran constants — preserve verbatim.

@@ -1,7 +1,7 @@
 //! Airy functions Ai(z), Bi(z) and their derivatives.
 //!
 //! Translation of Fortran ZAIRY (zbsubs.f lines 1462-1856)
-//! and ZBIRY (zbsubs.f lines 1857-2221) from TOMS 644.
+//! and ZBIRY (zbsubs.f lines 1857-2222) from TOMS 644.
 
 #![allow(clippy::excessive_precision)]
 
@@ -347,7 +347,7 @@ fn zairy_form_result<T: BesselFloat>(
 
 /// Compute Airy function Bi(z) or its derivative Bi'(z).
 ///
-/// Translation of Fortran ZBIRY (zbsubs.f lines 1857-2221).
+/// Translation of Fortran ZBIRY (zbsubs.f lines 1857-2222).
 ///
 /// KODE=2 returns exp(-|Re(zta)|)*Bi(z) where zta=(2/3)*z*sqrt(z).
 pub(crate) fn zbiry<T: BesselFloat>(

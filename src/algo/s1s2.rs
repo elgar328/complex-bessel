@@ -1,6 +1,6 @@
 //! Stokes multiplier normalization for analytic continuation.
 //!
-//! Translation of Fortran ZS1S2 from TOMS 644 / SLATEC.
+//! Translation of Fortran ZS1S2 from TOMS 644 (zbsubs.f lines 3237-3286).
 
 use num_complex::Complex;
 

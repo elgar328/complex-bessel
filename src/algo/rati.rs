@@ -1,6 +1,6 @@
 //! I Bessel function ratios by backward recurrence.
 //!
-//! Translation of Fortran ZRATI from TOMS 644.
+//! Translation of Fortran ZRATI from TOMS 644 (zbsubs.f lines 3104-3236).
 //! Uses the Sookne algorithm (J. Res. NBS-B, Vol 77B, 1973) to determine
 //! the starting index for backward recurrence.
 

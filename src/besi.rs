@@ -1,6 +1,6 @@
 //! I Bessel function upper interface.
 //!
-//! Translation of Fortran ZBESI from TOMS 644 (zbsubs.f lines 355-624).
+//! Translation of Fortran ZBESI from TOMS 644 (zbsubs.f lines 355-625).
 
 use num_complex::Complex;
 
