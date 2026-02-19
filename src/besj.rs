@@ -29,9 +29,7 @@ pub(crate) fn zbesj<T: BesselFloat>(
     let n = y.len();
 
     // Zero the output buffer
-    for v in y.iter_mut() {
-        *v = czero;
-    }
+    y.fill(czero);
 
     // Input validation (Fortran lines 783-788)
     if n < 1 {

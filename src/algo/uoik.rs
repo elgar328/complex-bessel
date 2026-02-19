@@ -43,9 +43,7 @@ pub(crate) fn zuoik<T: BesselFloat>(
     let one = T::one();
     let czero = Complex::new(zero, zero);
     let n = y.len();
-    for v in y.iter_mut() {
-        *v = czero;
-    }
+    y.fill(czero);
     let mut nuf: i32 = 0;
     let mut nn = n;
 

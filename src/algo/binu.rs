@@ -38,9 +38,7 @@ pub(crate) fn zbinu<T: BesselFloat>(
     let czero = Complex::new(zero, zero);
 
     let n = cy.len();
-    for v in cy.iter_mut() {
-        *v = czero;
-    }
+    cy.fill(czero);
 
     let mut nz: usize = 0;
     let az = zabs(z);

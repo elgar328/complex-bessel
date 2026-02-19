@@ -64,9 +64,7 @@ pub(crate) fn zunk2<T: BesselFloat>(
     let cr1 = Complex::new(T::from_f64(CR1[0]), T::from_f64(CR1[1]));
     let cr2 = Complex::new(T::from_f64(CR2[0]), T::from_f64(CR2[1]));
 
-    for v in y.iter_mut() {
-        *v = czero;
-    }
+    y.fill(czero);
     let mut kdflg: usize = 1;
     let mut nz: i32 = 0;
 
@@ -295,9 +293,7 @@ pub(crate) fn zunk2<T: BesselFloat>(
                 return -1;
             }
             nz = n as i32;
-            for item in y.iter_mut() {
-                *item = czero;
-            }
+            y.fill(czero);
             return nz;
         }
         if rs1.abs() >= alim {

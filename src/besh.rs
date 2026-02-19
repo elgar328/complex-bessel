@@ -106,9 +106,7 @@ pub(crate) fn zbesh<T: BesselFloat>(
     let mut nn_eff = nn;
 
     // Initialize output to zero
-    for v in y.iter_mut() {
-        *v = czero;
-    }
+    y.fill(czero);
 
     if fnu > fnul {
         // Large order: uniform asymptotic expansions (ZBUNK)

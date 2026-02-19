@@ -58,9 +58,7 @@ pub(crate) fn zuni1<T: BesselFloat>(
     let mut nlast: i32 = 0;
 
     // Initialize output slice to zero
-    for v in y.iter_mut() {
-        *v = czero;
-    }
+    y.fill(czero);
 
     // ── 3-level scaling (Fortran lines 6877-6885) ──
     let cscl = one / tol;
@@ -91,9 +89,7 @@ pub(crate) fn zuni1<T: BesselFloat>(
         }
         // All underflow (label 130 → set all to zero)
         nz = n as i32;
-        for item in y.iter_mut() {
-            *item = czero;
-        }
+        y.fill(czero);
         return Uni1Output { nz, nlast: 0 };
     }
 

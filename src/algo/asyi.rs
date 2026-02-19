@@ -40,9 +40,7 @@ pub(crate) fn zasyi<T: BesselFloat>(
     let rtpi = T::from_f64(0.159154943091895336); // 1/(2*pi)
 
     let n = y.len();
-    for v in y.iter_mut() {
-        *v = czero;
-    }
+    y.fill(czero);
     let nz: i32 = 0;
 
     let az = zabs(z);

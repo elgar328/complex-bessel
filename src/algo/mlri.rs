@@ -24,9 +24,7 @@ pub(crate) fn zmlri<T: BesselFloat>(
     let czero = Complex::new(zero, zero);
 
     let n = y.len();
-    for v in y.iter_mut() {
-        *v = czero;
-    }
+    y.fill(czero);
 
     let scle = T::MACH_TINY / tol;
     let nz: i32 = 0;

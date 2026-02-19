@@ -50,9 +50,7 @@ pub(crate) fn zbuni<T: BesselFloat>(
     let czero = Complex::new(zero, zero);
 
     let n = y.len();
-    for v in y.iter_mut() {
-        *v = czero;
-    }
+    y.fill(czero);
     let nz: i32 = 0;
 
     // Region select (Fortran lines 6687-6690)

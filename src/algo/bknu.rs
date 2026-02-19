@@ -76,9 +76,7 @@ pub(crate) fn zbknu<T: BesselFloat>(
     let czero = Complex::new(zero, zero);
 
     let n = y.len();
-    for v in y.iter_mut() {
-        *v = czero;
-    }
+    y.fill(czero);
 
     let caz = zabs(z);
     let csclr = one / tol;

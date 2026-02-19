@@ -34,9 +34,7 @@ pub(crate) fn zseri<T: BesselFloat>(
     let cone = Complex::from(one);
 
     let n = y.len();
-    for v in y.iter_mut() {
-        *v = czero;
-    }
+    y.fill(czero);
     let mut nz: i32 = 0;
 
     let az = zabs(z);

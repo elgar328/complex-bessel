@@ -36,9 +36,7 @@ pub(crate) fn zbesy<T: BesselFloat>(
     let hpi_t = T::from_f64(HPI);
 
     // Zero the output buffer
-    for yi in y.iter_mut() {
-        *yi = czero;
-    }
+    y.fill(czero);
 
     // Input validation (Fortran lines 1342-1348)
     if n < 1 {

@@ -48,9 +48,7 @@ pub(crate) fn zacai<T: BesselFloat>(
 
     let mut nz: i32 = 0;
     let n = y.len();
-    for v in y.iter_mut() {
-        *v = czero;
-    }
+    y.fill(czero);
 
     // ZN = -Z (Fortran line 4703-4704)
     let zn = -z;
