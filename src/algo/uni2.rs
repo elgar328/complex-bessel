@@ -94,11 +94,9 @@ pub(crate) fn zuni2<T: BesselFloat>(
     let result0 = zunhj(Complex::new(znr, zni), fn_val, SumOption::SkipSum, tol);
 
     let rs1 = if kode == Scaling::Exponential {
-        let str = zbr + result0.zeta2.re;
-        let sti = zbi + result0.zeta2.im;
-        let rast = fn_val / zabs(Complex::new(str, sti));
-        let str2 = str * rast * rast;
-        -result0.zeta1.re + str2
+        let st = Complex::new(zbr, zbi) + result0.zeta2;
+        let rast = fn_val / zabs(st);
+        -result0.zeta1.re + st.re * rast * rast
     } else {
         -result0.zeta1.re + result0.zeta2.re
     };
@@ -128,27 +126,20 @@ pub(crate) fn zuni2<T: BesselFloat>(
             let fn_val = fnu + T::from_f64((nd - 1 - i) as f64);
             let result = zunhj(Complex::new(znr, zni), fn_val, SumOption::Full, tol);
 
-            let (s1r, s1i) = if kode == Scaling::Exponential {
+            let s1_exp = if kode == Scaling::Exponential {
                 // KODE=2 path (Fortran lines 7151-7158)
                 // NOTE: s1i += |zi| (absolute value!), NOT zi like ZUNI1
-                let str = zbr + result.zeta2.re;
-                let sti = zbi + result.zeta2.im;
-                let rast = fn_val / zabs(Complex::new(str, sti));
-                let str2 = str * rast * rast;
-                let sti2 = -sti * rast * rast;
-                (
-                    -result.zeta1.re + str2,
-                    -result.zeta1.im + sti2 + z.im.abs(),
-                )
+                let st = Complex::new(zbr, zbi) + result.zeta2;
+                let rast = fn_val / zabs(st);
+                let mut s = st.conj() * (rast * rast) - result.zeta1;
+                s.im = s.im + z.im.abs();
+                s
             } else {
-                (
-                    -result.zeta1.re + result.zeta2.re,
-                    -result.zeta1.im + result.zeta2.im,
-                )
+                result.zeta2 - result.zeta1
             };
 
             // ── Overflow/underflow test (Fortran lines 7167-7203) ──
-            let mut rs1 = s1r;
+            let mut rs1 = s1_exp.re;
             if rs1.abs() > elim {
                 if rs1 > zero {
                     return Uni2Output { nz: -1, nlast: 0 };
@@ -245,7 +236,7 @@ pub(crate) fn zuni2<T: BesselFloat>(
 
             let s2_airy = result.phi * (ai * result.asum + dai * result.bsum);
 
-            let s1_scaled = Complex::new(s1r, s1i).exp() * cssr[iflag - 1];
+            let s1_scaled = s1_exp.exp() * cssr[iflag - 1];
             let mut s2_val = s2_airy * s1_scaled;
 
             if iflag == 1 && zuchk(s2_val, bry0, tol) {

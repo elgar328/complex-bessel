@@ -73,22 +73,17 @@ pub(crate) fn zuni1<T: BesselFloat>(
     let fn_val = fnu.max(one);
     let result0 = zunik(z, fn_val, IkFlag::I, SumOption::SkipSum, tol, None);
 
-    let (s1r, _s1i) = if kode == Scaling::Exponential {
+    let s1_check = if kode == Scaling::Exponential {
         // KODE=2 (Fortran lines 6894-6900)
         let st = z + result0.zeta2;
         let rast = fn_val / zabs(st);
-        let str_val = st.re * rast * rast;
-        let sti = -st.im * rast * rast;
-        (-result0.zeta1.re + str_val, -result0.zeta1.im + sti)
+        st.conj() * (rast * rast) - result0.zeta1
     } else {
         // KODE=1 (Fortran lines 6903-6904)
-        (
-            -result0.zeta1.re + result0.zeta2.re,
-            -result0.zeta1.im + result0.zeta2.im,
-        )
+        result0.zeta2 - result0.zeta1
     };
 
-    let rs1 = s1r;
+    let rs1 = s1_check.re;
     if rs1.abs() > elim {
         if rs1 > zero {
             // Overflow (label 120 → NZ=-1)
@@ -115,24 +110,21 @@ pub(crate) fn zuni1<T: BesselFloat>(
             let fn_val = fnu + T::from_f64((nd - 1 - i) as f64);
             let result = zunik(z, fn_val, IkFlag::I, SumOption::Full, tol, None);
 
-            let (s1r, s1i) = if kode == Scaling::Exponential {
+            let s1_exp = if kode == Scaling::Exponential {
                 // KODE=2 (Fortran lines 6916-6922)
                 let st = z + result.zeta2;
                 let rast = fn_val / zabs(st);
-                let str_val = st.re * rast * rast;
-                let sti = -st.im * rast * rast;
                 // Note: Fortran line 6922 has +ZI for S1I (not present in KODE=1 path)
-                (-result.zeta1.re + str_val, -result.zeta1.im + sti + z.im)
+                let mut s = st.conj() * (rast * rast) - result.zeta1;
+                s.im = s.im + z.im;
+                s
             } else {
                 // KODE=1 (Fortran lines 6925-6926)
-                (
-                    -result.zeta1.re + result.zeta2.re,
-                    -result.zeta1.im + result.zeta2.im,
-                )
+                result.zeta2 - result.zeta1
             };
 
             // ── Test for underflow/overflow (Fortran lines 6931-6958) ──
-            let rs1 = s1r;
+            let rs1 = s1_exp.re;
             if rs1.abs() > elim {
                 // label 110: underflow or overflow
                 if rs1 > zero {
@@ -210,7 +202,7 @@ pub(crate) fn zuni1<T: BesselFloat>(
 
             // ── Scale S1 and compute S2 = PHI * SUM (Fortran lines 6948-6964) ──
             let s2 = result.phi * result.sum;
-            let s1_scaled = Complex::new(s1r, s1i).exp() * cssr[iflag - 1];
+            let s1_scaled = s1_exp.exp() * cssr[iflag - 1];
             let s2_final = s2 * s1_scaled;
 
             if iflag == 1 && zuchk(s2_final, bry0, tol) {

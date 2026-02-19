@@ -100,20 +100,15 @@ pub(crate) fn zunk1<T: BesselFloat>(
         caches[j] = Some(result.cache);
 
         // Compute S1 exponent (Fortran lines 5797-5808)
-        let (s1r, s1i) = if kode == Scaling::Exponential {
-            let st = Complex::new(zrr + result.zeta2.re, zri + result.zeta2.im);
+        let s1_exp = if kode == Scaling::Exponential {
+            let st = Complex::new(zrr, zri) + result.zeta2;
             let rast = fn_val / zabs(st);
-            let str_val = st.re * rast * rast;
-            let sti = -st.im * rast * rast;
-            (result.zeta1.re - str_val, result.zeta1.im - sti)
+            result.zeta1 - st.conj() * (rast * rast)
         } else {
-            (
-                result.zeta1.re - result.zeta2.re,
-                result.zeta1.im - result.zeta2.im,
-            )
+            result.zeta1 - result.zeta2
         };
 
-        let mut rs1 = s1r;
+        let mut rs1 = s1_exp.re;
 
         // -- Overflow/underflow test (Fortran lines 5814-5864) --
         if rs1.abs() > elim {
@@ -171,7 +166,7 @@ pub(crate) fn zunk1<T: BesselFloat>(
 
         // -- Scale and store (Fortran lines 5831-5848) --
         let s2_raw = result.phi * result.sum;
-        let s1_scaled = Complex::new(s1r, s1i).exp() * cssr[kflag - 1];
+        let s1_scaled = s1_exp.exp() * cssr[kflag - 1];
         let s2 = s2_raw * s1_scaled;
 
         if kflag == 1 && zuchk(s2, bry[0], tol) {
@@ -227,20 +222,15 @@ pub(crate) fn zunk1<T: BesselFloat>(
         let result_last = zunik(zr_arg, fn_last, IkFlag::K, ipard, tol, None);
         caches[2] = Some(result_last.cache);
 
-        let (s1r_last, _s1i_last) = if kode == Scaling::Exponential {
-            let st = Complex::new(zrr + result_last.zeta2.re, zri + result_last.zeta2.im);
+        let s1_last = if kode == Scaling::Exponential {
+            let st = Complex::new(zrr, zri) + result_last.zeta2;
             let rast = fn_last / zabs(st);
-            let str_v = st.re * rast * rast;
-            let sti_v = -st.im * rast * rast;
-            (result_last.zeta1.re - str_v, result_last.zeta1.im - sti_v)
+            result_last.zeta1 - st.conj() * (rast * rast)
         } else {
-            (
-                result_last.zeta1.re - result_last.zeta2.re,
-                result_last.zeta1.im - result_last.zeta2.im,
-            )
+            result_last.zeta1 - result_last.zeta2
         };
 
-        let mut rs1 = s1r_last;
+        let mut rs1 = s1_last.re;
         if rs1.abs() > elim {
             // label 95
             if rs1.abs() > zero && rs1 > zero {
@@ -371,17 +361,15 @@ pub(crate) fn zunk1<T: BesselFloat>(
         caches[m] = Some(result_i.cache);
 
         // Compute S1 exponent for I function (Fortran lines 6019-6030)
-        let (s1r, s1i) = if kode == Scaling::Exponential {
-            let st = Complex::new(zrr + zet2d.re, zri + zet2d.im);
+        let s1_exp = if kode == Scaling::Exponential {
+            let st = Complex::new(zrr, zri) + zet2d;
             let rast = fn_val / zabs(st);
-            let str_v = st.re * rast * rast;
-            let sti_v = -st.im * rast * rast;
-            (-zet1d.re + str_v, -zet1d.im + sti_v)
+            st.conj() * (rast * rast) - zet1d
         } else {
-            (-zet1d.re + zet2d.re, -zet1d.im + zet2d.im)
+            zet2d - zet1d
         };
 
-        let mut rs1 = s1r;
+        let mut rs1 = s1_exp.re;
 
         // -- Overflow/underflow test (Fortran lines 6035-6096) --
         if rs1.abs() > elim {
@@ -475,7 +463,7 @@ pub(crate) fn zunk1<T: BesselFloat>(
         let ps = phid * sumd;
         let mut s2_i = Complex::new(zero, csgni) * ps;
 
-        let s1_sc = Complex::new(s1r, s1i).exp() * cssr[iflag - 1];
+        let s1_sc = s1_exp.exp() * cssr[iflag - 1];
         s2_i = s2_i * s1_sc;
 
         if iflag == 1 && zuchk(s2_i, bry[0], tol) {
