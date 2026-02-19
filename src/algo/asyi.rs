@@ -40,7 +40,7 @@ pub(crate) fn zasyi<T: BesselFloat>(
     let rtpi = T::from_f64(0.159154943091895336); // 1/(2*pi)
 
     let n = y.len();
-    y.fill(czero);
+    // Note: caller (zbinu) already zeroes the output buffer.
     let nz: i32 = 0;
 
     let az = zabs(z);

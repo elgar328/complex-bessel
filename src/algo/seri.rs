@@ -34,7 +34,7 @@ pub(crate) fn zseri<T: BesselFloat>(
     let cone = Complex::from(one);
 
     let n = y.len();
-    y.fill(czero);
+    // Note: caller (zbinu) already zeroes the output buffer.
     let mut nz: i32 = 0;
 
     let az = zabs(z);

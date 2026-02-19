@@ -24,7 +24,7 @@ pub(crate) fn zmlri<T: BesselFloat>(
     let czero = Complex::new(zero, zero);
 
     let n = y.len();
-    y.fill(czero);
+    // Note: caller (zbinu) already zeroes the output buffer.
 
     let scle = T::MACH_TINY / tol;
     let nz: i32 = 0;
