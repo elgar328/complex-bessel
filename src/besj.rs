@@ -104,15 +104,12 @@ pub(crate) fn zbesj<T: BesselFloat>(
     let ascle = T::MACH_TINY * rtol * T::from_f64(1.0e3);
 
     for cy_item in y.iter_mut().take(nl) {
-        let mut aa_val = cy_item.re;
-        let mut bb_val = cy_item.im;
-        let mut atol = one;
-        if aa_val.abs().max(bb_val.abs()) <= ascle {
-            aa_val = aa_val * rtol;
-            bb_val = bb_val * rtol;
-            atol = tol;
-        }
-        *cy_item = Complex::new(aa_val, bb_val) * csgn * atol;
+        let (scaled, atol) = if cy_item.re.abs().max(cy_item.im.abs()) <= ascle {
+            (*cy_item * rtol, tol)
+        } else {
+            (*cy_item, one)
+        };
+        *cy_item = scaled * csgn * atol;
 
         // Advance CSGN: multiply by (0, cii) → CSGN *= i*CII
         // (Fortran lines 875-877)

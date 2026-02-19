@@ -65,15 +65,10 @@ pub(crate) fn zbesi<T: BesselFloat>(
 
     // Compute in right half-plane, continue to left if needed
     // (Fortran lines 561-610)
-    let mut znr = z.re;
-    let mut zni = z.im;
     let mut csgn = Complex::from(one);
 
-    if z.re < zero {
+    let zn = if z.re < zero {
         // Left half-plane: use I(fnu, -z) * exp(fnu*pi*i)
-        znr = -z.re;
-        zni = -z.im;
-
         // CSGN = exp(fnu*pi*i) with precision preservation (Fortran lines 572-579)
         let inu = fnu.to_i32().unwrap();
         let mut arg = (fnu - T::from_f64(inu as f64)) * pi_t;
@@ -84,9 +79,10 @@ pub(crate) fn zbesi<T: BesselFloat>(
         if inu % 2 != 0 {
             csgn = -csgn;
         }
-    }
-
-    let zn = Complex::new(znr, zni);
+        -z
+    } else {
+        z
+    };
 
     // Call ZBINU (Fortran lines 581-583)
     let nz = zbinu(zn, fnu, scaling, y, rl, fnul, tol, elim, alim)?;
@@ -112,15 +108,12 @@ pub(crate) fn zbesi<T: BesselFloat>(
     let ascle = T::MACH_TINY * rtol * T::from_f64(1.0e3);
 
     for cy_item in y.iter_mut().take(nn) {
-        let mut aa_val = cy_item.re;
-        let mut bb_val = cy_item.im;
-        let mut atol = one;
-        if aa_val.abs().max(bb_val.abs()) <= ascle {
-            aa_val = aa_val * rtol;
-            bb_val = bb_val * rtol;
-            atol = tol;
-        }
-        *cy_item = Complex::new(aa_val, bb_val) * csgn * atol;
+        let (scaled, atol) = if cy_item.re.abs().max(cy_item.im.abs()) <= ascle {
+            (*cy_item * rtol, tol)
+        } else {
+            (*cy_item, one)
+        };
+        *cy_item = scaled * csgn * atol;
         // CSGN alternates sign each order (Fortran lines 608-609)
         csgn = -csgn;
     }

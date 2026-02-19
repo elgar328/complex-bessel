@@ -55,24 +55,23 @@ pub(crate) fn zasyi<T: BesselFloat>(
     let raz = one / az;
     let mut ak1 = (z.conj() * (rtpi * raz * raz)).sqrt();
 
-    let mut czr = z.re;
-    let czi = z.im;
-    if kode == Scaling::Exponential {
-        czr = zero;
-    }
+    let cz = if kode == Scaling::Exponential {
+        Complex::new(zero, z.im)
+    } else {
+        z
+    };
 
-    if czr.abs() > elim {
+    if cz.re.abs() > elim {
         // Overflow (Fortran label 100, line 3972)
         return -1;
     }
 
     let dnu2 = dfnu0 + dfnu0;
     let mut koded: i32 = 1;
-    if czr.abs() <= alim || n <= 2 {
+    if cz.re.abs() <= alim || n <= 2 {
         koded = 0;
         // zexp(cz) and multiply ak1
-        let cz_exp = Complex::new(czr, czi).exp();
-        ak1 = ak1 * cz_exp;
+        ak1 = ak1 * cz.exp();
     }
 
     let mut fdn = if dnu2 > rtr1 { dnu2 * dnu2 } else { zero };
@@ -177,7 +176,7 @@ pub(crate) fn zasyi<T: BesselFloat>(
 
     if koded != 0 {
         // Multiply by exp(cz) (Fortran lines 3964-3970)
-        let cz_exp = Complex::new(czr, czi).exp();
+        let cz_exp = cz.exp();
         for y_item in y.iter_mut().take(nn) {
             *y_item = *y_item * cz_exp;
         }

@@ -234,19 +234,15 @@ pub(crate) fn zbesh<T: BesselFloat>(
 
     // Apply phase factor to each component (Fortran lines 314-336)
     for item in y.iter_mut().take(nn_eff) {
-        let mut aa_val = item.re;
-        let mut bb_val = item.im;
-        let mut atol = one;
-
         // Underflow protection: scale up tiny values (Fortran lines 323-327)
-        if aa_val.abs().max(bb_val.abs()) <= ascle {
-            aa_val = aa_val * rtol;
-            bb_val = bb_val * rtol;
-            atol = tol;
-        }
+        let (scaled, atol) = if item.re.abs().max(item.im.abs()) <= ascle {
+            (*item * rtol, tol)
+        } else {
+            (*item, one)
+        };
 
-        // CY(I) = (AA + i*BB) * CSGN * ATOL (Fortran lines 329-332)
-        *item = Complex::new(aa_val, bb_val) * csgn * atol;
+        // CY(I) = scaled * CSGN * ATOL (Fortran lines 329-332)
+        *item = scaled * csgn * atol;
 
         // Advance CSGN: CSGN *= (0, ZTI) (Fortran lines 333-335)
         csgn = csgn * Complex::new(zero, zti);

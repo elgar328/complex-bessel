@@ -122,42 +122,27 @@ pub(crate) fn zbesy<T: BesselFloat>(
         let ascle = T::MACH_TINY * rtol * T::from_f64(1.0e3);
 
         // Scale K values if near underflow (Fortran lines 1423-1433)
-        let mut zvr = k_buf[0].re;
-        let mut zvi = k_buf[0].im;
-        let mut atol = one;
-        if zvr.abs().max(zvi.abs()) <= ascle {
-            zvr = zvr * rtol;
-            zvi = zvi * rtol;
-            atol = tol;
-        }
-        let zv_result = Complex::new(zvr, zvi) * cspn * atol;
-        zvr = zv_result.re;
-        zvi = zv_result.im;
+        let (zv_s, zv_atol) = if k_buf[0].re.abs().max(k_buf[0].im.abs()) <= ascle {
+            (k_buf[0] * rtol, tol)
+        } else {
+            (k_buf[0], one)
+        };
+        let zv = zv_s * cspn * zv_atol;
 
         // Scale I values if near underflow (Fortran lines 1434-1444)
-        let mut zur = i_buf[0].re;
-        let mut zui = i_buf[0].im;
-        atol = one;
-        if zur.abs().max(zui.abs()) <= ascle {
-            zur = zur * rtol;
-            zui = zui * rtol;
-            atol = tol;
-        }
-        let zu_result = Complex::new(zur, zui) * csgn * atol;
-        zur = zu_result.re;
-        zui = zu_result.im;
+        let (zu_s, zu_atol) = if i_buf[0].re.abs().max(i_buf[0].im.abs()) <= ascle {
+            (i_buf[0] * rtol, tol)
+        } else {
+            (i_buf[0], one)
+        };
+        let zu = zu_s * csgn * zu_atol;
 
         // CY(I) = ZU - ZV (Fortran lines 1445-1449)
-        let cyr = zur - zvr;
-        let cyi_val = zui - zvi;
+        let cy_val = zu - zv;
 
-        y[0] = if z.im < zero {
-            Complex::new(cyr, -cyi_val)
-        } else {
-            Complex::new(cyr, cyi_val)
-        };
+        y[0] = if z.im < zero { cy_val.conj() } else { cy_val };
 
-        let nz_out = if cyr == zero && cyi_val == zero && ey == zero {
+        let nz_out = if cy_val.re == zero && cy_val.im == zero && ey == zero {
             1
         } else {
             0
@@ -222,42 +207,27 @@ pub(crate) fn zbesy<T: BesselFloat>(
 
         for i in 0..n {
             // Scale K values if near underflow (Fortran lines 1423-1433)
-            let mut zvr = k_buf[i].re;
-            let mut zvi = k_buf[i].im;
-            let mut atol = one;
-            if zvr.abs().max(zvi.abs()) <= ascle {
-                zvr = zvr * rtol;
-                zvi = zvi * rtol;
-                atol = tol;
-            }
-            let zv_result = Complex::new(zvr, zvi) * cspn * atol;
-            zvr = zv_result.re;
-            zvi = zv_result.im;
+            let (zv_s, zv_atol) = if k_buf[i].re.abs().max(k_buf[i].im.abs()) <= ascle {
+                (k_buf[i] * rtol, tol)
+            } else {
+                (k_buf[i], one)
+            };
+            let zv = zv_s * cspn * zv_atol;
 
             // Scale I values if near underflow (Fortran lines 1434-1444)
-            let mut zur = i_buf[i].re;
-            let mut zui = i_buf[i].im;
-            atol = one;
-            if zur.abs().max(zui.abs()) <= ascle {
-                zur = zur * rtol;
-                zui = zui * rtol;
-                atol = tol;
-            }
-            let zu_result = Complex::new(zur, zui) * csgn * atol;
-            zur = zu_result.re;
-            zui = zu_result.im;
+            let (zu_s, zu_atol) = if i_buf[i].re.abs().max(i_buf[i].im.abs()) <= ascle {
+                (i_buf[i] * rtol, tol)
+            } else {
+                (i_buf[i], one)
+            };
+            let zu = zu_s * csgn * zu_atol;
 
             // CY(I) = ZU - ZV (Fortran lines 1445-1449)
-            let cyr = zur - zvr;
-            let cyi_val = zui - zvi;
+            let cy_val = zu - zv;
 
-            y[i] = if z.im < zero {
-                Complex::new(cyr, -cyi_val)
-            } else {
-                Complex::new(cyr, cyi_val)
-            };
+            y[i] = if z.im < zero { cy_val.conj() } else { cy_val };
 
-            if cyr == zero && cyi_val == zero && ey == zero {
+            if cy_val.re == zero && cy_val.im == zero && ey == zero {
                 nz_out += 1;
             }
 
