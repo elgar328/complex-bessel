@@ -171,6 +171,7 @@ fn dispatch_20<T: BesselFloat>(
 }
 
 /// Map Fortran NW error codes to BesselError.
+#[inline]
 fn handle_error<T>(nw: i32) -> Result<T, BesselError> {
     if nw == -2 {
         Err(BesselError::ConvergenceFailure)

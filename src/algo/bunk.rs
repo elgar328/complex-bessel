@@ -18,6 +18,7 @@ use crate::types::Scaling;
 ///
 /// # Returns
 /// `nz` where nz = -1 indicates overflow.
+#[inline]
 pub(crate) fn zbunk<T: BesselFloat>(
     z: Complex<T>,
     fnu: T,

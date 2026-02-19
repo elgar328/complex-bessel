@@ -106,6 +106,7 @@ fn airy_power_series<T: BesselFloat>(
 /// Translation of Fortran ZAIRY (zbsubs.f lines 1462-1856).
 ///
 /// Returns `(result, nz)` where nz=0 normal, nz=1 underflow (result=0).
+#[inline]
 pub(crate) fn zairy<T: BesselFloat>(
     z: Complex<T>,
     id: AiryDerivative,
@@ -192,6 +193,7 @@ pub(crate) fn zairy<T: BesselFloat>(
 
 /// Multiply `val` by exp(zta) where zta = (2/3)*z*sqrt(z).
 /// KODE=2 scaling for ZAIRY power series branch (Fortran lines 1667-1673).
+#[inline]
 fn zairy_scale_exp_zta<T: BesselFloat>(z: Complex<T>, val: Complex<T>, tth: T) -> Complex<T> {
     let zta = z * z.sqrt() * tth;
     val * zta.exp()
@@ -200,6 +202,7 @@ fn zairy_scale_exp_zta<T: BesselFloat>(z: Complex<T>, val: Complex<T>, tth: T) -
 /// Compute zta = (2/3)*z*sqrt(z) with branch cut correction.
 /// Shared by zairy_large_z and zbiry_large_z.
 /// (Fortran ZAIRY lines 1731-1749, ZBIRY lines 2123-2139)
+#[inline]
 fn airy_zta<T: BesselFloat>(z: Complex<T>, tth: T) -> (Complex<T>, Complex<T>) {
     let zero = T::zero();
     let csq = z.sqrt();
@@ -352,6 +355,7 @@ fn zairy_form_result<T: BesselFloat>(
 /// Translation of Fortran ZBIRY (zbsubs.f lines 1857-2222).
 ///
 /// KODE=2 returns exp(-|Re(zta)|)*Bi(z) where zta=(2/3)*z*sqrt(z).
+#[inline]
 pub(crate) fn zbiry<T: BesselFloat>(
     z: Complex<T>,
     id: AiryDerivative,
@@ -414,6 +418,7 @@ pub(crate) fn zbiry<T: BesselFloat>(
 
 /// Multiply `val` by exp(-|Re(zta)|) for ZBIRY KODE=2 in the power series branch.
 /// (Fortran lines 2056-2063 / 2076-2083)
+#[inline]
 fn zbiry_scale_exp<T: BesselFloat>(z: Complex<T>, val: Complex<T>, tth: T) -> Complex<T> {
     let zta_re = (z * z.sqrt() * tth).re;
     val * (-zta_re.abs()).exp()

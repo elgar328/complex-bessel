@@ -115,6 +115,7 @@ pub(crate) struct UnikOutput<T: BesselFloat> {
 ///
 /// For I function: straight sum of cwrk[0..init].
 /// For K function: alternating sum of cwrk[0..init].
+#[inline]
 fn compute_sum<T: BesselFloat>(ikflg: IkFlag, cache: &UnikCache<T>) -> UnikOutput<T> {
     let zero = T::zero();
     let one = T::one();
