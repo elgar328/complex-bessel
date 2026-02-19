@@ -380,15 +380,14 @@ pub(crate) fn zunhj<T: BesselFloat>(
     }
 
     // ── Compute in the fourth quadrant (Fortran lines 5466-5477) ──
-    let zbr = z.re * rfnu;
-    let zbi = z.im * rfnu;
+    let zb = z * rfnu;
     let rfnu2 = rfnu * rfnu;
     let fn13 = fnu.powf(T::from_f64(EX1)); // fnu^(1/3)
     let fn23 = fn13 * fn13; // fnu^(2/3)
     let rfn13 = one / fn13;
 
     // W2 = 1 - ZB^2 (Fortran lines 5475-5476)
-    let w2 = Complex::new(one - zbr * zbr + zbi * zbi, -(zbr + zbr) * zbi);
+    let w2 = cone - zb * zb;
     let aw2 = zabs(w2);
 
     if aw2 <= T::from_f64(0.25) {
@@ -397,9 +396,7 @@ pub(crate) fn zunhj<T: BesselFloat>(
     }
 
     // ── |W2| > 0.25: direct computation (Fortran lines 5584-5731) ──
-    large_w2_branch(
-        z, w2, aw2, zbr, zbi, fnu, fn23, rfn13, rfnu, rfnu2, ipmtr, tol,
-    )
+    large_w2_branch(w2, aw2, zb, fnu, fn23, rfn13, rfnu, rfnu2, ipmtr, tol)
 }
 
 /// Small |W2| branch: power series (Fortran lines 5482-5579).
@@ -546,11 +543,9 @@ fn small_w2_branch<T: BesselFloat>(
 
 /// Large |W2| branch: direct computation (Fortran lines 5584-5731).
 fn large_w2_branch<T: BesselFloat>(
-    _z: Complex<T>,
     w2: Complex<T>,
     aw2: T,
-    zbr: T,
-    zbi: T,
+    zb: Complex<T>,
     fnu: T,
     fn23: T,
     rfn13: T,
@@ -574,11 +569,10 @@ fn large_w2_branch<T: BesselFloat>(
     if wi < zero {
         wi = zero;
     }
+    let w_c = Complex::new(wr, wi); // clamped w as Complex
 
     // ZA = (1+W)/ZB, ZC = log(ZA) (Fortran lines 5588-5594)
-    let str = one + wr;
-    let sti = wi;
-    let za = zdiv(Complex::new(str, sti), Complex::new(zbr, zbi));
+    let za = zdiv(w_c + one, zb);
     let zc = za.ln();
     let mut zcr = zc.re;
     let mut zci = zc.im;
@@ -599,7 +593,7 @@ fn large_w2_branch<T: BesselFloat>(
 
     // ZETA1 = ZC * FNU, ZETA2 = W * FNU (Fortran lines 5597-5600)
     let zeta1 = Complex::new(zcr * fnu, zci * fnu);
-    let zeta2 = Complex::new(wr * fnu, wi * fnu);
+    let zeta2 = w_c * fnu;
 
     // Compute AZTH, ANG for ZTH^(2/3) (Fortran lines 5601-5612)
     let zth = Complex::new(zthr, zthi);
@@ -635,7 +629,7 @@ fn large_w2_branch<T: BesselFloat>(
     let rzth = zdiv(zth, zeta_c);
 
     // ZA = RZTH / W (Fortran line 5617)
-    let za = zdiv(rzth, Complex::new(wr, wi));
+    let za = zdiv(rzth, w_c);
 
     // PHI = sqrt(2*ZA) * RFN13 (Fortran lines 5620-5622)
     let phi = (za + za).sqrt() * rfn13;
@@ -653,13 +647,9 @@ fn large_w2_branch<T: BesselFloat>(
 
     // ── Compute ASUM and BSUM for |W2| > 0.25 (Fortran lines 5624-5731) ──
     let raw = one / aw2.sqrt();
-    let str = wr * raw;
-    let sti = -wi * raw;
-    let tfn = Complex::new(str * rfnu * raw, sti * rfnu * raw);
+    let tfn = w_c.conj() * (raw * raw * rfnu);
     let razth = one / azth;
-    let str2 = zthr * razth;
-    let sti2 = -zthi * razth;
-    let rzth_base = Complex::new(str2 * razth * rfnu, sti2 * razth * rfnu);
+    let rzth_base = zth.conj() * (razth * razth * rfnu);
 
     let zc_init = rzth_base * T::from_f64(AR[1]); // AR(2), 0-based [1]
 
