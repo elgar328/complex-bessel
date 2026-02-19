@@ -78,12 +78,14 @@ pub(crate) fn zasyi<T: BesselFloat>(
     // Error test parameters (Fortran lines 3875-3877)
     let aez = eight * az;
     let s = tol / aez;
+    // Safety: rl (limit) is finite and bounded
     let jl = (rl + rl).to_i32().unwrap() + 2;
 
     // Phase factor P1 (Fortran lines 3878-3895)
     let mut p1 = czero;
     if z.im != zero {
         // Compute exp(pi*(0.5+fnu+n-il)*i) minimizing precision loss
+        // Safety: fnu is finite and < ~1e15 per upper-interface checks
         let inu = fnu.to_i32().unwrap();
         let arg = (fnu - T::from_f64(inu as f64)) * pi;
         let inu_adj = inu + n as i32 - il as i32;

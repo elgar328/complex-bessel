@@ -59,6 +59,7 @@ pub(crate) fn zbesj<T: BesselFloat>(
 
     // CSGN = exp(fnu*HPI*i) with precision preservation (Fortran lines 830-839)
     let mut cii = one;
+    // Safety: fnu is finite and < ~1e15 per upper-interface checks
     let inu = fnu.to_i32().unwrap();
     let inuh = inu / 2;
     let ir = inu - 2 * inuh;

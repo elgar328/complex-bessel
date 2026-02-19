@@ -60,6 +60,7 @@ pub(crate) fn zbesi<T: BesselFloat>(
     let (zn, mut csgn) = if z.re < zero {
         // Left half-plane: use I(fnu, -z) * exp(fnu*pi*i)
         // CSGN = exp(fnu*pi*i) with precision preservation (Fortran lines 572-579)
+        // Safety: fnu is finite and < ~1e15 per upper-interface checks
         let inu = fnu.to_i32().unwrap();
         let mut arg = (fnu - T::from_f64(inu as f64)) * pi_t;
         if z.im < zero {

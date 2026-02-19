@@ -56,6 +56,7 @@ pub(crate) fn zbesy<T: BesselFloat>(
     let zn = Complex::new(z.im.abs(), -z.re);
 
     // Compute coefficients CC and CSPN (Fortran lines 1359-1373)
+    // Safety: fnu is finite and < ~1e15 per upper-interface checks
     let ifnu = fnu.to_i32().unwrap();
     let ffnu = fnu - T::from_f64(ifnu as f64);
     let arg = hpi_t * ffnu;

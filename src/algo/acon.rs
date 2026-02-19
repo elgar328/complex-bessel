@@ -71,6 +71,7 @@ pub(crate) fn zacon<T: BesselFloat>(
     }
 
     // CSPN = exp(fnu*pi*i) with precision preservation (Fortran lines 4231-4239)
+    // Safety: fnu is finite and < ~1e15 per upper-interface checks
     let inu = fnu.to_i32().unwrap();
     let arg = (fnu - T::from_f64(inu as f64)) * sgn;
     let mut cspn = Complex::new(arg.cos(), arg.sin());
@@ -84,6 +85,9 @@ pub(crate) fn zacon<T: BesselFloat>(
 
     let mut c1 = s1;
     let mut c2 = y[0]; // I value from zbinu
+    // sc1/sc2 track S1S2 outputs across iterations for IUF=3 recovery
+    // (Fortran lines 4339-4345). Declared here to match Fortran variable scope;
+    // the "unused" first assignment mirrors the Fortran initialization pattern.
     #[allow(unused_assignments)]
     let mut sc1 = czero;
     #[allow(unused_assignments)]

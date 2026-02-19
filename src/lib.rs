@@ -139,6 +139,7 @@
 //! complex-bessel = { version = "0.1", default-features = false, features = ["alloc"] }
 //! ```
 
+#![warn(missing_docs)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 #[cfg(all(feature = "alloc", not(feature = "std")))]
@@ -363,6 +364,17 @@ fn hankel_internal<T: BesselFloat>(
 /// For negative ν, the DLMF 10.4.1 reflection formula is applied:
 /// `J_{-ν}(z) = cos(νπ) J_ν(z) - sin(νπ) Y_ν(z)`.
 ///
+/// # Example
+///
+/// ```
+/// use complex_bessel::besselj;
+/// use num_complex::Complex;
+///
+/// let z = Complex::new(1.0_f64, 0.0);
+/// let j0 = besselj(0.0, z).unwrap();
+/// assert!(j0.re > 0.0); // J_0(1) ≈ 0.7652
+/// ```
+///
 /// # Errors
 ///
 /// Returns [`BesselError`] if the computation fails (overflow, precision loss, etc.).
@@ -378,6 +390,17 @@ pub fn besselj<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Besse
 ///
 /// For negative ν, the DLMF 10.4.2 reflection formula is applied:
 /// `Y_{-ν}(z) = sin(νπ) J_ν(z) + cos(νπ) Y_ν(z)`.
+///
+/// # Example
+///
+/// ```
+/// use complex_bessel::bessely;
+/// use num_complex::Complex;
+///
+/// let z = Complex::new(1.0_f64, 0.0);
+/// let y0 = bessely(0.0, z).unwrap();
+/// assert!(y0.re > 0.0); // Y_0(1) ≈ 0.0883
+/// ```
 ///
 /// # Errors
 ///
@@ -395,6 +418,17 @@ pub fn bessely<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Besse
 /// For negative ν, the DLMF 10.27.2 reflection formula is applied:
 /// `I_{-ν}(z) = I_ν(z) + (2/π) sin(νπ) K_ν(z)`.
 ///
+/// # Example
+///
+/// ```
+/// use complex_bessel::besseli;
+/// use num_complex::Complex;
+///
+/// let z = Complex::new(1.0, 0.0);
+/// let i0 = besseli(0.0, z).unwrap();
+/// assert!(i0.re > 1.0); // I_0(1) ≈ 1.2661
+/// ```
+///
 /// # Errors
 ///
 /// Returns [`BesselError`] if the computation fails (overflow, precision loss, etc.).
@@ -407,6 +441,17 @@ pub fn besseli<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Besse
 ///
 /// Computes a single value of K_ν(z) for complex z and real order ν
 /// (any real value, including negative). K is even in ν: K_{-ν}(z) = K_ν(z).
+///
+/// # Example
+///
+/// ```
+/// use complex_bessel::besselk;
+/// use num_complex::Complex;
+///
+/// let z = Complex::new(1.0, 0.0);
+/// let k0 = besselk(0.0, z).unwrap();
+/// assert!(k0.re > 0.0); // K_0(1) ≈ 0.4211
+/// ```
 ///
 /// # Errors
 ///
@@ -423,6 +468,17 @@ pub fn besselk<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Besse
 ///
 /// For negative ν, the DLMF 10.4.6 reflection formula is applied:
 /// `H^(1)_{-ν}(z) = exp(νπi) H^(1)_ν(z)`.
+///
+/// # Example
+///
+/// ```
+/// use complex_bessel::hankel1;
+/// use num_complex::Complex;
+///
+/// let z = Complex::new(1.0_f64, 0.0);
+/// let h = hankel1(0.0, z).unwrap();
+/// assert!(h.re > 0.0 && h.im > 0.0); // H^(1)_0(1) = J_0(1) + iY_0(1)
+/// ```
 ///
 /// # Errors
 ///
@@ -454,6 +510,17 @@ pub fn hankel2<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Besse
 /// Ai(z) is a solution to the differential equation `w'' - z·w = 0`
 /// that decays exponentially for large positive real z.
 ///
+/// # Example
+///
+/// ```
+/// use complex_bessel::airy;
+/// use num_complex::Complex;
+///
+/// let z = Complex::new(0.0_f64, 0.0);
+/// let ai = airy(z).unwrap();
+/// assert!(ai.re > 0.35 && ai.re < 0.36); // Ai(0) ≈ 0.3550
+/// ```
+///
 /// # Errors
 ///
 /// Returns [`BesselError`] if the computation fails.
@@ -481,6 +548,17 @@ pub fn airyprime<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, BesselErro
 /// Computes the Airy function Bi(z) for complex z.
 /// Bi(z) is the solution to `w'' - z·w = 0` that grows exponentially
 /// for large positive real z.
+///
+/// # Example
+///
+/// ```
+/// use complex_bessel::biry;
+/// use num_complex::Complex;
+///
+/// let z = Complex::new(0.0_f64, 0.0);
+/// let bi = biry(z).unwrap();
+/// assert!(bi.re > 0.61 && bi.re < 0.62); // Bi(0) ≈ 0.6149
+/// ```
 ///
 /// # Errors
 ///
@@ -711,6 +789,20 @@ fn seq_helper<T: BesselFloat>(
 /// Requires ν ≥ 0. Use [`besselj`] for negative orders.
 ///
 /// See [crate-level docs](crate#consecutive-orders) for more on sequence functions.
+///
+/// # Example
+///
+/// ```
+/// use complex_bessel::*;
+/// use num_complex::Complex;
+///
+/// let z = Complex::new(1.0, 0.0);
+///
+/// // J_0(z), J_1(z), J_2(z) in one call
+/// let result = besselj_seq(0.0, z, 3, Scaling::Unscaled).unwrap();
+/// assert_eq!(result.values.len(), 3);
+/// assert!(result.values[0].re > 0.0); // J_0(1) ≈ 0.7652
+/// ```
 ///
 /// # Errors
 ///

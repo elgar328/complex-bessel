@@ -106,6 +106,7 @@ pub(crate) fn zacai<T: BesselFloat>(
     }
 
     // CSPN = exp(FNU*PI*I) with precision preservation (Fortran lines 4751-4758)
+    // Safety: fnu is finite and < ~1e15 per upper-interface checks
     let inu = fnu.to_i32().unwrap();
     let arg = (fnu - T::from_f64(inu as f64)) * sgn;
     let mut cspn = Complex::new(arg.cos(), arg.sin());

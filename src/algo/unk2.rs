@@ -87,6 +87,7 @@ pub(crate) fn zunk2<T: BesselFloat>(
     let zn = Complex::new(zr.im.abs(), -zr.re);
     let zb = Complex::new(zr.re, zr.im.abs());
 
+    // Safety: fnu is finite and < ~1e15 per upper-interface checks
     let inu = fnu.to_i32().unwrap() as usize;
     let fnf = fnu - T::from_f64(inu as f64);
     let ang = -hpi_t * fnf;

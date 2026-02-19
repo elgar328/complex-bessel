@@ -126,6 +126,7 @@ fn dispatch_20<T: BesselFloat>(
     if *dfnu > fnul || az > fnul {
         // Label 110: increment fnu+nn-1 up to fnul, compute and recur backward
         // (Fortran lines 4469-4481)
+        // Safety: fnul and dfnu are finite f64-representable values
         let nui_f = (fnul - *dfnu).to_f64().unwrap() as i32 + 1;
         let nui = nui_f.max(0) as usize;
         let result = zbuni(z, fnu, kode, &mut cy[..*nn], nui, fnul, tol, elim, alim);

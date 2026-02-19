@@ -82,6 +82,7 @@ pub(crate) fn zseri<T: BesselFloat>(
         // Underflow test (Fortran lines 3672-3677)
         let mut ak1r = ck.re * dfnu;
         let ak1i = ck.im * dfnu;
+        // Safety: fnup > 0 guaranteed by algorithm invariant
         let ak = gamln(fnup).unwrap();
         ak1r = ak1r - ak;
         if kode == Scaling::Exponential {

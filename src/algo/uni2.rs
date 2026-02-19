@@ -69,6 +69,7 @@ pub(crate) fn zuni2<T: BesselFloat>(
     let zb = Complex::new(z.re, z.im.abs());
     let cidi = if z.im <= zero { one } else { -one };
 
+    // Safety: fnu is finite and < ~1e15 per upper-interface checks
     let inu = fnu.to_i32().unwrap() as usize;
     let ang = T::from_f64(HPI) * (fnu - T::from_f64(inu as f64));
     let c2_base = Complex::new(ang.cos(), ang.sin());

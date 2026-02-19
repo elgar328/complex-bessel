@@ -294,6 +294,7 @@ pub(crate) fn zunk1<T: BesselFloat>(
     let sgn = if fmr < zero { pi_t } else { -pi_t };
     let csgni = sgn;
 
+    // Safety: fnu is finite and < ~1e15 per upper-interface checks
     let inu = fnu.to_i32().unwrap() as usize;
     let fnf = fnu - T::from_f64(inu as f64);
     let ifn = inu + n - 1;

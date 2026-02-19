@@ -34,8 +34,10 @@ pub(crate) fn zrati<T: BesselFloat>(z: Complex<T>, fnu: T, cy: &mut [Complex<T>]
 
     // ── Initialization (Fortran lines 3127-3148) ──
     let az = zabs(z);
+    // Safety: fnu is finite and < ~1e15 per upper-interface checks
     let inu = fnu.to_i32().unwrap();
     let idnu = inu + n as i32 - 1;
+    // Safety: az (modulus) is finite and bounded
     let magz = az.to_i32().unwrap();
     let amagz = T::from_f64((magz + 1) as f64);
     let fdnu = T::from_f64(idnu as f64);

@@ -2,6 +2,21 @@
 //!
 //! These modules implement the core numerical routines from Amos Algorithm 644.
 //! All functions are `pub(crate)` — they are not part of the public API.
+//!
+//! # Return value convention
+//!
+//! Most internal routines return `Result<usize, BesselError>` where the `usize`
+//! value (`nz`) indicates the number of trailing output components set to zero
+//! due to underflow. The upper-interface functions (`zbesj`, `zbesy`, etc.)
+//! translate these into the public `Result<(usize, BesselStatus), BesselError>`.
+//!
+//! Some routines (notably `zbknu`) return `nz` as a raw `i32` internally:
+//! - `nz >= 0`: number of underflowed trailing components
+//! - `nz == -1`: overflow detected
+//! - `nz == -2`: convergence failure
+//!
+//! These sentinel values are converted to the appropriate `BesselError` variant
+//! before reaching the public API.
 
 pub(crate) mod constants;
 

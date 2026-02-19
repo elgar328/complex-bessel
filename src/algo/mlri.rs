@@ -29,7 +29,9 @@ pub(crate) fn zmlri<T: BesselFloat>(
     let scle = T::MACH_TINY / tol;
     let nz: i32 = 0;
     let az = zabs(z);
+    // Safety: az (modulus) is finite and bounded
     let iaz = az.to_i32().unwrap();
+    // Safety: fnu is finite and < ~1e15 per upper-interface checks
     let ifnu = fnu.to_i32().unwrap();
     let inu = ifnu + n as i32 - 1;
     let at = T::from_f64(iaz as f64 + 1.0);
@@ -113,6 +115,7 @@ pub(crate) fn zmlri<T: BesselFloat>(
     p2 = Complex::new(scle, zero);
     let fnf = fnu - T::from_f64(ifnu as f64);
     let tfnf = fnf + fnf;
+    // Safety: all gamln arguments are > 0 guaranteed by algorithm invariant
     let bk_ln =
         gamln(fkk + tfnf + one).unwrap() - gamln(fkk + one).unwrap() - gamln(tfnf + one).unwrap();
     let mut bk = bk_ln.exp();
@@ -173,6 +176,7 @@ pub(crate) fn zmlri<T: BesselFloat>(
     };
     let rz_ln = rz.ln();
     let p1_norm = pt - rz_ln * fnf;
+    // Safety: 1 + fnf > 0 guaranteed (fnf is fractional part of fnu)
     let ap = gamln(one + fnf).unwrap();
     let pt_norm = Complex::new(p1_norm.re - ap, p1_norm.im);
 

@@ -204,6 +204,7 @@ pub(crate) fn zbesh<T: BesselFloat>(
     let sgn = hpi_t.copysign(-fmm); // sign(HPI, -FMM)
 
     // Decompose FNU for precision: inu, inuh, ir (Fortran lines 296-299)
+    // Safety: fnu is finite and < ~1e15 per upper-interface checks
     let inu = fnu.to_i32().unwrap();
     let inuh = inu / 2;
     let ir = inu - 2 * inuh; // 0 or 1

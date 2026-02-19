@@ -12,6 +12,7 @@ use crate::machine::BesselFloat;
 
 /// Status of the computation result.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum BesselStatus {
     /// Computation within normal precision bounds (~14-15 digits for f64).
     Normal,
@@ -43,6 +44,7 @@ pub struct BesselResult<T: BesselFloat> {
 /// - Ai, Ai': `exp(ζ)` where `ζ = (2/3) · z · √z`
 /// - Bi, Bi': `exp(-|Re(ζ)|)` where `ζ = (2/3) · z · √z`
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum Scaling {
     /// No scaling applied.
     Unscaled,
@@ -94,6 +96,7 @@ pub(crate) enum AiryDerivative {
 
 /// Error type for Bessel function computation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum BesselError {
     /// Invalid input (e.g., z=0 for K/Y/H, negative order in sequence functions).
     InvalidInput,

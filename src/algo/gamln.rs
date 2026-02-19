@@ -123,6 +123,7 @@ pub(crate) fn gamln<T: BesselFloat>(z: T) -> Result<T, BesselError> {
     // Table lookup for positive integers 1..100
     // Fortran: NZ = Z; FZ = Z - NZ; IF (FZ.GT.0) GO TO 10; IF (NZ.GT.100) GO TO 10
     if z <= T::from_f64(101.0) {
+        // Safety: z is checked > 0 and <= 101 here
         let nz = z.floor().to_i32().unwrap();
         let fz = z - T::from_f64(nz as f64);
         if fz == zero && (1..=100).contains(&nz) {
@@ -141,10 +142,12 @@ pub(crate) fn gamln<T: BesselFloat>(z: T) -> Result<T, BesselError> {
     let rln = r1m5 * T::from_f64(T::MACH_DIGITS as f64);
     let fln = rln.min(T::from_f64(20.0)).max(T::from_f64(3.0)) - T::from_f64(3.0);
     let zm = T::from_f64(1.8) + T::from_f64(0.3875) * fln;
+    // Safety: zm is a small positive value derived from log-based formula
     let mz = zm.to_i32().unwrap() + 1;
     let zmin = T::from_f64(mz as f64);
 
     // If z < ZMIN, push z upward using the recursion Γ(z+n) = z(z+1)...(z+n-1)·Γ(z)
+    // Safety: z is checked > 0 at function entry and is finite
     let nz_trunc = z.floor().to_i32().unwrap(); // integer part of original z
     let (zdmy, zinc) = if z < zmin {
         let zinc_val = T::from_f64((mz - nz_trunc) as f64);
@@ -183,6 +186,7 @@ pub(crate) fn gamln<T: BesselFloat>(z: T) -> Result<T, BesselError> {
         Ok(z * (tlg - one) + half * (con - tlg) + s)
     } else {
         // Undo recursion: ln Γ(z) = ln Γ(zdmy) - ln(z·(z+1)·...·(z+zinc-1))
+        // Safety: zinc = mz - nz_trunc, a small non-negative integer
         let nz_int = zinc.to_i32().unwrap();
         let mut product = one;
         for i in 0..nz_int {

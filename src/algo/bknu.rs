@@ -97,6 +97,7 @@ pub(crate) fn zbknu<T: BesselFloat>(
     let mut koded = kode;
     let rz = reciprocal_z(z);
 
+    // Safety: fnu is finite and < ~1e15 per upper-interface checks
     let inu = (fnu + half).floor().to_i32().unwrap();
     let dnu = fnu - T::from_f64(inu as f64);
     let dnu2 = if dnu.abs() > tol { dnu * dnu } else { zero };
@@ -355,6 +356,7 @@ pub(crate) fn zbknu<T: BesselFloat>(
     }
 
     // ── Backward recurrence loop (Miller algorithm, label 180-190) ──
+    // Safety: fk is a small positive integer derived from log-based formula
     let k = fk.floor().to_i32().unwrap();
     let fk_int = T::from_f64(k as f64);
     let mut fks = fk_int * fk_int;
