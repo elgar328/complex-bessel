@@ -5,6 +5,7 @@ Pure Rust implementation of complex Bessel functions based on **Amos Algorithm 6
 [![crates.io](https://img.shields.io/crates/v/complex-bessel.svg)](https://crates.io/crates/complex-bessel)
 [![docs.rs](https://docs.rs/complex-bessel/badge.svg)](https://docs.rs/complex-bessel)
 [![license](https://img.shields.io/crates/l/complex-bessel.svg)](https://github.com/elgar328/complex-bessel)
+[![CI](https://github.com/elgar328/complex-bessel/actions/workflows/ci.yml/badge.svg)](https://github.com/elgar328/complex-bessel/actions/workflows/ci.yml)
 
 ## Features
 
