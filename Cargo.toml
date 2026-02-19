@@ -19,3 +19,7 @@ default = ["std"]
 std = ["alloc", "num-complex/std", "num-traits/std"]
 alloc = []
 
+[[example]]
+name = "basic"
+required-features = ["alloc"]
+

@@ -56,6 +56,7 @@
 //! than calling the single-value function n times.
 //!
 //! ```
+//! # #[cfg(feature = "alloc")] {
 //! use complex_bessel::*;
 //! use num_complex::Complex;
 //!
@@ -64,6 +65,7 @@
 //! // K_0(z), K_1(z), K_2(z)
 //! let seq = besselk_seq(0.0, z, 3, Scaling::Unscaled).unwrap();
 //! assert_eq!(seq.values.len(), 3);
+//! # }
 //! ```
 //!
 //! Sequence results include a [`BesselStatus`] field:
