@@ -642,7 +642,7 @@ fn iflag1_recurrence<T: BesselFloat>(
 
         if p2r >= -elim {
             let s2_log = s2.ln();
-            let p2 = Complex::new(-zd.re + s2_log.re, -zd.im + s2_log.im);
+            let p2 = s2_log - zd;
             let p2m = p2.re.exp() / tol;
             let p1_test = Complex::new(p2m * p2.im.cos(), p2m * p2.im.sin());
             if !zuchk(p1_test, ascle, tol) {

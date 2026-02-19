@@ -47,7 +47,7 @@ pub(crate) fn zbesy<T: BesselFloat>(
     if fnu < zero {
         return Err(BesselError::InvalidInput);
     }
-    if z.re == zero && z.im == zero {
+    if z == czero {
         return Err(BesselError::InvalidInput);
     }
 

@@ -664,7 +664,7 @@ fn large_w2_branch<T: BesselFloat>(
     let zc_init = rzth_base * T::from_f64(AR[1]); // AR(2), 0-based [1]
 
     let raw2 = one / aw2;
-    let t2 = Complex::new(w2.re * raw2 * raw2, -w2.im * raw2 * raw2);
+    let t2 = w2.conj() * (raw2 * raw2);
 
     // UP(2) (Fortran lines 5641-5644, 0-based index 1)
     let c2_val = T::from_f64(C_COEFFS[1]); // C(2)
