@@ -2,8 +2,6 @@
 //!
 //! Translation of Fortran ZKSCL from TOMS 644 (zbsubs.f lines 2960-3081).
 
-#![allow(unused_assignments)]
-
 use num_complex::Complex;
 
 use crate::algo::uchk::zuchk;
@@ -115,7 +113,6 @@ pub(crate) fn zkscl<T: BesselFloat>(
         let az = zabs(s2);
         let alas = az.ln();
         let acs = -zd.re + alas;
-        nz += 1;
         y[i] = czero;
 
         if acs >= -elim {
@@ -124,7 +121,6 @@ pub(crate) fn zkscl<T: BesselFloat>(
             let cs_scaled = cs_log.exp() / tol;
             if !zuchk(cs_scaled, ascle, tol) {
                 y[i] = cs_scaled;
-                nz -= 1;
                 // Check if previous was also on scale: IC == KK-1 (both 1-based)
                 if ic == kk - 1 {
                     found_two = true;

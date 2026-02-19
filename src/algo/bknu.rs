@@ -7,7 +7,6 @@
 #![allow(clippy::excessive_precision)]
 #![allow(clippy::approx_constant)]
 #![allow(clippy::needless_range_loop)]
-#![allow(unused_assignments)]
 
 use num_complex::Complex;
 
@@ -552,8 +551,8 @@ fn forward_recurrence<T: BesselFloat>(
             return Ok(*nz);
         }
 
-        let mut p1r = csrr[kflag];
-        let mut ascle = bry[kflag];
+        let p1r = csrr[kflag];
+        let ascle = bry[kflag];
 
         for i in kk..n {
             let p2_val = s2;
@@ -567,13 +566,11 @@ fn forward_recurrence<T: BesselFloat>(
                 let p2m = p2_scaled.re.abs().max(p2_scaled.im.abs());
                 if p2m > ascle {
                     kflag += 1;
-                    ascle = bry[kflag];
                     s1 = s1 * p1r;
                     s2 = p2_scaled;
                     let str_s = cssr[kflag];
                     s1 = s1 * str_s;
                     s2 = s2 * str_s;
-                    p1r = csrr[kflag];
                     kk = i + 1;
                     // Fortran: GO TO 250 (restart outer loop)
                     break;
@@ -724,8 +721,8 @@ fn iflag1_recurrence<T: BesselFloat>(
                 if kk_idx >= n {
                     return Ok(*nz);
                 }
-                let mut p1r = csrr[kflag_inner];
-                let mut ascle_loop = bry[kflag_inner];
+                let p1r = csrr[kflag_inner];
+                let ascle_loop = bry[kflag_inner];
 
                 for i in kk_idx..n {
                     let p2_val = s2;
@@ -739,13 +736,11 @@ fn iflag1_recurrence<T: BesselFloat>(
                         let p2m = p2_scaled.re.abs().max(p2_scaled.im.abs());
                         if p2m > ascle_loop {
                             kflag_inner += 1;
-                            ascle_loop = bry[kflag_inner];
                             s1 = s1 * p1r;
                             s2 = p2_scaled;
                             let str_s = cssr[kflag_inner];
                             s1 = s1 * str_s;
                             s2 = s2 * str_s;
-                            p1r = csrr[kflag_inner];
                             kk_idx = i + 1;
                             break;
                         }
@@ -843,8 +838,8 @@ fn handle_iflag1_final<T: BesselFloat>(
         if kk_idx >= n {
             return Ok(*nz);
         }
-        let mut p1r = csrr[kflag];
-        let mut ascle = bry[kflag];
+        let p1r = csrr[kflag];
+        let ascle = bry[kflag];
 
         for i in kk_idx..n {
             let p2_val = s2_local;
@@ -858,13 +853,11 @@ fn handle_iflag1_final<T: BesselFloat>(
                 let p2m = p2_scaled.re.abs().max(p2_scaled.im.abs());
                 if p2m > ascle {
                     kflag += 1;
-                    ascle = bry[kflag];
                     s1_local = s1_local * p1r;
                     s2_local = p2_scaled;
                     let str_s = cssr[kflag];
                     s1_local = s1_local * str_s;
                     s2_local = s2_local * str_s;
-                    p1r = csrr[kflag];
                     kk_idx = i + 1;
                     break;
                 }

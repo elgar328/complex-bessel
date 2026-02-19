@@ -5,7 +5,6 @@
 //! where mp = pi*mr*i.
 
 #![allow(clippy::too_many_arguments)]
-#![allow(unused_assignments)]
 
 use num_complex::Complex;
 
@@ -87,7 +86,9 @@ pub(crate) fn zacon<T: BesselFloat>(
 
     let mut c1 = s1;
     let mut c2 = y[0]; // I value from zbinu
+    #[allow(unused_assignments)]
     let mut sc1 = czero;
+    #[allow(unused_assignments)]
     let mut sc2 = czero;
 
     if kode != Scaling::Unscaled {
@@ -95,7 +96,6 @@ pub(crate) fn zacon<T: BesselFloat>(
         c1 = s1s2_out.s1;
         c2 = s1s2_out.s2;
         nz += s1s2_out.nz as usize;
-        sc1 = c1;
         iuf = s1s2_out.iuf;
     }
 
