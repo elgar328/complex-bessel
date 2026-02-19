@@ -643,8 +643,7 @@ fn iflag1_recurrence<T: BesselFloat>(
         if p2r >= -elim {
             let s2_log = s2.ln();
             let p2 = s2_log - zd;
-            let p2m = p2.re.exp() / tol;
-            let p1_test = Complex::new(p2m * p2.im.cos(), p2m * p2.im.sin());
+            let p1_test = p2.exp() / tol;
             if !zuchk(p1_test, ascle, tol) {
                 j = 1 - j; // toggle: Fortran J = 3 - J
                 cy[j] = p1_test;

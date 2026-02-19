@@ -166,8 +166,7 @@ pub(crate) fn zuoik<T: BesselFloat>(
                 czi = czi - T::from_f64(0.25) * log_arg.im;
             }
             // label 120 (Fortran lines 4107-4111)
-            let ax_val = rcz.exp() / tol;
-            let cz_check = Complex::new(ax_val * czi.cos(), ax_val * czi.sin());
+            let cz_check = Complex::new(rcz, czi).exp() / tol;
             if zuchk(cz_check, ascle, tol) {
                 // Underflow (label 90)
                 for item in y.iter_mut().take(nn) {
@@ -262,8 +261,7 @@ pub(crate) fn zuoik<T: BesselFloat>(
             czi = czi - T::from_f64(0.25) * log_arg2.im;
         }
         // label 200 (Fortran lines 4163-4167)
-        let ax_val = rcz.exp() / tol;
-        let cz_check = Complex::new(ax_val * czi.cos(), ax_val * czi.sin());
+        let cz_check = Complex::new(rcz, czi).exp() / tol;
         if zuchk(cz_check, ascle, tol) {
             // label 180: underflow this member
             y[nn - 1] = czero;

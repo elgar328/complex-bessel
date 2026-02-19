@@ -210,8 +210,7 @@ pub(crate) fn zuni1<T: BesselFloat>(
 
             // ── Scale S1 and compute S2 = PHI * SUM (Fortran lines 6948-6964) ──
             let s2 = result.phi * result.sum;
-            let str_exp = s1r.exp() * cssr[iflag - 1];
-            let s1_scaled = Complex::new(str_exp * s1i.cos(), str_exp * s1i.sin());
+            let s1_scaled = Complex::new(s1r, s1i).exp() * cssr[iflag - 1];
             let s2_final = s2 * s1_scaled;
 
             if iflag == 1 && zuchk(s2_final, bry0, tol) {

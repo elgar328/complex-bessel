@@ -65,8 +65,7 @@ pub(crate) fn zkscl<T: BesselFloat>(
         if acs >= -elim {
             // Unscale: exp(ln(s1) - zr) / tol
             let cs = s1.ln() - zr;
-            let str_val = cs.re.exp() / tol;
-            let cs_scaled = Complex::new(str_val * cs.im.cos(), str_val * cs.im.sin());
+            let cs_scaled = cs.exp() / tol;
             if !zuchk(cs_scaled, ascle, tol) {
                 y[i] = cs_scaled;
                 ic = i + 1; // 1-based
@@ -122,8 +121,7 @@ pub(crate) fn zkscl<T: BesselFloat>(
         if acs >= -elim {
             // Try to unscale
             let cs_log = s2.ln() - zd;
-            let str_val = cs_log.re.exp() / tol;
-            let cs_scaled = Complex::new(str_val * cs_log.im.cos(), str_val * cs_log.im.sin());
+            let cs_scaled = cs_log.exp() / tol;
             if !zuchk(cs_scaled, ascle, tol) {
                 y[i] = cs_scaled;
                 nz -= 1;

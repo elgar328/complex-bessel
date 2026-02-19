@@ -171,8 +171,7 @@ pub(crate) fn zunk1<T: BesselFloat>(
 
         // -- Scale and store (Fortran lines 5831-5848) --
         let s2_raw = result.phi * result.sum;
-        let str_exp = s1r.exp() * cssr[kflag - 1];
-        let s1_scaled = Complex::new(str_exp * s1i.cos(), str_exp * s1i.sin());
+        let s1_scaled = Complex::new(s1r, s1i).exp() * cssr[kflag - 1];
         let s2 = s2_raw * s1_scaled;
 
         if kflag == 1 && zuchk(s2, bry[0], tol) {
@@ -476,8 +475,7 @@ pub(crate) fn zunk1<T: BesselFloat>(
         let ps = phid * sumd;
         let mut s2_i = Complex::new(zero, csgni) * ps;
 
-        let str_exp = s1r.exp() * cssr[iflag - 1];
-        let s1_sc = Complex::new(str_exp * s1i.cos(), str_exp * s1i.sin());
+        let s1_sc = Complex::new(s1r, s1i).exp() * cssr[iflag - 1];
         s2_i = s2_i * s1_sc;
 
         if iflag == 1 && zuchk(s2_i, bry[0], tol) {

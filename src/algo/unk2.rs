@@ -223,8 +223,7 @@ pub(crate) fn zunk2<T: BesselFloat>(
         let mut s2 = phi_arr[jj] * (ai * asum_arr[jj] + cr2 * (dai * bsum_arr[jj])) * cs;
 
         // Scale by exp(S1) (Fortran lines 6313-6318)
-        let str_exp = s1r.exp() * cssr[kflag - 1];
-        let s1_scaled = Complex::new(str_exp * s1i.cos(), str_exp * s1i.sin());
+        let s1_scaled = Complex::new(s1r, s1i).exp() * cssr[kflag - 1];
         s2 = s2 * s1_scaled;
 
         if kflag == 1 && zuchk(s2, bry[0], tol) {
@@ -554,8 +553,7 @@ pub(crate) fn zunk2<T: BesselFloat>(
         let mut s2 = phid * (ai * asumd + dai * bsumd) * cs_ac;
 
         // Scale by exp(S1) (Fortran lines 6555-6560)
-        let str_exp = s1r.exp() * cssr[iflag - 1];
-        let s1_scaled = Complex::new(str_exp * s1i.cos(), str_exp * s1i.sin());
+        let s1_scaled = Complex::new(s1r, s1i).exp() * cssr[iflag - 1];
         s2 = s2 * s1_scaled;
 
         if iflag == 1 && zuchk(s2, bry[0], tol) {

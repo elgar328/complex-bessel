@@ -190,8 +190,7 @@ pub(crate) fn zmlri<T: BesselFloat>(
     let ap2 = zabs(p2);
     let p1_inv = one / ap2;
     // zexp(ptr_norm, pti_norm)
-    let exp_r = ptr_norm.exp();
-    let ck_n = Complex::new(exp_r * pti_norm.cos(), exp_r * pti_norm.sin()) * p1_inv;
+    let ck_n = Complex::new(ptr_norm, pti_norm).exp() * p1_inv;
     let pt_n = p2.conj() * p1_inv;
     // zmlt(ck, pt) → cnorm
     let cnorm = ck_n * pt_n;

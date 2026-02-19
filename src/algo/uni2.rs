@@ -245,8 +245,7 @@ pub(crate) fn zuni2<T: BesselFloat>(
 
             let s2_airy = result.phi * (ai * result.asum + dai * result.bsum);
 
-            let str_exp = s1r.exp() * cssr[iflag - 1];
-            let s1_scaled = Complex::new(str_exp * s1i.cos(), str_exp * s1i.sin());
+            let s1_scaled = Complex::new(s1r, s1i).exp() * cssr[iflag - 1];
             let mut s2_val = s2_airy * s1_scaled;
 
             if iflag == 1 && zuchk(s2_val, bry0, tol) {

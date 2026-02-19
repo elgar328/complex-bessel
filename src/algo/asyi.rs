@@ -81,8 +81,7 @@ pub(crate) fn zasyi<T: BesselFloat>(
     if czr.abs() <= alim || n <= 2 {
         koded = 0;
         // zexp(cz) and multiply ak1
-        let exp_r = czr.exp();
-        let cz_exp = Complex::new(exp_r * czi.cos(), exp_r * czi.sin());
+        let cz_exp = Complex::new(czr, czi).exp();
         ak1 = ak1 * cz_exp;
     }
 
@@ -156,8 +155,7 @@ pub(crate) fn zasyi<T: BesselFloat>(
             let tzr = z.re + z.re;
             let tzi = z.im + z.im;
             // zexp(-2z) * p1 * cs2
-            let exp_r = (-tzr).exp();
-            let exp_2z = Complex::new(exp_r * (-tzi).cos(), exp_r * (-tzi).sin());
+            let exp_2z = Complex::new(-tzr, -tzi).exp();
             s2 = s2 + exp_2z * p1 * cs2;
         }
 
@@ -192,8 +190,7 @@ pub(crate) fn zasyi<T: BesselFloat>(
 
     if koded != 0 {
         // Multiply by exp(cz) (Fortran lines 3964-3970)
-        let exp_r2 = czr.exp();
-        let cz_exp = Complex::new(exp_r2 * czi.cos(), exp_r2 * czi.sin());
+        let cz_exp = Complex::new(czr, czi).exp();
         for y_item in y.iter_mut().take(nn) {
             *y_item = *y_item * cz_exp;
         }
