@@ -53,7 +53,7 @@ pub(crate) fn zs1s2<T: BesselFloat>(
     let as2 = zabs(s2);
 
     // If s1 is nonzero, attempt to rescale: s1 = s1 * exp(-2*zr)
-    if !(s1.re == zero && s1.im == zero) && as1 != zero {
+    if s1 != czero && as1 != zero {
         // Quick magnitude check via real part:
         // ALN = -2*Re(zr) + ln(|s1|)
         let aln = -zr.re - zr.re + as1.ln();

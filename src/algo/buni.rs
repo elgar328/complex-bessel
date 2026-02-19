@@ -105,29 +105,19 @@ pub(crate) fn zbuni<T: BesselFloat>(
     }
 
     // ── Scale backward recurrence (Fortran lines 6714-6772) ──
-    let str_val = zabs(Complex::new(cy[0].re, cy[0].im));
+    let str_val = zabs(cy[0]);
     let bry0 = T::from_f64(1.0e3) * T::MACH_TINY / tol;
     let bry1 = one / bry0;
 
-    let mut iflag: usize;
-    let mut ascle: T;
-    let mut csclr: T;
-
-    if str_val > bry0 {
+    let (mut iflag, mut ascle, mut csclr) = if str_val > bry0 {
         if str_val < bry1 {
-            iflag = 2;
-            ascle = bry1;
-            csclr = one;
+            (2, bry1, one)
         } else {
-            iflag = 3;
-            ascle = bry1; // BRY(3)=BRY(2) in Fortran
-            csclr = tol;
+            (3, bry1, tol) // BRY(3)=BRY(2) in Fortran
         }
     } else {
-        iflag = 1;
-        ascle = bry0;
-        csclr = one / tol;
-    }
+        (1, bry0, one / tol)
+    };
 
     let mut cscrr = one / csclr;
     let mut s1 = cy[1] * csclr;

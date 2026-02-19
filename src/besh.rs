@@ -78,9 +78,7 @@ pub(crate) fn zbesh<T: BesselFloat>(
 
     // Rotated argument: ZN = z * exp(-mp) where mp = mm*HPI*i
     // ZNR = FMM * ZI, ZNI = -FMM * ZR (Fortran lines 212-213)
-    let znr = fmm * z.im;
-    let zni = -fmm * z.re;
-    let zn = Complex::new(znr, zni);
+    let zn = Complex::new(fmm * z.im, -fmm * z.re);
 
     // ── Range check (Fortran lines 217-225) ──
     let az = zabs(z);
@@ -114,11 +112,11 @@ pub(crate) fn zbesh<T: BesselFloat>(
         let mut mr = 0i32;
         let mut zn_call = zn;
         // Check if ZN is in the left half plane (needs analytic continuation)
-        if !((znr >= zero) && (znr != zero || zni >= zero || m != 2)) {
+        if !((zn.re >= zero) && (zn.re != zero || zn.im >= zero || m != 2)) {
             mr = -mm;
-            if znr == zero && zni < zero {
+            if zn.re == zero && zn.im < zero {
                 // Negate ZN to put it in RHP (Fortran lines 278-279)
-                zn_call = Complex::new(-znr, -zni);
+                zn_call = -zn;
             }
         }
         let nw = zbunk(zn_call, fnu, scaling, mr, &mut y[..nn_eff], tol, elim, alim);
@@ -153,7 +151,7 @@ pub(crate) fn zbesh<T: BesselFloat>(
                 if nn_eff == 0 {
                     // Fortran zbsubs.f lines 249, 338-344:
                     // IF(NN.EQ.0) GO TO 140 → IF(ZNR.LT.0) GO TO 230 (IERR=2)
-                    if znr < zero {
+                    if zn.re < zero {
                         return Err(BesselError::Overflow);
                     }
                     // All underflowed — y is already zeroed, return early
@@ -178,7 +176,7 @@ pub(crate) fn zbesh<T: BesselFloat>(
         }
 
         // ── Main dispatch (Fortran label 70, lines 251-268) ──
-        if znr < zero || (znr == zero && zni < zero && m == 2) {
+        if zn.re < zero || (zn.re == zero && zn.im < zero && m == 2) {
             // Left half-plane of rotated argument: analytic continuation (ZACON)
             let mr = -mm; // Fortran: MR = -MM (zbsubs.f line 263)
             let rl = T::rl();

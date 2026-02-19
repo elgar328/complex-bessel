@@ -148,7 +148,7 @@ pub(crate) fn zunk1<T: BesselFloat>(
                 kdflg = 1;
                 y[i] = czero;
                 nz += 1;
-                if i > 0 && !(y[i - 1].re == zero && y[i - 1].im == zero) {
+                if i > 0 && y[i - 1] != czero {
                     y[i - 1] = czero;
                     nz += 1;
                 }
@@ -178,7 +178,7 @@ pub(crate) fn zunk1<T: BesselFloat>(
             kdflg = 1;
             y[i] = czero;
             nz += 1;
-            if i > 0 && !(y[i - 1].re == zero && y[i - 1].im == zero) {
+            if i > 0 && y[i - 1] != czero {
                 y[i - 1] = czero;
                 nz += 1;
             }
@@ -395,7 +395,7 @@ pub(crate) fn zunk1<T: BesselFloat>(
             kk -= 1;
             cspn = -cspn;
 
-            if c2_save.re == zero && c2_save.im == zero {
+            if c2_save == czero {
                 kdflg = 1;
             } else if kdflg == 2 {
                 k_exit = k + 1;
@@ -436,7 +436,7 @@ pub(crate) fn zunk1<T: BesselFloat>(
                 kk -= 1;
                 cspn = -cspn;
 
-                if c2_save.re == zero && c2_save.im == zero {
+                if c2_save == czero {
                     kdflg = 1;
                 } else if kdflg == 2 {
                     k_exit = k + 1;
@@ -490,7 +490,7 @@ pub(crate) fn zunk1<T: BesselFloat>(
         cspn = -cspn;
 
         // KDFLG state machine (Fortran lines 6085-6091)
-        if c2_save.re == zero && c2_save.im == zero {
+        if c2_save == czero {
             kdflg = 1;
         } else if kdflg == 2 {
             k_exit = k + 1;

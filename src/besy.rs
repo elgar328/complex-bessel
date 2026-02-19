@@ -51,11 +51,7 @@ pub(crate) fn zbesy<T: BesselFloat>(
 
     // Rotate argument: zn = (zz.im, -zz.re) where zz = z with Im >= 0
     // (Fortran lines 1349-1353)
-    let zzi = if z.im < zero { -z.im } else { z.im };
-    let zzr = z.re;
-    let znr = zzi;
-    let zni = -zzr;
-    let zn = Complex::new(znr, zni);
+    let zn = Complex::new(z.im.abs(), -z.re);
 
     // Compute coefficients CC and CSPN (Fortran lines 1359-1373)
     // Powers of i: [1, i, -1, -i]
@@ -140,11 +136,7 @@ pub(crate) fn zbesy<T: BesselFloat>(
 
         y[0] = if z.im < zero { cy_val.conj() } else { cy_val };
 
-        let nz_out = if cy_val.re == zero && cy_val.im == zero && ey == zero {
-            1
-        } else {
-            0
-        };
+        let nz_out = if cy_val == czero && ey == zero { 1 } else { 0 };
 
         return Ok((nz_out, BesselStatus::Normal));
     }
@@ -225,7 +217,7 @@ pub(crate) fn zbesy<T: BesselFloat>(
 
             y[i] = if z.im < zero { cy_val.conj() } else { cy_val };
 
-            if cy_val.re == zero && cy_val.im == zero && ey == zero {
+            if cy_val == czero && ey == zero {
                 nz_out += 1;
             }
 

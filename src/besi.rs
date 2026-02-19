@@ -60,9 +60,7 @@ pub(crate) fn zbesi<T: BesselFloat>(
 
     // Compute in right half-plane, continue to left if needed
     // (Fortran lines 561-610)
-    let mut csgn = Complex::from(one);
-
-    let zn = if z.re < zero {
+    let (zn, mut csgn) = if z.re < zero {
         // Left half-plane: use I(fnu, -z) * exp(fnu*pi*i)
         // CSGN = exp(fnu*pi*i) with precision preservation (Fortran lines 572-579)
         let inu = fnu.to_i32().unwrap();
@@ -70,13 +68,13 @@ pub(crate) fn zbesi<T: BesselFloat>(
         if z.im < zero {
             arg = -arg;
         }
-        csgn = Complex::from_polar(one, arg);
+        let mut c = Complex::from_polar(one, arg);
         if inu % 2 != 0 {
-            csgn = -csgn;
+            c = -c;
         }
-        -z
+        (-z, c)
     } else {
-        z
+        (z, Complex::from(one))
     };
 
     // Call ZBINU (Fortran lines 581-583)

@@ -163,7 +163,7 @@ pub(crate) fn zunk2<T: BesselFloat>(
             y[i] = czero;
             nz += 1;
             cs = Complex::new(cs.im, -cs.re);
-            if i > 0 && (y[i - 1].re != zero || y[i - 1].im != zero) {
+            if i > 0 && (y[i - 1] != czero) {
                 y[i - 1] = czero;
                 nz += 1;
             }
@@ -189,7 +189,7 @@ pub(crate) fn zunk2<T: BesselFloat>(
                 y[i] = czero;
                 nz += 1;
                 cs = Complex::new(cs.im, -cs.re);
-                if i > 0 && (y[i - 1].re != zero || y[i - 1].im != zero) {
+                if i > 0 && (y[i - 1] != czero) {
                     y[i - 1] = czero;
                     nz += 1;
                 }
@@ -230,7 +230,7 @@ pub(crate) fn zunk2<T: BesselFloat>(
             y[i] = czero;
             nz += 1;
             cs = Complex::new(cs.im, -cs.re);
-            if i > 0 && (y[i - 1].re != zero || y[i - 1].im != zero) {
+            if i > 0 && (y[i - 1] != czero) {
                 y[i - 1] = czero;
                 nz += 1;
             }
@@ -470,7 +470,7 @@ pub(crate) fn zunk2<T: BesselFloat>(
             cspn = -cspn;
             cs_ac = Complex::new(cs_ac.im, -cs_ac.re);
 
-            if c2_save.re == zero && c2_save.im == zero {
+            if c2_save == czero {
                 kdflg = 1;
             } else if kdflg == 2 {
                 k_exit = k + 1;
@@ -511,7 +511,7 @@ pub(crate) fn zunk2<T: BesselFloat>(
                 cspn = -cspn;
                 cs_ac = Complex::new(cs_ac.im, -cs_ac.re);
 
-                if c2_save.re == zero && c2_save.im == zero {
+                if c2_save == czero {
                     kdflg = 1;
                 } else if kdflg == 2 {
                     k_exit = k + 1;
@@ -569,7 +569,7 @@ pub(crate) fn zunk2<T: BesselFloat>(
         cs_ac = Complex::new(cs_ac.im, -cs_ac.re);
 
         // KDFLG state machine (Fortran lines 6591-6597)
-        if c2_save.re == zero && c2_save.im == zero {
+        if c2_save == czero {
             kdflg = 1;
         } else if kdflg == 2 {
             k_exit = k + 1;
