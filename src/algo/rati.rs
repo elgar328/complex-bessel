@@ -11,7 +11,7 @@
 use num_complex::Complex;
 
 use crate::machine::BesselFloat;
-use crate::utils::{zabs, zdiv};
+use crate::utils::{reciprocal_z, zabs, zdiv};
 
 /// Compute I-function ratios by backward recurrence.
 ///
@@ -48,8 +48,7 @@ pub(crate) fn zrati<T: BesselFloat>(z: Complex<T>, fnu: T, cy: &mut [Complex<T>]
     let mut k: i32 = 1;
 
     // RZ = 2/z (overflow-safe, Fortran lines 3137-3139)
-    let ptr = one / az;
-    let rz = Complex::new(ptr * (z.re + z.re) * ptr, -ptr * (z.im + z.im) * ptr);
+    let rz = reciprocal_z(z);
 
     // T1 = RZ * FNUP (Fortran lines 3140-3141)
     let mut t1 = rz * fnup;
