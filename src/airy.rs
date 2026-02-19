@@ -197,6 +197,23 @@ fn zairy_scale_exp_zta<T: BesselFloat>(z: Complex<T>, val: Complex<T>, tth: T) -
     val * zta.exp()
 }
 
+/// Compute zta = (2/3)*z*sqrt(z) with branch cut correction.
+/// Shared by zairy_large_z and zbiry_large_z.
+/// (Fortran ZAIRY lines 1731-1749, ZBIRY lines 2123-2139)
+fn airy_zta<T: BesselFloat>(z: Complex<T>, tth: T) -> (Complex<T>, Complex<T>) {
+    let zero = T::zero();
+    let csq = z.sqrt();
+    let mut zta = z * csq * tth;
+    let ak = zta.im;
+    if z.re < zero {
+        zta = Complex::new(-zta.re.abs(), ak);
+    }
+    if z.im == zero && z.re <= zero {
+        zta = Complex::new(zero, ak);
+    }
+    (csq, zta)
+}
+
 /// ZAIRY |z| > 1 branch: compute Ai via K Bessel function.
 /// Fortran lines 1697-1856.
 #[allow(clippy::too_many_arguments)]
@@ -237,23 +254,10 @@ fn zairy_large_z<T: BesselFloat>(
     }
     // IERR=3 precision warning: not returned as error
 
-    // ZTA = (2/3)*z*sqrt(z) (Fortran lines 1731-1733)
-    let csq = z.sqrt();
-    let mut zta = z * csq * tth;
-
-    // Branch cut correction (Fortran lines 1737-1749)
+    // ZTA = (2/3)*z*sqrt(z) with branch cut correction (Fortran lines 1731-1749)
+    let (csq, zta) = airy_zta(z, tth);
     let mut iflag: i32 = 0;
     let mut sfac = one;
-    let ak = zta.im; // save imaginary part
-
-    if z.re < zero {
-        // Fortran lines 1741-1744: Re(z) < 0 → ztar = -|ztar|
-        zta = Complex::new(-zta.re.abs(), ak);
-    }
-    if z.im == zero && z.re <= zero {
-        // Negative real axis: ztar = 0 (Fortran lines 1748-1749)
-        zta = Complex::new(zero, ak);
-    }
 
     // Dispatch based on Re(zta) and Re(z) (Fortran line 1752)
     let aa_zta = zta.re;
@@ -454,20 +458,9 @@ fn zbiry_large_z<T: BesselFloat>(
         return Err(BesselError::TotalPrecisionLoss);
     }
 
-    // ZTA = (2/3)*z*sqrt(z) (Fortran lines 2123-2125)
-    let csq = z.sqrt();
-    let mut zta = z * csq * tth;
-
-    // Branch cut correction (Fortran lines 2129-2139)
+    // ZTA = (2/3)*z*sqrt(z) with branch cut correction (Fortran lines 2123-2139)
+    let (csq, mut zta) = airy_zta(z, tth);
     let mut sfac = one;
-    let ak = zta.im;
-
-    if z.re < zero {
-        zta = Complex::new(-zta.re.abs(), ak);
-    }
-    if z.im == zero && z.re <= zero {
-        zta = Complex::new(zero, ak);
-    }
 
     // Overflow test (Fortran lines 2141-2150)
     let aa_zta = zta.re;
