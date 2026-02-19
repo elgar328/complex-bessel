@@ -151,21 +151,13 @@ pub(crate) fn zbknu<T: BesselFloat>(
         let g2 = (t1 + t2) * half;
 
         // F = FC * (CCH*G1 + SMU*G2)
-        let mut fr = fc * (cch.re * g1 + smu.re * g2);
-        let mut fi = fc * (cch.im * g1 + smu.im * g2);
-
-        // P = 0.5 * exp(FMU) / T2
         let efmu = fmu.exp();
-        let mut pr = half * efmu.re / t2;
-        let mut pi_val = half * efmu.im / t2;
+        let mut f = (cch * g1 + smu * g2) * fc;
+        let mut p = efmu * (half / t2);
+        let mut q = zdiv(Complex::from(half), efmu) / t1;
 
-        // Q = 0.5 / (exp(FMU) * T1)
-        let q_tmp = zdiv(Complex::from(half), efmu);
-        let mut qr = q_tmp.re / t1;
-        let mut qi = q_tmp.im / t1;
-
-        let mut s1 = Complex::new(fr, fi);
-        let mut s2 = Complex::new(pr, pi_val);
+        let mut s1 = f;
+        let mut s2 = p;
         let mut ak = one;
         let mut a1 = one;
         let mut ck = Complex::from(one);
@@ -180,20 +172,13 @@ pub(crate) fn zbknu<T: BesselFloat>(
                 let cz = z * z * T::from_f64(0.25);
                 let t1_sq = T::from_f64(0.25) * caz * caz;
                 loop {
-                    fr = (fr * ak + pr + qr) / bk;
-                    fi = (fi * ak + pi_val + qi) / bk;
-                    let str_ak = one / (ak - dnu);
-                    pr = pr * str_ak;
-                    pi_val = pi_val * str_ak;
-                    let str_ak2 = one / (ak + dnu);
-                    qr = qr * str_ak2;
-                    qi = qi * str_ak2;
+                    f = (f * ak + p + q) / bk;
+                    p = p / (ak - dnu);
+                    q = q / (ak + dnu);
                     let rak = one / ak;
                     ck = ck * cz * rak;
-                    s1 = s1 + ck * Complex::new(fr, fi);
-                    let str_s2 = pr - fr * ak;
-                    let sti_s2 = pi_val - fi * ak;
-                    s2 = s2 + ck * Complex::new(str_s2, sti_s2);
+                    s1 = s1 + ck * f;
+                    s2 = s2 + ck * (p - f * ak);
                     a1 = a1 * t1_sq * rak;
                     bk = bk + ak + ak + one;
                     ak = ak + one;
@@ -226,17 +211,12 @@ pub(crate) fn zbknu<T: BesselFloat>(
                 let cz = z * z * T::from_f64(0.25);
                 let t1_sq = T::from_f64(0.25) * caz * caz;
                 loop {
-                    fr = (fr * ak + pr + qr) / bk;
-                    fi = (fi * ak + pi_val + qi) / bk;
-                    let str_ak = one / (ak - dnu);
-                    pr = pr * str_ak;
-                    pi_val = pi_val * str_ak;
-                    let str_ak2 = one / (ak + dnu);
-                    qr = qr * str_ak2;
-                    qi = qi * str_ak2;
+                    f = (f * ak + p + q) / bk;
+                    p = p / (ak - dnu);
+                    q = q / (ak + dnu);
                     let rak = one / ak;
                     ck = ck * cz * rak;
-                    s1 = s1 + ck * Complex::new(fr, fi);
+                    s1 = s1 + ck * f;
                     a1 = a1 * t1_sq * rak;
                     bk = bk + ak + ak + one;
                     ak = ak + one;
