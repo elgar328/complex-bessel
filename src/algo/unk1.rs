@@ -62,12 +62,7 @@ pub(crate) fn zunk1<T: BesselFloat>(
     ];
 
     // -- Reflect to right half plane (Fortran lines 5780-5784) --
-    let (zrr, zri) = if z.re >= zero {
-        (z.re, z.im)
-    } else {
-        (-z.re, -z.im)
-    };
-    let zr_arg = Complex::new(zrr, zri);
+    let zr = if z.re >= zero { z } else { -z };
 
     // -- Phase 1: K function computation (Fortran lines 5786-5865) --
     let mut j: usize = 1; // Fortran J starts at 2, first flip gives 1 -> Rust: start 1, first flip gives 0
@@ -89,7 +84,7 @@ pub(crate) fn zunk1<T: BesselFloat>(
         let fn_val = fnu + T::from_f64(i as f64);
 
         // Fresh ZUNIK call with IKFLG=2 (K function), IPMTR=0
-        let result = zunik(zr_arg, fn_val, IkFlag::K, SumOption::Full, tol, None);
+        let result = zunik(zr, fn_val, IkFlag::K, SumOption::Full, tol, None);
         phi_arr[j] = result.phi;
         zeta1_arr[j] = result.zeta1;
         zeta2_arr[j] = result.zeta2;
@@ -99,7 +94,7 @@ pub(crate) fn zunk1<T: BesselFloat>(
 
         // Compute S1 exponent (Fortran lines 5797-5808)
         let s1_exp = if kode == Scaling::Exponential {
-            let st = Complex::new(zrr, zri) + result.zeta2;
+            let st = zr + result.zeta2;
             let rast = fn_val / zabs(st);
             result.zeta1 - st.conj() * (rast * rast)
         } else {
@@ -203,7 +198,7 @@ pub(crate) fn zunk1<T: BesselFloat>(
     }
 
     // -- Compute RZ and CK (Fortran lines 5868-5874) --
-    let rz = reciprocal_z(zr_arg);
+    let rz = reciprocal_z(zr);
     let mut ck = rz * fn_at_exit;
 
     let ib = i_exit + 1; // Fortran IB = I + 1 (1-based index of next item)
@@ -217,11 +212,11 @@ pub(crate) fn zunk1<T: BesselFloat>(
         } else {
             SumOption::SkipSum
         };
-        let result_last = zunik(zr_arg, fn_last, IkFlag::K, ipard, tol, None);
+        let result_last = zunik(zr, fn_last, IkFlag::K, ipard, tol, None);
         caches[2] = Some(result_last.cache);
 
         let s1_last = if kode == Scaling::Exponential {
-            let st = Complex::new(zrr, zri) + result_last.zeta2;
+            let st = zr + result_last.zeta2;
             let rast = fn_last / zabs(st);
             result_last.zeta1 - st.conj() * (rast * rast)
         } else {
@@ -253,9 +248,7 @@ pub(crate) fn zunk1<T: BesselFloat>(
                     return -1;
                 }
                 nz = n as i32;
-                for item in y.iter_mut() {
-                    *item = czero;
-                }
+                y.fill(czero);
                 return nz;
             }
         }
@@ -349,7 +342,7 @@ pub(crate) fn zunk1<T: BesselFloat>(
         }
 
         // label 180: call ZUNIK with IKFLG=1 (I function)
-        let result_i = zunik(zr_arg, fn_val, IkFlag::I, SumOption::Full, tol, use_cache);
+        let result_i = zunik(zr, fn_val, IkFlag::I, SumOption::Full, tol, use_cache);
         let phid = result_i.phi;
         let zet1d = result_i.zeta1;
         let zet2d = result_i.zeta2;
@@ -358,7 +351,7 @@ pub(crate) fn zunk1<T: BesselFloat>(
 
         // Compute S1 exponent for I function (Fortran lines 6019-6030)
         let s1_exp = if kode == Scaling::Exponential {
-            let st = Complex::new(zrr, zri) + zet2d;
+            let st = zr + zet2d;
             let rast = fn_val / zabs(st);
             st.conj() * (rast * rast) - zet1d
         } else {
@@ -385,7 +378,7 @@ pub(crate) fn zunk1<T: BesselFloat>(
             let mut s1_k = y[kk - 1]; // Y(KK), 1-based
             let mut s2_k = s2_scaled;
             if kode == Scaling::Exponential {
-                let s1s2_result = zs1s2(zr_arg, s1_k, s2_k, asc, alim, iuf);
+                let s1s2_result = zs1s2(zr, s1_k, s2_k, asc, alim, iuf);
                 s1_k = s1s2_result.s1;
                 s2_k = s1s2_result.s2;
                 nz += s1s2_result.nz;
@@ -426,7 +419,7 @@ pub(crate) fn zunk1<T: BesselFloat>(
                 let mut s1_k = y[kk - 1];
                 let mut s2_k = s2_scaled;
                 if kode == Scaling::Exponential {
-                    let s1s2_result = zs1s2(zr_arg, s1_k, s2_k, asc, alim, iuf);
+                    let s1s2_result = zs1s2(zr, s1_k, s2_k, asc, alim, iuf);
                     s1_k = s1s2_result.s1;
                     s2_k = s1s2_result.s2;
                     nz += s1s2_result.nz;
@@ -477,7 +470,7 @@ pub(crate) fn zunk1<T: BesselFloat>(
         let mut s2_k = s2_scaled;
 
         if kode == Scaling::Exponential {
-            let s1s2_result = zs1s2(zr_arg, s1_k, s2_k, asc, alim, iuf);
+            let s1s2_result = zs1s2(zr, s1_k, s2_k, asc, alim, iuf);
             s1_k = s1s2_result.s1;
             s2_k = s1s2_result.s2;
             nz += s1s2_result.nz;
@@ -528,7 +521,7 @@ pub(crate) fn zunk1<T: BesselFloat>(
         let mut c2_k = ck_val;
 
         if kode == Scaling::Exponential {
-            let s1s2_result = zs1s2(zr_arg, c1_k, c2_k, asc, alim, iuf);
+            let s1s2_result = zs1s2(zr, c1_k, c2_k, asc, alim, iuf);
             c1_k = s1s2_result.s1;
             c2_k = s1s2_result.s2;
             nz += s1s2_result.nz;
