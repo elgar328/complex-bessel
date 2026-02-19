@@ -71,7 +71,7 @@ pub(crate) fn zuni2<T: BesselFloat>(
 
     let inu = fnu.to_i32().unwrap() as usize;
     let ang = T::from_f64(HPI) * (fnu - T::from_f64(inu as f64));
-    let c2_base = Complex::from_polar(one, ang);
+    let c2_base = Complex::new(ang.cos(), ang.sin());
 
     // IN = (INU + N - 1) mod 4 (0-based)
     let in_idx = (inu + n - 1) % 4;

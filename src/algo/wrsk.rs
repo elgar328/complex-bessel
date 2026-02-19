@@ -53,7 +53,7 @@ pub(crate) fn zwrsk<T: BesselFloat>(
     // KODE=1: CINU = 1; KODE=2: CINU = exp(i·Im(z))
     let mut cinu = match kode {
         Scaling::Unscaled => Complex::from(one),
-        Scaling::Exponential => Complex::from_polar(one, z.im),
+        Scaling::Exponential => Complex::new(z.im.cos(), z.im.sin()),
     };
 
     // 3-level scaling to prevent under/overflow (Fortran lines 3569-3579)

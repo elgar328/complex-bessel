@@ -66,7 +66,7 @@ pub(crate) fn zbesj<T: BesselFloat>(
     let inuh = inu / 2;
     let ir = inu - 2 * inuh;
     let arg = (fnu - T::from_f64((inu - ir) as f64)) * hpi_t;
-    let mut csgn = Complex::from_polar(one, arg);
+    let mut csgn = Complex::new(arg.cos(), arg.sin());
     if inuh % 2 != 0 {
         csgn = -csgn;
     }

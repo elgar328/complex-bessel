@@ -67,13 +67,13 @@ pub(crate) fn zacon<T: BesselFloat>(
     if kode == Scaling::Exponential {
         // Multiply CSGN by exp(i*yy) (Fortran lines 4222-4225)
         let yy = -zn.im;
-        csgn = csgn * Complex::from_polar(one, yy);
+        csgn = csgn * Complex::new(yy.cos(), yy.sin());
     }
 
     // CSPN = exp(fnu*pi*i) with precision preservation (Fortran lines 4231-4239)
     let inu = fnu.to_i32().unwrap();
     let arg = (fnu - T::from_f64(inu as f64)) * sgn;
-    let mut cspn = Complex::from_polar(one, arg);
+    let mut cspn = Complex::new(arg.cos(), arg.sin());
     if inu % 2 != 0 {
         cspn = -cspn;
     }

@@ -298,7 +298,7 @@ pub(crate) fn zunk1<T: BesselFloat>(
     let fnf = fnu - T::from_f64(inu as f64);
     let ifn = inu + n - 1;
     let ang = fnf * sgn;
-    let mut cspn = Complex::from_polar(one, ang);
+    let mut cspn = Complex::new(ang.cos(), ang.sin());
     if ifn % 2 != 0 {
         cspn = -cspn;
     }

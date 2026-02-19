@@ -68,7 +68,7 @@ pub(crate) fn zbesi<T: BesselFloat>(
         if z.im < zero {
             arg = -arg;
         }
-        let mut c = Complex::from_polar(one, arg);
+        let mut c = Complex::new(arg.cos(), arg.sin());
         if inu % 2 != 0 {
             c = -c;
         }
