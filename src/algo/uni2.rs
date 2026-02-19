@@ -14,7 +14,7 @@ use crate::algo::unhj::zunhj;
 use crate::algo::uoik::zuoik;
 use crate::machine::BesselFloat;
 use crate::types::{AiryDerivative, IkFlag, Scaling, SumOption};
-use crate::utils::{reciprocal_z, zabs};
+use crate::utils::{mul_i, mul_neg_i, reciprocal_z, zabs};
 
 use crate::algo::constants::{AIC, HPI};
 
@@ -275,7 +275,11 @@ pub(crate) fn zuni2<T: BesselFloat>(
             y[j_idx] = s2_val * csrr[iflag - 1];
 
             // C2 *= i*CIDI (Fortran lines 7214-7216)
-            c2 = c2 * Complex::new(zero, cidi);
+            c2 = if cidi > zero {
+                mul_i(c2)
+            } else {
+                mul_neg_i(c2)
+            };
         }
 
         if !computed_ok {

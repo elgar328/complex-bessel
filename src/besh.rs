@@ -17,7 +17,7 @@ use crate::algo::constants::HPI;
 use crate::algo::uoik::zuoik;
 use crate::machine::BesselFloat;
 use crate::types::{BesselError, BesselStatus, HankelKind, IkFlag, Scaling};
-use crate::utils::zabs;
+use crate::utils::{mul_i, mul_neg_i, zabs};
 
 /// Compute H_{fnu+j}^(m)(z) for j = 0, 1, ..., n-1.
 ///
@@ -238,7 +238,11 @@ pub(crate) fn zbesh<T: BesselFloat>(
         *item = scaled * csgn * atol;
 
         // Advance CSGN: CSGN *= (0, ZTI) (Fortran lines 333-335)
-        csgn = csgn * Complex::new(zero, zti);
+        csgn = if zti > zero {
+            mul_i(csgn)
+        } else {
+            mul_neg_i(csgn)
+        };
     }
 
     let status = if precision_warning {

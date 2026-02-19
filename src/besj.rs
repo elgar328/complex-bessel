@@ -10,7 +10,7 @@ use crate::algo::binu::zbinu;
 use crate::algo::constants::HPI;
 use crate::machine::BesselFloat;
 use crate::types::{BesselError, BesselStatus, Scaling};
-use crate::utils::zabs;
+use crate::utils::{mul_i, mul_neg_i, zabs};
 
 /// Compute J_{fnu+j}(z) for j = 0, 1, ..., n-1.
 ///
@@ -108,7 +108,11 @@ pub(crate) fn zbesj<T: BesselFloat>(
 
         // Advance CSGN: multiply by (0, cii) → CSGN *= i*CII
         // (Fortran lines 875-877)
-        csgn = csgn * Complex::new(zero, cii);
+        csgn = if cii > zero {
+            mul_i(csgn)
+        } else {
+            mul_neg_i(csgn)
+        };
     }
 
     Ok((nz, status))
