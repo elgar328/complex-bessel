@@ -284,11 +284,7 @@ pub(crate) fn zbknu<T: BesselFloat>(
             coef = coef_base; // will apply exp later
         } else {
             // Multiply coef by exp(-z) * cssr[kflag]
-            let exp_neg_z_scaled = {
-                let e = (-z.re).exp() * cssr[kflag];
-                Complex::new(e * z.im.cos(), -e * z.im.sin())
-            };
-            coef = coef_base * exp_neg_z_scaled;
+            coef = coef_base * (-z).exp() * cssr[kflag];
         }
     } else {
         coef = coef_base;
