@@ -67,9 +67,8 @@ pub(crate) fn zasyi<T: BesselFloat>(
     }
 
     let dnu2 = dfnu0 + dfnu0;
-    let mut koded: i32 = 1;
-    if cz.re.abs() <= alim || n <= 2 {
-        koded = 0;
+    let deferred_exp = cz.re.abs() > alim && n > 2;
+    if !deferred_exp {
         // zexp(cz) and multiply ak1
         ak1 = ak1 * cz.exp();
     }
@@ -174,7 +173,7 @@ pub(crate) fn zasyi<T: BesselFloat>(
         k_idx -= 1;
     }
 
-    if koded != 0 {
+    if deferred_exp {
         // Multiply by exp(cz) (Fortran lines 3964-3970)
         let cz_exp = cz.exp();
         for y_item in y.iter_mut().take(nn) {

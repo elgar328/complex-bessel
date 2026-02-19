@@ -58,10 +58,7 @@ pub(crate) fn zbesi<T: BesselFloat>(
     }
 
     let aa_sqrt = aa.sqrt();
-    let mut precision_warning = false;
-    if az > aa_sqrt || fn_val > aa_sqrt {
-        precision_warning = true;
-    }
+    let precision_warning = az > aa_sqrt || fn_val > aa_sqrt;
 
     // Compute in right half-plane, continue to left if needed
     // (Fortran lines 561-610)

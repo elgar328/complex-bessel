@@ -93,10 +93,7 @@ pub(crate) fn zbesh<T: BesselFloat>(
     }
 
     let aa_sqrt = aa.sqrt();
-    let mut precision_warning = false;
-    if az > aa_sqrt || fn_val > aa_sqrt {
-        precision_warning = true;
-    }
+    let precision_warning = az > aa_sqrt || fn_val > aa_sqrt;
 
     // ── Underflow limit (Fortran line 229-230) ──
     let ufl = T::MACH_TINY * T::from_f64(1.0e3);

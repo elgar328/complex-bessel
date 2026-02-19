@@ -77,10 +77,7 @@ pub(crate) fn zbesk<T: BesselFloat>(
 
     // ── Range check: partial precision loss (IERR=3) ──
     let aa_sqrt = aa.sqrt();
-    let mut precision_warning = false;
-    if az > aa_sqrt || fn_val > aa_sqrt {
-        precision_warning = true;
-    }
+    let precision_warning = az > aa_sqrt || fn_val > aa_sqrt;
 
     // ── Underflow limit: |z| too small ──
     let ufl = T::MACH_TINY * T::from_f64(1.0e3);

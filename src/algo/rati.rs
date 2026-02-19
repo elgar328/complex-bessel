@@ -44,7 +44,7 @@ pub(crate) fn zrati<T: BesselFloat>(z: Complex<T>, fnu: T, cy: &mut [Complex<T>]
     if id > 0 {
         id = 0;
     }
-    let mut itime: i32 = 1;
+    let mut refined = false;
     let mut k: i32 = 1;
 
     // RZ = 2/z (overflow-safe, Fortran lines 3137-3139)
@@ -84,7 +84,7 @@ pub(crate) fn zrati<T: BesselFloat>(z: Complex<T>, fnu: T, cy: &mut [Complex<T>]
         if ap1 <= test {
             continue;
         }
-        if itime == 2 {
+        if refined {
             break;
         }
         // First pass: refine convergence test (Fortran lines 3180-3184)
@@ -92,7 +92,7 @@ pub(crate) fn zrati<T: BesselFloat>(z: Complex<T>, fnu: T, cy: &mut [Complex<T>]
         let flam = ak + (ak * ak - one).sqrt();
         let rho = (ap2 / ap1).min(flam);
         test = test1 * (rho / (rho * rho - one)).sqrt();
-        itime = 2;
+        refined = true;
     }
 
     // ── Stage 2: Backward recurrence (Fortran label 20, lines 3186-3212) ──

@@ -77,7 +77,7 @@ pub(crate) fn zmlri<T: BesselFloat>(
         ck = z.conj() * (at2 * raz * raz);
         let ack2 = at2 * raz;
         tst = (ack2 / tol).sqrt();
-        let mut itime = 1;
+        let mut refined = false;
 
         let mut found = false;
         for kk in 1..=80 {
@@ -87,7 +87,7 @@ pub(crate) fn zmlri<T: BesselFloat>(
             ck = ck + rz;
             let ap = zabs(p2);
             if ap >= tst {
-                if itime == 2 {
+                if refined {
                     k = kk;
                     found = true;
                     break;
@@ -97,7 +97,7 @@ pub(crate) fn zmlri<T: BesselFloat>(
                 let fkap = ap / zabs(p1);
                 let rho_new = flam.min(fkap);
                 tst = tst * (rho_new / (rho_new * rho_new - one)).sqrt();
-                itime = 2;
+                refined = true;
             }
         }
         if !found && k == 0 {
