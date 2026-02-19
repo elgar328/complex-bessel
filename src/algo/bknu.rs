@@ -660,7 +660,7 @@ fn iflag1_recurrence<T: BesselFloat>(
 
         // Value underflowed; rescale if magnitude is getting too large
         if alas >= helim {
-            zd = Complex::new(zd.re - elim, zd.im);
+            zd = zd - elim;
             s1 = s1 * celmr;
             s2 = s2 * celmr;
         }

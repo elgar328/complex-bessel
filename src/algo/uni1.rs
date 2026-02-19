@@ -75,7 +75,7 @@ pub(crate) fn zuni1<T: BesselFloat>(
 
     let (s1r, _s1i) = if kode == Scaling::Exponential {
         // KODE=2 (Fortran lines 6894-6900)
-        let st = Complex::new(z.re + result0.zeta2.re, z.im + result0.zeta2.im);
+        let st = z + result0.zeta2;
         let rast = fn_val / zabs(st);
         let str_val = st.re * rast * rast;
         let sti = -st.im * rast * rast;
@@ -117,7 +117,7 @@ pub(crate) fn zuni1<T: BesselFloat>(
 
             let (s1r, s1i) = if kode == Scaling::Exponential {
                 // KODE=2 (Fortran lines 6916-6922)
-                let st = Complex::new(z.re + result.zeta2.re, z.im + result.zeta2.im);
+                let st = z + result.zeta2;
                 let rast = fn_val / zabs(st);
                 let str_val = st.re * rast * rast;
                 let sti = -st.im * rast * rast;

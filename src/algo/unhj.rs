@@ -530,7 +530,7 @@ fn small_w2_branch<T: BesselFloat>(
     }
 
     // Finalize (Fortran lines 5575-5578)
-    asum = Complex::new(asum.re + one, asum.im);
+    asum = asum + one;
     let pp_final = rfnu * rfn13;
     bsum = bsum * pp_final;
 
@@ -775,7 +775,7 @@ fn large_w2_branch<T: BesselFloat>(
     }
 
     // Label 220: finalize (Fortran lines 5726-5730)
-    asum = Complex::new(asum.re + one, asum.im);
+    asum = asum + one;
     let bsum_div = zdiv(-bsum * rfn13, rzth);
 
     UnhjOutput {
