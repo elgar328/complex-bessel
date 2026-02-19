@@ -22,7 +22,7 @@ use crate::utils::{reciprocal_z, zabs, zdiv};
 const KMAX: i32 = 30;
 const R1: f64 = 2.0;
 const RTHPI: f64 = 1.25331413731550025; // sqrt(pi/2)
-const SPI: f64 = 1.90985931710274403; // sqrt(6/pi)? Actually 6/(pi^2) related
+const SPI: f64 = 1.90985931710274403; // 6/π (Fortran ZBKNU DATA SPI)
 const FPI: f64 = 1.89769999331517738; // 2^(1.75)/sqrt(pi)
 
 use crate::algo::constants::{HPI, PI, R1M5, TTH};

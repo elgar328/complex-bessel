@@ -151,20 +151,19 @@ pub(crate) fn zairy<T: BesselFloat>(
             } else {
                 Ok((ai, 0))
             };
-        } else {
-            // Ai'(z) ≈ -C2 + C1*z²/2 (Fortran lines 1827-1837)
-            let mut ai = Complex::new(-c2, zero);
-            let aa_sqrt = aa.sqrt();
-            if az > aa_sqrt {
-                let s1 = z * z * T::from_f64(0.5);
-                ai = ai + s1 * c1;
-            }
-            return if kode == Scaling::Exponential {
-                Ok((zairy_scale_exp_zta(z, ai, tth), 0))
-            } else {
-                Ok((ai, 0))
-            };
         }
+        // Ai'(z) ≈ -C2 + C1*z²/2 (Fortran lines 1827-1837)
+        let mut ai = Complex::new(-c2, zero);
+        let aa_sqrt = aa.sqrt();
+        if az > aa_sqrt {
+            let s1 = z * z * T::from_f64(0.5);
+            ai = ai + s1 * c1;
+        }
+        return if kode == Scaling::Exponential {
+            Ok((zairy_scale_exp_zta(z, ai, tth), 0))
+        } else {
+            Ok((ai, 0))
+        };
     }
 
     // Non-tiny series (Fortran lines 1622-1693)
