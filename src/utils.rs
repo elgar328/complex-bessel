@@ -263,7 +263,7 @@ mod tests {
     fn zdiv_inverse() {
         // a / b * b ≈ a
         let a = Complex64::new(1.23456789, -9.87654321);
-        let b = Complex64::new(0.314159, 2.71828);
+        let b = Complex64::new(0.314159, 2.71829);
         let c = zdiv(a, b);
         // Multiply back: c * b
         let recovered = Complex64::new(c.re * b.re - c.im * b.im, c.re * b.im + c.im * b.re);

@@ -13,6 +13,7 @@ use crate::utils::zabs;
 /// Compute I_{fnu+j}(z) for j = 0, 1, ..., n-1.
 ///
 /// Equivalent to Fortran ZBESI in TOMS 644.
+#[inline]
 pub(crate) fn zbesi<T: BesselFloat>(
     z: Complex<T>,
     fnu: T,
@@ -22,12 +23,8 @@ pub(crate) fn zbesi<T: BesselFloat>(
     let zero = T::zero();
     let one = T::one();
     let pi_t = T::from_f64(PI);
-    let czero = Complex::new(zero, zero);
 
     let n = y.len();
-
-    // Zero the output buffer
-    y.fill(czero);
 
     // Input validation (Fortran IERR=1, lines 518-523)
     if n < 1 {

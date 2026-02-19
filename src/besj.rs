@@ -15,6 +15,7 @@ use crate::utils::{mul_i, mul_neg_i, zabs};
 /// Compute J_{fnu+j}(z) for j = 0, 1, ..., n-1.
 ///
 /// Equivalent to Fortran ZBESJ in TOMS 644.
+#[inline]
 pub(crate) fn zbesj<T: BesselFloat>(
     z: Complex<T>,
     fnu: T,
@@ -24,12 +25,8 @@ pub(crate) fn zbesj<T: BesselFloat>(
     let zero = T::zero();
     let one = T::one();
     let hpi_t = T::from_f64(HPI);
-    let czero = Complex::new(zero, zero);
 
     let n = y.len();
-
-    // Zero the output buffer
-    y.fill(czero);
 
     // Input validation (Fortran lines 783-788)
     if n < 1 {

@@ -34,6 +34,7 @@ use crate::utils::zabs;
 /// - `Overflow`: |z| too small or result magnitude overflow
 /// - `TotalPrecisionLoss`: complete loss of significance
 /// - `ConvergenceFailure`: algorithm did not converge
+#[inline]
 pub(crate) fn zbesk<T: BesselFloat>(
     z: Complex<T>,
     fnu: T,

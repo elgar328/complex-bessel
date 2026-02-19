@@ -33,6 +33,7 @@ use crate::utils::{mul_i, mul_neg_i, zabs};
 ///
 /// # Returns
 /// `(nz, status)` where `nz` is the underflow count.
+#[inline]
 pub(crate) fn zbesh<T: BesselFloat>(
     z: Complex<T>,
     fnu: T,
@@ -102,9 +103,6 @@ pub(crate) fn zbesh<T: BesselFloat>(
     // ── Overflow pre-checks and dispatch (Fortran lines 231-268) ──
     let mut nz: usize = 0;
     let mut nn_eff = nn;
-
-    // Initialize output to zero
-    y.fill(czero);
 
     if fnu > fnul {
         // Large order: uniform asymptotic expansions (ZBUNK)

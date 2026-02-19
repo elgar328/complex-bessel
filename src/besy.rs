@@ -24,6 +24,7 @@ use crate::utils::{mul_i, mul_neg_i};
 /// where CC = exp(-i*pi*v/2) and arg = z*exp(-i*pi/2).
 ///
 /// Equivalent to Fortran ZBESY in TOMS 644.
+#[inline]
 pub(crate) fn zbesy<T: BesselFloat>(
     z: Complex<T>,
     fnu: T,
