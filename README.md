@@ -13,7 +13,7 @@ Pure Rust implementation of complex Bessel functions based on **Amos Algorithm 6
 - **Complete function set** — J, Y, I, K, H<sup>(1)</sup>, H<sup>(2)</sup>, Ai, Bi
 - **Consecutive orders** — `_seq` variants return ν, ν+1, …, ν+n−1 in one call
 - **Exponential scaling** — `_scaled` variants prevent overflow/underflow
-- **Negative orders** — single-value functions accept ν < 0 via reflection formulas
+- **Negative orders** — supports ν < 0 via DLMF reflection formulas (not in Amos)
 - **`no_std` support** — 3-tier: bare `no_std` (no allocator), `alloc`, `std` (default)
 
 ## Quick start
@@ -114,7 +114,7 @@ All functions return `Result<_, BesselError>`. The four error variants are:
 
 | Variant | Cause |
 |---------|-------|
-| `InvalidInput` | z = 0 for K/Y/H, ν < 0 in `_seq`, n < 1 |
+| `InvalidInput` | z = 0 for K/Y/H, n < 1 |
 | `Overflow` | \|z\| or ν too large (or too small) for finite result |
 | `TotalPrecisionLoss` | Complete loss of significant digits; \|z\| or ν too large |
 | `ConvergenceFailure` | Internal algorithm did not converge |

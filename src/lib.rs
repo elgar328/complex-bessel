@@ -9,7 +9,7 @@
 //! - **Complete function set** — J, Y, I, K, H⁽¹⁾, H⁽²⁾, Ai, Bi
 //! - **Consecutive orders** — `_seq` variants return ν, ν+1, …, ν+n−1 in one call
 //! - **Exponential scaling** — `_scaled` variants prevent overflow/underflow
-//! - **Negative orders** — single-value functions accept ν < 0 via reflection formulas
+//! - **Negative orders** — supports ν < 0 via DLMF reflection formulas (not in Amos)
 //! - **`no_std` support** — 3-tier: bare `no_std` (no allocator), `alloc`, `std` (default)
 //!
 //! # Quick start
@@ -130,7 +130,7 @@
 //!
 //! # Negative orders
 //!
-//! All single-value functions accept any real order, including negative values.
+//! All functions (single-value and `_seq` variants) accept any real order, including negative values.
 //! DLMF reflection formulas are applied automatically:
 //!
 //! - **J**: J<sub>−ν</sub>(z) = cos(νπ) J<sub>ν</sub>(z) − sin(νπ) Y<sub>ν</sub>(z) (DLMF 10.4.1)
