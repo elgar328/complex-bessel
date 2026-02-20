@@ -4,10 +4,8 @@
 use alloc::vec::Vec;
 use core::fmt;
 
-#[cfg(feature = "alloc")]
 use num_complex::Complex;
 
-#[cfg(feature = "alloc")]
 use crate::machine::BesselFloat;
 
 /// Status of the computation result.
@@ -18,6 +16,22 @@ pub enum BesselStatus {
     /// Result computed but may have lost more than half of significant digits.
     /// Occurs when |z| or ν exceeds ~32767 for f64.
     ReducedPrecision,
+}
+
+/// Result of an Airy function computation, returned by `_raw` functions
+/// (e.g., [`airy_raw`](crate::airy_raw)).
+///
+/// Single-value convenience functions (`airy`, `biry`, …) do not expose
+/// this type; they return only the computed value and discard the status.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct AiryResult<T: BesselFloat> {
+    /// Computed function value.
+    pub value: Complex<T>,
+    /// Precision status of the computation.
+    ///
+    /// [`BesselStatus::ReducedPrecision`] indicates that |z| is large enough
+    /// for more than half of significant digits to be lost.
+    pub status: BesselStatus,
 }
 
 /// Result of a sequence computation, returned by `_seq` functions

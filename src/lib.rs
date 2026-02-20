@@ -79,7 +79,7 @@
 //! [`ReducedPrecision`](BesselStatus::ReducedPrecision) is extremely rare in practice. SciPy's Bessel wrappers also silently
 //! discard the equivalent Amos IERR=3 flag by default.
 //!
-//! To check precision status, use a `_seq` function:
+//! To check precision status, use a `_seq` function (Bessel) or a `_raw` function (Airy):
 //!
 //! ```
 //! # #[cfg(feature = "alloc")] {
@@ -90,6 +90,15 @@
 //! let result = besselk_seq(0.0, z, 1, Scaling::Unscaled).unwrap();
 //! assert!(matches!(result.status, BesselStatus::Normal));
 //! # }
+//! ```
+//!
+//! ```
+//! use complex_bessel::*;
+//! use num_complex::Complex;
+//!
+//! let z = Complex::new(1.0, 2.0);
+//! let result = airy_raw(z, Scaling::Unscaled).unwrap();
+//! assert!(matches!(result.status, BesselStatus::Normal));
 //! ```
 //!
 //! # Exponential scaling
@@ -142,11 +151,12 @@
 //!
 //! | Cargo features | Available API | Allocator required |
 //! |---------------|---------------|-----------|
-//! | `default-features = false` | 20 single-value functions | No |
+//! | `default-features = false` | 24 single-value functions | No |
 //! | `features = ["alloc"]` | + 6 `_seq` variants + [`BesselResult`] | Yes |
 //! | `features = ["std"]` (default) | + `impl Error for BesselError` | Yes |
 //!
-//! The 20 single-value functions include 12 Bessel (J/Y/I/K/H<sup>(1)</sup>/H<sup>(2)</sup> × unscaled/scaled) and 8 Airy (Ai/Ai'/Bi/Bi' × unscaled/scaled).
+//! The 24 single-value functions include 12 Bessel (J/Y/I/K/H<sup>(1)</sup>/H<sup>(2)</sup> × unscaled/scaled),
+//! 8 Airy (Ai/Ai'/Bi/Bi' × unscaled/scaled), and 4 Airy `_raw` variants that return [`AiryResult`].
 //!
 //! ```toml
 //! # Bare no_std — no allocator needed:
@@ -189,7 +199,7 @@ pub(crate) mod utils;
 pub use machine::BesselFloat;
 #[cfg(feature = "alloc")]
 pub use types::BesselResult;
-pub use types::{BesselError, BesselStatus, Scaling};
+pub use types::{AiryResult, BesselError, BesselStatus, Scaling};
 
 use num_complex::Complex;
 use types::{AiryDerivative, HankelKind};
@@ -837,6 +847,88 @@ pub fn biry_scaled<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, BesselEr
 pub fn biryprime_scaled<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, BesselError> {
     let (result, _status) = airy::zbiry(z, AiryDerivative::Derivative, Scaling::Exponential)?;
     Ok(result)
+}
+
+// ── Airy _raw functions (expose BesselStatus) ──
+
+/// Airy function Ai(z) with precision status.
+///
+/// Like [`airy`], but returns an [`AiryResult`] that includes
+/// [`BesselStatus`] for detecting precision loss at large |z|.
+///
+/// The `scaling` parameter selects [`Scaling::Unscaled`] or [`Scaling::Exponential`];
+/// see [crate-level docs](crate#exponential-scaling) for details.
+///
+/// # Errors
+///
+/// Returns [`BesselError`] if the computation fails.
+#[inline]
+pub fn airy_raw<T: BesselFloat>(
+    z: Complex<T>,
+    scaling: Scaling,
+) -> Result<AiryResult<T>, BesselError> {
+    let (value, _nz, status) = airy::zairy(z, AiryDerivative::Value, scaling)?;
+    Ok(AiryResult { value, status })
+}
+
+/// Derivative of the Airy function Ai'(z) with precision status.
+///
+/// Like [`airyprime`], but returns an [`AiryResult`] that includes
+/// [`BesselStatus`] for detecting precision loss at large |z|.
+///
+/// The `scaling` parameter selects [`Scaling::Unscaled`] or [`Scaling::Exponential`];
+/// see [crate-level docs](crate#exponential-scaling) for details.
+///
+/// # Errors
+///
+/// Returns [`BesselError`] if the computation fails.
+#[inline]
+pub fn airyprime_raw<T: BesselFloat>(
+    z: Complex<T>,
+    scaling: Scaling,
+) -> Result<AiryResult<T>, BesselError> {
+    let (value, _nz, status) = airy::zairy(z, AiryDerivative::Derivative, scaling)?;
+    Ok(AiryResult { value, status })
+}
+
+/// Airy function of the second kind Bi(z) with precision status.
+///
+/// Like [`biry`], but returns an [`AiryResult`] that includes
+/// [`BesselStatus`] for detecting precision loss at large |z|.
+///
+/// The `scaling` parameter selects [`Scaling::Unscaled`] or [`Scaling::Exponential`];
+/// see [crate-level docs](crate#exponential-scaling) for details.
+///
+/// # Errors
+///
+/// Returns [`BesselError`] if the computation fails.
+#[inline]
+pub fn biry_raw<T: BesselFloat>(
+    z: Complex<T>,
+    scaling: Scaling,
+) -> Result<AiryResult<T>, BesselError> {
+    let (value, status) = airy::zbiry(z, AiryDerivative::Value, scaling)?;
+    Ok(AiryResult { value, status })
+}
+
+/// Derivative of the Airy function of the second kind Bi'(z) with precision status.
+///
+/// Like [`biryprime`], but returns an [`AiryResult`] that includes
+/// [`BesselStatus`] for detecting precision loss at large |z|.
+///
+/// The `scaling` parameter selects [`Scaling::Unscaled`] or [`Scaling::Exponential`];
+/// see [crate-level docs](crate#exponential-scaling) for details.
+///
+/// # Errors
+///
+/// Returns [`BesselError`] if the computation fails.
+#[inline]
+pub fn biryprime_raw<T: BesselFloat>(
+    z: Complex<T>,
+    scaling: Scaling,
+) -> Result<AiryResult<T>, BesselError> {
+    let (value, status) = airy::zbiry(z, AiryDerivative::Derivative, scaling)?;
+    Ok(AiryResult { value, status })
 }
 
 // ── Sequence functions with scaling option (require alloc) ──
