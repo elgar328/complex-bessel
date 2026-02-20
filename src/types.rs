@@ -102,7 +102,7 @@ pub(crate) enum AiryDerivative {
 /// Error type for Bessel function computation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum BesselError {
-    /// Invalid input (e.g., z=0 for K/Y/H, negative order in sequence functions).
+    /// Invalid input (e.g., z=0 for K/Y/H, n < 1 in sequence functions).
     InvalidInput,
     /// Overflow: |z| or ν too large, or |z| too small.
     Overflow,
