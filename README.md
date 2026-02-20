@@ -51,18 +51,19 @@ let ai_prime = airyprime(z).unwrap();
 | `besselk(ν, z)`<br>`besselk_scaled(ν, z)`<br>`besselk_seq(ν, z, n, scaling)` | K<sub>ν</sub>(z), modified second kind | exp(z) · K<sub>ν</sub>(z) |
 | `hankel1(ν, z)`<br>`hankel1_scaled(ν, z)`<br>`hankel1_seq(ν, z, n, scaling)` | H<sub>ν</sub><sup>(1)</sup>(z), Hankel first kind | exp(−iz) · H<sub>ν</sub><sup>(1)</sup>(z) |
 | `hankel2(ν, z)`<br>`hankel2_scaled(ν, z)`<br>`hankel2_seq(ν, z, n, scaling)` | H<sub>ν</sub><sup>(2)</sup>(z), Hankel second kind | exp(iz) · H<sub>ν</sub><sup>(2)</sup>(z) |
-| `airy(z)`<br>`airy_scaled(z)` | Ai(z), Airy first kind | exp(ζ) · Ai(z) |
-| `airyprime(z)`<br>`airyprime_scaled(z)` | Ai′(z), derivative of Airy first kind | exp(ζ) · Ai′(z) |
-| `biry(z)`<br>`biry_scaled(z)` | Bi(z), Airy second kind | exp(−\|Re(ζ)\|) · Bi(z) |
-| `biryprime(z)`<br>`biryprime_scaled(z)` | Bi′(z), derivative of Airy second kind | exp(−\|Re(ζ)\|) · Bi′(z) |
+| `airy(z)`<br>`airy_scaled(z)`<br>`airy_raw(z, scaling)` | Ai(z), Airy first kind | exp(ζ) · Ai(z) |
+| `airyprime(z)`<br>`airyprime_scaled(z)`<br>`airyprime_raw(z, scaling)` | Ai′(z), derivative of Airy first kind | exp(ζ) · Ai′(z) |
+| `biry(z)`<br>`biry_scaled(z)`<br>`biry_raw(z, scaling)` | Bi(z), Airy second kind | exp(−\|Re(ζ)\|) · Bi(z) |
+| `biryprime(z)`<br>`biryprime_scaled(z)`<br>`biryprime_raw(z, scaling)` | Bi′(z), derivative of Airy second kind | exp(−\|Re(ζ)\|) · Bi′(z) |
 
 where ζ = (2/3) z√z.
 
 ## Function variants
 
 The `_seq` variants (`besselj_seq`, `besselk_seq`, …) correspond directly to the original Amos TOMS 644 subroutines. They compute values at consecutive orders ν, ν+1, …, ν+n−1 in a single call, sharing internal recurrence work, and return a `BesselResult` that includes a `BesselStatus` field.
+The `_raw` Airy variants (`airy_raw`, `biry_raw`, …) similarly return an `AiryResult` with `BesselStatus`.
 
-The single-value functions (`besselj`, `besselk`, `besselk_scaled`, …) compute one order and discard the status.
+The single-value functions (`besselj`, `besselk`, `airy`, …) compute one value and discard the status.
 
 **`BesselStatus`:**
 
@@ -73,7 +74,7 @@ The single-value functions (`besselj`, `besselk`, `besselk_scaled`, …) compute
 
 `ReducedPrecision` is extremely rare in practice. SciPy's Bessel wrappers also silently discard the equivalent Amos IERR=3 flag by default.
 
-To check precision status, use a `_seq` function:
+To check precision status, use a `_seq` function (Bessel) or a `_raw` function (Airy):
 
 ```rust
 use complex_bessel::*;
@@ -82,17 +83,21 @@ use num_complex::Complex;
 let z = Complex::new(1.0, 2.0);
 let result = besselk_seq(0.0, z, 1, Scaling::Unscaled).unwrap();
 assert!(matches!(result.status, BesselStatus::Normal));
+
+// Airy: use a _raw function
+let result = airy_raw(z, Scaling::Unscaled).unwrap();
+assert!(matches!(result.status, BesselStatus::Normal));
 ```
 
 ## `no_std` support
 
 | Cargo features | Available API | Allocator required |
 |---------------|---------------|:------------------:|
-| `default-features = false` | 20 single-value functions | No |
+| `default-features = false` | 24 single-value functions | No |
 | `features = ["alloc"]` | + 6 `_seq` variants + `BesselResult` | Yes |
 | `features = ["std"]` (default) | + `impl Error for BesselError` | Yes |
 
-The 20 single-value functions include 12 Bessel (J/Y/I/K/H<sup>(1)</sup>/H<sup>(2)</sup> × unscaled/scaled) and 8 Airy (Ai/Ai'/Bi/Bi' × unscaled/scaled).
+The 24 single-value functions include 12 Bessel (J/Y/I/K/H<sup>(1)</sup>/H<sup>(2)</sup> × unscaled/scaled), 8 Airy (Ai/Ai'/Bi/Bi' × unscaled/scaled), and 4 Airy `_raw` variants that return `AiryResult`.
 
 ```toml
 # Bare no_std — no allocator needed:
