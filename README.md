@@ -58,15 +58,11 @@ let ai_prime = airyprime(z).unwrap();
 
 where ζ = (2/3) z√z.
 
-## API design
+## Function variants
 
-The `_seq` functions (`besselj_seq`, `besselk_seq`, …) correspond directly to the
-original Amos TOMS 644 subroutines. They compute values at consecutive orders
-ν, ν+1, …, ν+n−1 in a single call, sharing internal recurrence work, and return
-a `BesselResult` that includes a `BesselStatus` field.
+The `_seq` variants (`besselj_seq`, `besselk_seq`, …) correspond directly to the original Amos TOMS 644 subroutines. They compute values at consecutive orders ν, ν+1, …, ν+n−1 in a single call, sharing internal recurrence work, and return a `BesselResult` that includes a `BesselStatus` field.
 
-The single-value functions (`besselj`, `besselk`, …) are convenience wrappers
-that call the `_seq` variant with n=1 and discard the status.
+The single-value functions (`besselj`, `besselk`, `besselk_scaled`, …) compute one order and discard the status.
 
 **`BesselStatus`:**
 
@@ -75,8 +71,7 @@ that call the `_seq` variant with n=1 and discard the status.
 | `Normal` | Full machine precision |
 | `ReducedPrecision` | More than half of significant digits may be lost; occurs only when \|z\| or ν exceeds ~32767 |
 
-`ReducedPrecision` is extremely rare in practice. SciPy's Bessel wrappers also
-silently discard the equivalent Amos IERR=3 flag by default.
+`ReducedPrecision` is extremely rare in practice. SciPy's Bessel wrappers also silently discard the equivalent Amos IERR=3 flag by default.
 
 To check precision status, use a `_seq` function:
 
@@ -97,8 +92,7 @@ assert!(matches!(result.status, BesselStatus::Normal));
 | `features = ["alloc"]` | + 6 `_seq` variants + `BesselResult` | Yes |
 | `features = ["std"]` (default) | + `impl Error for BesselError` | Yes |
 
-The 20 single-value functions include 12 Bessel (J/Y/I/K/H⁽¹⁾/H⁽²⁾ × unscaled/scaled)
-and 8 Airy (Ai/Ai'/Bi/Bi' × unscaled/scaled).
+The 20 single-value functions include 12 Bessel (J/Y/I/K/H<sup>(1)</sup>/H<sup>(2)</sup> × unscaled/scaled) and 8 Airy (Ai/Ai'/Bi/Bi' × unscaled/scaled).
 
 ```toml
 # Bare no_std — no allocator needed:
@@ -123,12 +117,7 @@ All functions return `Result<_, BesselError>`. The four error variants are:
 
 ## Accuracy
 
-Results agree with the original Fortran TOMS 644 to ~14 significant digits (f64).
-Comprehensive accuracy analysis is maintained in a [separate repository](https://github.com/elgar328/complex-bessel-accuracy).
-
-## Minimum supported Rust version
-
-1.85 — The MSRV may be bumped in minor releases.
+Results agree with the original Fortran TOMS 644 to ~14 significant digits (f64). Comprehensive accuracy analysis is maintained in a [separate repository](https://github.com/elgar328/complex-bessel-accuracy).
 
 ## License
 

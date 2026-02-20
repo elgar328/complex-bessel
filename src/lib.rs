@@ -1,12 +1,9 @@
 //! Pure Rust implementation of complex Bessel functions based on Amos Algorithm 644 (ACM TOMS 644).
 //!
-//! Provides Bessel functions J, Y, I, K, Hankel H⁽¹⁾/H⁽²⁾, and Airy functions Ai/Bi
-//! for complex arguments and real orders.
-//!
 //! # Features
 //!
 //! - **f32 & f64** — all functions accept `Complex<f64>` or `Complex<f32>`
-//! - **Complete function set** — J, Y, I, K, H⁽¹⁾, H⁽²⁾, Ai, Bi
+//! - **Complete function set** — J, Y, I, K, H<sup>(1)</sup>, H<sup>(2)</sup>, Ai, Bi
 //! - **Consecutive orders** — `_seq` variants return ν, ν+1, …, ν+n−1 in one call
 //! - **Exponential scaling** — `_scaled` variants prevent overflow/underflow
 //! - **Negative orders** — supports ν < 0 via DLMF reflection formulas (not in Amos)
@@ -49,15 +46,15 @@
 //! let j32 = besselj(0.5_f32, z32).unwrap();
 //! ```
 //!
-//! # Consecutive orders
+//! # Function variants
 //!
 //! The `_seq` variants (`besselj_seq`, `besselk_seq`, …) correspond directly to the
 //! original Amos TOMS 644 subroutines. They compute values at consecutive orders
 //! ν, ν+1, …, ν+n−1 in a single call, sharing internal recurrence work, and return
 //! a [`BesselResult`] that includes a [`BesselStatus`] field.
 //!
-//! The single-value functions (`besselj`, `besselk`, …) are convenience wrappers
-//! that call the `_seq` variant with n=1 and discard the status.
+//! The single-value functions (`besselj`, `besselk`, `besselk_scaled`, …) compute
+//! one order and discard the status.
 //!
 //! ```
 //! # #[cfg(feature = "alloc")] {
@@ -72,15 +69,17 @@
 //! # }
 //! ```
 //!
-//! Sequence results include a [`BesselStatus`] field:
-//! - [`BesselStatus::Normal`] — full machine precision
-//! - [`BesselStatus::ReducedPrecision`] — more than half of significant digits may be lost (|z| or ν very large)
+//! **[`BesselStatus`]:**
 //!
-//! [`BesselStatus::ReducedPrecision`] occurs only when |z| or ν exceeds ~32767,
-//! which is extremely rare in practice. SciPy's Bessel wrappers also silently
+//! | Status | Meaning |
+//! |--------|---------|
+//! | [`Normal`](BesselStatus::Normal) | Full machine precision |
+//! | [`ReducedPrecision`](BesselStatus::ReducedPrecision) | More than half of significant digits may be lost; occurs only when \|z\| or ν exceeds ~32767 |
+//!
+//! [`ReducedPrecision`](BesselStatus::ReducedPrecision) is extremely rare in practice. SciPy's Bessel wrappers also silently
 //! discard the equivalent Amos IERR=3 flag by default.
 //!
-//! To check precision status explicitly, use a `_seq` function:
+//! To check precision status, use a `_seq` function:
 //!
 //! ```
 //! # #[cfg(feature = "alloc")] {
@@ -92,9 +91,6 @@
 //! assert!(matches!(result.status, BesselStatus::Normal));
 //! # }
 //! ```
-//!
-//! All functions, including sequence variants, support negative orders via
-//! DLMF reflection formulas (see [Negative orders](#negative-orders)).
 //!
 //! # Exponential scaling
 //!
@@ -144,24 +140,34 @@
 //!
 //! # `no_std` support
 //!
-//! Three tiers of feature support:
-//!
-//! | Cargo features | Available API | Allocator |
+//! | Cargo features | Available API | Allocator required |
 //! |---------------|---------------|-----------|
-//! | `default-features = false` | 20 single-value functions | **Not required** |
-//! | `features = ["alloc"]` | + 6 `_seq` variants + [`BesselResult`] | Required |
-//! | `features = ["std"]` (default) | + `impl Error for BesselError` | Required |
+//! | `default-features = false` | 20 single-value functions | No |
+//! | `features = ["alloc"]` | + 6 `_seq` variants + [`BesselResult`] | Yes |
+//! | `features = ["std"]` (default) | + `impl Error for BesselError` | Yes |
 //!
-//! The 20 single-value functions include 12 Bessel (J/Y/I/K/H⁽¹⁾/H⁽²⁾ × unscaled/scaled)
-//! and 8 Airy (Ai/Ai'/Bi/Bi' × unscaled/scaled).
+//! The 20 single-value functions include 12 Bessel (J/Y/I/K/H<sup>(1)</sup>/H<sup>(2)</sup> × unscaled/scaled) and 8 Airy (Ai/Ai'/Bi/Bi' × unscaled/scaled).
 //!
 //! ```toml
-//! # Bare no_std, no allocator needed:
+//! # Bare no_std — no allocator needed:
 //! complex-bessel = { version = "0.1", default-features = false }
 //!
 //! # no_std with alloc (adds _seq functions and BesselResult):
 //! complex-bessel = { version = "0.1", default-features = false, features = ["alloc"] }
 //! ```
+//!
+//! # Error handling
+//!
+//! All functions return `Result<_, BesselError>`. The four error variants are:
+//!
+//! | Variant | Cause |
+//! |---------|-------|
+//! | [`InvalidInput`](BesselError::InvalidInput) | z = 0 for K/Y/H, n < 1 |
+//! | [`Overflow`](BesselError::Overflow) | \|z\| or ν too large (or too small) for finite result |
+//! | [`TotalPrecisionLoss`](BesselError::TotalPrecisionLoss) | Complete loss of significant digits; \|z\| or ν too large |
+//! | [`ConvergenceFailure`](BesselError::ConvergenceFailure) | Internal algorithm did not converge |
+//!
+//! [`BesselError`] implements `Display` always and `std::error::Error` with the `std` feature.
 
 #![warn(missing_docs)]
 #![cfg_attr(not(feature = "std"), no_std)]
