@@ -60,19 +60,19 @@ where ζ = (2/3) z√z.
 
 ## Function variants
 
-The `_seq` variants (`besselj_seq`, `besselk_seq`, …) correspond directly to the original Amos TOMS 644 subroutines. They compute values at consecutive orders ν, ν+1, …, ν+n−1 in a single call, sharing internal recurrence work, and return a `BesselResult` that includes a `BesselStatus` field.
-The `_raw` Airy variants (`airy_raw`, `biry_raw`, …) similarly return an `AiryResult` with `BesselStatus`.
+The `_seq` variants (`besselj_seq`, `besselk_seq`, …) correspond directly to the original Amos TOMS 644 subroutines. They compute values at consecutive orders ν, ν+1, …, ν+n−1 in a single call, sharing internal recurrence work, and return a `BesselResult` that includes an `Accuracy` field.
+The `_raw` Airy variants (`airy_raw`, `biry_raw`, …) similarly return an `AiryResult` with `Accuracy`.
 
 The single-value functions (`besselj`, `besselk`, `airy`, …) compute one value and discard the status.
 
-**`BesselStatus`:**
+**`Accuracy`:**
 
 | Status | Meaning |
 |--------|---------|
 | `Normal` | Full machine precision |
-| `ReducedPrecision` | More than half of significant digits may be lost; occurs only when \|z\| or ν exceeds ~32767 |
+| `Reduced` | More than half of significant digits may be lost; occurs only when \|z\| or ν exceeds ~32767 |
 
-`ReducedPrecision` is extremely rare in practice. SciPy's Bessel wrappers also silently discard the equivalent Amos IERR=3 flag by default.
+`Reduced` is extremely rare in practice. SciPy's Bessel wrappers also silently discard the equivalent Amos IERR=3 flag by default.
 
 To check precision status, use a `_seq` function (Bessel) or a `_raw` function (Airy):
 
@@ -82,11 +82,11 @@ use num_complex::Complex;
 
 let z = Complex::new(1.0, 2.0);
 let result = besselk_seq(0.0, z, 1, Scaling::Unscaled).unwrap();
-assert!(matches!(result.status, BesselStatus::Normal));
+assert!(matches!(result.status, Accuracy::Normal));
 
 // Airy: use a _raw function
 let result = airy_raw(z, Scaling::Unscaled).unwrap();
-assert!(matches!(result.status, BesselStatus::Normal));
+assert!(matches!(result.status, Accuracy::Normal));
 ```
 
 ## `no_std` support

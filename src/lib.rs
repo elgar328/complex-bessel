@@ -51,7 +51,7 @@
 //! The `_seq` variants (`besselj_seq`, `besselk_seq`, …) correspond directly to the
 //! original Amos TOMS 644 subroutines. They compute values at consecutive orders
 //! ν, ν+1, …, ν+n−1 in a single call, sharing internal recurrence work, and return
-//! a [`BesselResult`] that includes a [`BesselStatus`] field.
+//! a [`BesselResult`] that includes an [`Accuracy`] field.
 //!
 //! The single-value functions (`besselj`, `besselk`, `besselk_scaled`, …) compute
 //! one order and discard the status.
@@ -69,14 +69,14 @@
 //! # }
 //! ```
 //!
-//! **[`BesselStatus`]:**
+//! **[`Accuracy`]:**
 //!
 //! | Status | Meaning |
 //! |--------|---------|
-//! | [`Normal`](BesselStatus::Normal) | Full machine precision |
-//! | [`ReducedPrecision`](BesselStatus::ReducedPrecision) | More than half of significant digits may be lost; occurs only when \|z\| or ν exceeds ~32767 |
+//! | [`Normal`](Accuracy::Normal) | Full machine precision |
+//! | [`Reduced`](Accuracy::Reduced) | More than half of significant digits may be lost; occurs only when \|z\| or ν exceeds ~32767 |
 //!
-//! [`ReducedPrecision`](BesselStatus::ReducedPrecision) is extremely rare in practice. SciPy's Bessel wrappers also silently
+//! [`Reduced`](Accuracy::Reduced) is extremely rare in practice. SciPy's Bessel wrappers also silently
 //! discard the equivalent Amos IERR=3 flag by default.
 //!
 //! To check precision status, use a `_seq` function (Bessel) or a `_raw` function (Airy):
@@ -88,7 +88,7 @@
 //!
 //! let z = Complex::new(1.0, 2.0);
 //! let result = besselk_seq(0.0, z, 1, Scaling::Unscaled).unwrap();
-//! assert!(matches!(result.status, BesselStatus::Normal));
+//! assert!(matches!(result.status, Accuracy::Normal));
 //! # }
 //! ```
 //!
@@ -98,7 +98,7 @@
 //!
 //! let z = Complex::new(1.0, 2.0);
 //! let result = airy_raw(z, Scaling::Unscaled).unwrap();
-//! assert!(matches!(result.status, BesselStatus::Normal));
+//! assert!(matches!(result.status, Accuracy::Normal));
 //! ```
 //!
 //! # Exponential scaling
@@ -199,7 +199,7 @@ pub(crate) mod utils;
 pub use machine::BesselFloat;
 #[cfg(feature = "alloc")]
 pub use types::BesselResult;
-pub use types::{AiryResult, BesselError, BesselStatus, Scaling};
+pub use types::{Accuracy, AiryResult, BesselError, Scaling};
 
 use num_complex::Complex;
 use types::{AiryDerivative, HankelKind};
@@ -849,12 +849,12 @@ pub fn biryprime_scaled<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Bes
     Ok(result)
 }
 
-// ── Airy _raw functions (expose BesselStatus) ──
+// ── Airy _raw functions (expose Accuracy) ──
 
 /// Airy function Ai(z) with precision status.
 ///
 /// Like [`airy`], but returns an [`AiryResult`] that includes
-/// [`BesselStatus`] for detecting precision loss at large |z|.
+/// [`Accuracy`] for detecting precision loss at large |z|.
 ///
 /// The `scaling` parameter selects [`Scaling::Unscaled`] or [`Scaling::Exponential`];
 /// see [crate-level docs](crate#exponential-scaling) for details.
@@ -874,7 +874,7 @@ pub fn airy_raw<T: BesselFloat>(
 /// Derivative of the Airy function Ai'(z) with precision status.
 ///
 /// Like [`airyprime`], but returns an [`AiryResult`] that includes
-/// [`BesselStatus`] for detecting precision loss at large |z|.
+/// [`Accuracy`] for detecting precision loss at large |z|.
 ///
 /// The `scaling` parameter selects [`Scaling::Unscaled`] or [`Scaling::Exponential`];
 /// see [crate-level docs](crate#exponential-scaling) for details.
@@ -894,7 +894,7 @@ pub fn airyprime_raw<T: BesselFloat>(
 /// Airy function of the second kind Bi(z) with precision status.
 ///
 /// Like [`biry`], but returns an [`AiryResult`] that includes
-/// [`BesselStatus`] for detecting precision loss at large |z|.
+/// [`Accuracy`] for detecting precision loss at large |z|.
 ///
 /// The `scaling` parameter selects [`Scaling::Unscaled`] or [`Scaling::Exponential`];
 /// see [crate-level docs](crate#exponential-scaling) for details.
@@ -914,7 +914,7 @@ pub fn biry_raw<T: BesselFloat>(
 /// Derivative of the Airy function of the second kind Bi'(z) with precision status.
 ///
 /// Like [`biryprime`], but returns an [`AiryResult`] that includes
-/// [`BesselStatus`] for detecting precision loss at large |z|.
+/// [`Accuracy`] for detecting precision loss at large |z|.
 ///
 /// The `scaling` parameter selects [`Scaling::Unscaled`] or [`Scaling::Exponential`];
 /// see [crate-level docs](crate#exponential-scaling) for details.
@@ -939,7 +939,7 @@ extern crate alloc as alloc_crate;
 #[cfg(feature = "alloc")]
 fn seq_helper<T: BesselFloat>(
     n: usize,
-    f: impl FnOnce(&mut [Complex<T>]) -> Result<(usize, BesselStatus), BesselError>,
+    f: impl FnOnce(&mut [Complex<T>]) -> Result<(usize, Accuracy), BesselError>,
 ) -> Result<BesselResult<T>, BesselError> {
     let zero = T::zero();
     let mut values = alloc_crate::vec![Complex::new(zero, zero); n];
@@ -951,15 +951,13 @@ fn seq_helper<T: BesselFloat>(
     })
 }
 
-/// Take the worse of two statuses (ReducedPrecision > Normal).
+/// Take the worse of two statuses (Reduced > Normal).
 #[cfg(feature = "alloc")]
 #[inline]
-fn worse_status(a: BesselStatus, b: BesselStatus) -> BesselStatus {
+fn worse_status(a: Accuracy, b: Accuracy) -> Accuracy {
     match (a, b) {
-        (BesselStatus::ReducedPrecision, _) | (_, BesselStatus::ReducedPrecision) => {
-            BesselStatus::ReducedPrecision
-        }
-        _ => BesselStatus::Normal,
+        (Accuracy::Reduced, _) | (_, Accuracy::Reduced) => Accuracy::Reduced,
+        _ => Accuracy::Normal,
     }
 }
 
@@ -1498,9 +1496,9 @@ fn besseli_seq_neg<T: BesselFloat>(
 #[cfg(feature = "alloc")]
 /// Compute J_{ν+j}(z) for j = 0, 1, …, n−1 in a single call.
 ///
-/// Returns a [`BesselResult`] containing `n` values and a [`BesselStatus`]:
-/// - [`BesselStatus::Normal`] — full machine precision
-/// - [`BesselStatus::ReducedPrecision`] — more than half of significant digits may be lost (|z| or ν very large)
+/// Returns a [`BesselResult`] containing `n` values and an [`Accuracy`]:
+/// - [`Accuracy::Normal`] — full machine precision
+/// - [`Accuracy::Reduced`] — more than half of significant digits may be lost (|z| or ν very large)
 ///
 /// The `scaling` parameter selects [`Scaling::Unscaled`] or [`Scaling::Exponential`];
 /// see [crate-level docs](crate#exponential-scaling) for details.
@@ -1543,9 +1541,9 @@ pub fn besselj_seq<T: BesselFloat>(
 #[cfg(feature = "alloc")]
 /// Compute Y_{ν+j}(z) for j = 0, 1, …, n−1 in a single call.
 ///
-/// Returns a [`BesselResult`] containing `n` values and a [`BesselStatus`]:
-/// - [`BesselStatus::Normal`] — full machine precision
-/// - [`BesselStatus::ReducedPrecision`] — more than half of significant digits may be lost (|z| or ν very large)
+/// Returns a [`BesselResult`] containing `n` values and an [`Accuracy`]:
+/// - [`Accuracy::Normal`] — full machine precision
+/// - [`Accuracy::Reduced`] — more than half of significant digits may be lost (|z| or ν very large)
 ///
 /// The `scaling` parameter selects [`Scaling::Unscaled`] or [`Scaling::Exponential`];
 /// see [crate-level docs](crate#exponential-scaling) for details.
@@ -1574,9 +1572,9 @@ pub fn bessely_seq<T: BesselFloat>(
 #[cfg(feature = "alloc")]
 /// Compute I_{ν+j}(z) for j = 0, 1, …, n−1 in a single call.
 ///
-/// Returns a [`BesselResult`] containing `n` values and a [`BesselStatus`]:
-/// - [`BesselStatus::Normal`] — full machine precision
-/// - [`BesselStatus::ReducedPrecision`] — more than half of significant digits may be lost (|z| or ν very large)
+/// Returns a [`BesselResult`] containing `n` values and an [`Accuracy`]:
+/// - [`Accuracy::Normal`] — full machine precision
+/// - [`Accuracy::Reduced`] — more than half of significant digits may be lost (|z| or ν very large)
 ///
 /// The `scaling` parameter selects [`Scaling::Unscaled`] or [`Scaling::Exponential`];
 /// see [crate-level docs](crate#exponential-scaling) for details.
@@ -1605,9 +1603,9 @@ pub fn besseli_seq<T: BesselFloat>(
 #[cfg(feature = "alloc")]
 /// Compute K_{ν+j}(z) for j = 0, 1, …, n−1 in a single call.
 ///
-/// Returns a [`BesselResult`] containing `n` values and a [`BesselStatus`]:
-/// - [`BesselStatus::Normal`] — full machine precision
-/// - [`BesselStatus::ReducedPrecision`] — more than half of significant digits may be lost (|z| or ν very large)
+/// Returns a [`BesselResult`] containing `n` values and an [`Accuracy`]:
+/// - [`Accuracy::Normal`] — full machine precision
+/// - [`Accuracy::Reduced`] — more than half of significant digits may be lost (|z| or ν very large)
 ///
 /// The `scaling` parameter selects [`Scaling::Unscaled`] or [`Scaling::Exponential`];
 /// see [crate-level docs](crate#exponential-scaling) for details.
@@ -1627,7 +1625,7 @@ pub fn besseli_seq<T: BesselFloat>(
 /// // K_0(z), K_1(z), K_2(z) in one call
 /// let result = besselk_seq(0.0, z, 3, Scaling::Unscaled).unwrap();
 /// assert_eq!(result.values.len(), 3);
-/// assert!(matches!(result.status, BesselStatus::Normal));
+/// assert!(matches!(result.status, Accuracy::Normal));
 /// ```
 ///
 /// # Errors
@@ -1648,9 +1646,9 @@ pub fn besselk_seq<T: BesselFloat>(
 #[cfg(feature = "alloc")]
 /// Compute H_{ν+j}^(1)(z) for j = 0, 1, …, n−1 in a single call.
 ///
-/// Returns a [`BesselResult`] containing `n` values and a [`BesselStatus`]:
-/// - [`BesselStatus::Normal`] — full machine precision
-/// - [`BesselStatus::ReducedPrecision`] — more than half of significant digits may be lost (|z| or ν very large)
+/// Returns a [`BesselResult`] containing `n` values and an [`Accuracy`]:
+/// - [`Accuracy::Normal`] — full machine precision
+/// - [`Accuracy::Reduced`] — more than half of significant digits may be lost (|z| or ν very large)
 ///
 /// The `scaling` parameter selects [`Scaling::Unscaled`] or [`Scaling::Exponential`];
 /// see [crate-level docs](crate#exponential-scaling) for details.
@@ -1677,9 +1675,9 @@ pub fn hankel1_seq<T: BesselFloat>(
 #[cfg(feature = "alloc")]
 /// Compute H_{ν+j}^(2)(z) for j = 0, 1, …, n−1 in a single call.
 ///
-/// Returns a [`BesselResult`] containing `n` values and a [`BesselStatus`]:
-/// - [`BesselStatus::Normal`] — full machine precision
-/// - [`BesselStatus::ReducedPrecision`] — more than half of significant digits may be lost (|z| or ν very large)
+/// Returns a [`BesselResult`] containing `n` values and an [`Accuracy`]:
+/// - [`Accuracy::Normal`] — full machine precision
+/// - [`Accuracy::Reduced`] — more than half of significant digits may be lost (|z| or ν very large)
 ///
 /// The `scaling` parameter selects [`Scaling::Unscaled`] or [`Scaling::Exponential`];
 /// see [crate-level docs](crate#exponential-scaling) for details.

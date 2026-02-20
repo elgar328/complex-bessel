@@ -16,7 +16,7 @@ use crate::algo::bunk::zbunk;
 use crate::algo::constants::HPI;
 use crate::algo::uoik::zuoik;
 use crate::machine::BesselFloat;
-use crate::types::{BesselError, BesselStatus, HankelKind, IkFlag, Scaling};
+use crate::types::{Accuracy, BesselError, HankelKind, IkFlag, Scaling};
 use crate::utils::{mul_i, mul_neg_i, zabs};
 
 /// Compute H_{fnu+j}^(m)(z) for j = 0, 1, ..., n-1.
@@ -40,7 +40,7 @@ pub(crate) fn zbesh<T: BesselFloat>(
     kind: HankelKind,
     scaling: Scaling,
     y: &mut [Complex<T>],
-) -> Result<(usize, BesselStatus), BesselError> {
+) -> Result<(usize, Accuracy), BesselError> {
     let zero = T::zero();
     let one = T::one();
     let two = T::from_f64(2.0);
@@ -154,9 +154,9 @@ pub(crate) fn zbesh<T: BesselFloat>(
                     }
                     // All underflowed — y is already zeroed, return early
                     let status = if precision_warning {
-                        BesselStatus::ReducedPrecision
+                        Accuracy::Reduced
                     } else {
-                        BesselStatus::Normal
+                        Accuracy::Normal
                     };
                     return Ok((nz, status));
                 }
@@ -245,9 +245,9 @@ pub(crate) fn zbesh<T: BesselFloat>(
     }
 
     let status = if precision_warning {
-        BesselStatus::ReducedPrecision
+        Accuracy::Reduced
     } else {
-        BesselStatus::Normal
+        Accuracy::Normal
     };
 
     Ok((nz, status))

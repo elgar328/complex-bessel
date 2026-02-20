@@ -7,7 +7,7 @@ use num_complex::Complex;
 use crate::algo::binu::zbinu;
 use crate::algo::constants::PI;
 use crate::machine::BesselFloat;
-use crate::types::{BesselError, BesselStatus, Scaling};
+use crate::types::{Accuracy, BesselError, Scaling};
 use crate::utils::zabs;
 
 /// Compute I_{fnu+j}(z) for j = 0, 1, ..., n-1.
@@ -19,7 +19,7 @@ pub(crate) fn zbesi<T: BesselFloat>(
     fnu: T,
     scaling: Scaling,
     y: &mut [Complex<T>],
-) -> Result<(usize, BesselStatus), BesselError> {
+) -> Result<(usize, Accuracy), BesselError> {
     let zero = T::zero();
     let one = T::one();
     let pi_t = T::from_f64(PI);
@@ -79,9 +79,9 @@ pub(crate) fn zbesi<T: BesselFloat>(
     let nz = zbinu(zn, fnu, scaling, y, rl, fnul, tol, elim, alim)?;
 
     let status = if precision_warning {
-        BesselStatus::ReducedPrecision
+        Accuracy::Reduced
     } else {
-        BesselStatus::Normal
+        Accuracy::Normal
     };
 
     if z.re >= zero {

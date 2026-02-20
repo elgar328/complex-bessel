@@ -11,7 +11,7 @@ use crate::algo::acai::zacai;
 use crate::algo::binu::zbinu;
 use crate::algo::bknu::zbknu;
 use crate::machine::BesselFloat;
-use crate::types::{AiryDerivative, BesselError, BesselStatus, Scaling};
+use crate::types::{Accuracy, AiryDerivative, BesselError, Scaling};
 use crate::utils::{zabs, zdiv};
 
 // ZAIRY constants (Fortran ZAIRY DATA, lines 1600-1603)
@@ -106,14 +106,14 @@ fn airy_power_series<T: BesselFloat>(
 /// Translation of Fortran ZAIRY (zbsubs.f lines 1462-1856).
 ///
 /// Returns `(result, nz, status)` where nz=0 normal, nz=1 underflow (result=0).
-/// `status` is `BesselStatus::ReducedPrecision` when |z| > sqrt(AA^(2/3))
+/// `status` is `Accuracy::Reduced` when |z| > sqrt(AA^(2/3))
 /// (Fortran IERR=3: more than half of significant digits may be lost).
 #[inline]
 pub(crate) fn zairy<T: BesselFloat>(
     z: Complex<T>,
     id: AiryDerivative,
     kode: Scaling,
-) -> Result<(Complex<T>, i32, BesselStatus), BesselError> {
+) -> Result<(Complex<T>, i32, Accuracy), BesselError> {
     let zero = T::zero();
     let one = T::one();
     let tth = T::from_f64(TTH);
@@ -149,9 +149,9 @@ pub(crate) fn zairy<T: BesselFloat>(
             }
             let ai = Complex::new(c1, zero) - s1;
             return if kode == Scaling::Exponential {
-                Ok((zairy_scale_exp_zta(z, ai, tth), 0, BesselStatus::Normal))
+                Ok((zairy_scale_exp_zta(z, ai, tth), 0, Accuracy::Normal))
             } else {
-                Ok((ai, 0, BesselStatus::Normal))
+                Ok((ai, 0, Accuracy::Normal))
             };
         }
         // Ai'(z) ≈ -C2 + C1*z²/2 (Fortran lines 1827-1837)
@@ -162,9 +162,9 @@ pub(crate) fn zairy<T: BesselFloat>(
             ai = ai + s1 * c1;
         }
         return if kode == Scaling::Exponential {
-            Ok((zairy_scale_exp_zta(z, ai, tth), 0, BesselStatus::Normal))
+            Ok((zairy_scale_exp_zta(z, ai, tth), 0, Accuracy::Normal))
         } else {
-            Ok((ai, 0, BesselStatus::Normal))
+            Ok((ai, 0, Accuracy::Normal))
         };
     }
 
@@ -175,9 +175,9 @@ pub(crate) fn zairy<T: BesselFloat>(
         // Ai = C1*S1 - C2*(z*S2) (Fortran lines 1664-1665)
         let ai = s1 * c1 - z * s2 * c2;
         if kode == Scaling::Unscaled {
-            return Ok((ai, 0, BesselStatus::Normal));
+            return Ok((ai, 0, Accuracy::Normal));
         }
-        Ok((zairy_scale_exp_zta(z, ai, tth), 0, BesselStatus::Normal))
+        Ok((zairy_scale_exp_zta(z, ai, tth), 0, Accuracy::Normal))
     } else {
         // Ai' = -C2*S2 (Fortran lines 1676-1677)
         let mut ai = -(s2 * c2);
@@ -187,9 +187,9 @@ pub(crate) fn zairy<T: BesselFloat>(
             ai = ai + z * s1 * z * cc;
         }
         if kode == Scaling::Unscaled {
-            return Ok((ai, 0, BesselStatus::Normal));
+            return Ok((ai, 0, Accuracy::Normal));
         }
-        Ok((zairy_scale_exp_zta(z, ai, tth), 0, BesselStatus::Normal))
+        Ok((zairy_scale_exp_zta(z, ai, tth), 0, Accuracy::Normal))
     }
 }
 
@@ -231,7 +231,7 @@ fn zairy_large_z<T: BesselFloat>(
     tol: T,
     tth: T,
     coef: T,
-) -> Result<(Complex<T>, i32, BesselStatus), BesselError> {
+) -> Result<(Complex<T>, i32, Accuracy), BesselError> {
     let zero = T::zero();
     let one = T::one();
     let czero = Complex::new(zero, zero);
@@ -261,9 +261,9 @@ fn zairy_large_z<T: BesselFloat>(
     // |z| > sqrt(AA^(2/3)) means more than half of significant digits lost
     let aa_sqrt = aa.sqrt();
     let status = if az > aa_sqrt {
-        BesselStatus::ReducedPrecision
+        Accuracy::Reduced
     } else {
-        BesselStatus::Normal
+        Accuracy::Normal
     };
 
     // ZTA = (2/3)*z*sqrt(z) with branch cut correction (Fortran lines 1731-1749)
@@ -337,8 +337,8 @@ fn zairy_form_result<T: BesselFloat>(
     iflag: i32,
     sfac: T,
     nz: i32,
-    status: BesselStatus,
-) -> Result<(Complex<T>, i32, BesselStatus), BesselError> {
+    status: Accuracy,
+) -> Result<(Complex<T>, i32, Accuracy), BesselError> {
     if iflag == 0 {
         // Normal case
         if id == AiryDerivative::Value {
@@ -367,14 +367,14 @@ fn zairy_form_result<T: BesselFloat>(
 ///
 /// KODE=2 returns exp(-|Re(zta)|)*Bi(z) where zta=(2/3)*z*sqrt(z).
 ///
-/// Returns `(result, status)` where `status` is `BesselStatus::ReducedPrecision`
+/// Returns `(result, status)` where `status` is `Accuracy::Reduced`
 /// when |z| > sqrt(AA^(2/3)) (Fortran IERR=3).
 #[inline]
 pub(crate) fn zbiry<T: BesselFloat>(
     z: Complex<T>,
     id: AiryDerivative,
     kode: Scaling,
-) -> Result<(Complex<T>, BesselStatus), BesselError> {
+) -> Result<(Complex<T>, Accuracy), BesselError> {
     let zero = T::zero();
     let one = T::one();
     let tth = T::from_f64(TTH);
@@ -402,7 +402,7 @@ pub(crate) fn zbiry<T: BesselFloat>(
         // Tiny z (Fortran label 130, lines 2204-2208)
         // Bi = C1*(1-fid) + fid*C2 (real-valued)
         let bi = Complex::new(c1 * (one - fid) + fid * c2, zero);
-        return Ok((bi, BesselStatus::Normal));
+        return Ok((bi, Accuracy::Normal));
     }
 
     let (s1, s2) = airy_power_series(z, az, fid, tol);
@@ -411,10 +411,10 @@ pub(crate) fn zbiry<T: BesselFloat>(
         // Bi = C1*S1 + C2*(z*S2) (Fortran lines 2053-2054, note + sign)
         let bi = s1 * c1 + z * s2 * c2;
         if kode == Scaling::Unscaled {
-            return Ok((bi, BesselStatus::Normal));
+            return Ok((bi, Accuracy::Normal));
         }
         // KODE=2: multiply by exp(-|Re(zta)|) (Fortran lines 2056-2063)
-        Ok((zbiry_scale_exp(z, bi, tth), BesselStatus::Normal))
+        Ok((zbiry_scale_exp(z, bi, tth), Accuracy::Normal))
     } else {
         // Bi' = C2*S2 (Fortran lines 2066-2067, no minus sign)
         let mut bi = s2 * c2;
@@ -424,9 +424,9 @@ pub(crate) fn zbiry<T: BesselFloat>(
             bi = bi + z * s1 * z * cc;
         }
         if kode == Scaling::Unscaled {
-            return Ok((bi, BesselStatus::Normal));
+            return Ok((bi, Accuracy::Normal));
         }
-        Ok((zbiry_scale_exp(z, bi, tth), BesselStatus::Normal))
+        Ok((zbiry_scale_exp(z, bi, tth), Accuracy::Normal))
     }
 }
 
@@ -451,7 +451,7 @@ fn zbiry_large_z<T: BesselFloat>(
     tth: T,
     coef: T,
     pi_t: T,
-) -> Result<(Complex<T>, BesselStatus), BesselError> {
+) -> Result<(Complex<T>, Accuracy), BesselError> {
     let zero = T::zero();
     let one = T::one();
     let two = T::from_f64(2.0);
@@ -480,9 +480,9 @@ fn zbiry_large_z<T: BesselFloat>(
     // |z| > sqrt(AA^(2/3)) means more than half of significant digits lost
     let aa_sqrt = aa.sqrt();
     let status = if az > aa_sqrt {
-        BesselStatus::ReducedPrecision
+        Accuracy::Reduced
     } else {
-        BesselStatus::Normal
+        Accuracy::Normal
     };
 
     // ZTA = (2/3)*z*sqrt(z) with branch cut correction (Fortran lines 2123-2139)

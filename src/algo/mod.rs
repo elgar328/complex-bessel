@@ -8,7 +8,7 @@
 //! Most internal routines return `Result<usize, BesselError>` where the `usize`
 //! value (`nz`) indicates the number of trailing output components set to zero
 //! due to underflow. The upper-interface functions (`zbesj`, `zbesy`, etc.)
-//! translate these into the public `Result<(usize, BesselStatus), BesselError>`.
+//! translate these into the public `Result<(usize, Accuracy), BesselError>`.
 //!
 //! Some routines (notably `zbknu`) return `nz` as a raw `i32` internally:
 //! - `nz >= 0`: number of underflowed trailing components

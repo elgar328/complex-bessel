@@ -11,7 +11,7 @@ use crate::algo::bknu::zbknu;
 use crate::algo::bunk::zbunk;
 use crate::algo::uoik::zuoik;
 use crate::machine::BesselFloat;
-use crate::types::{BesselError, BesselStatus, IkFlag, Scaling};
+use crate::types::{Accuracy, BesselError, IkFlag, Scaling};
 use crate::utils::zabs;
 
 /// Compute K_{ν+j}(z) for j = 0, 1, ..., n-1 into the provided slice.
@@ -40,7 +40,7 @@ pub(crate) fn zbesk<T: BesselFloat>(
     fnu: T,
     scaling: Scaling,
     y: &mut [Complex<T>],
-) -> Result<(usize, BesselStatus), BesselError> {
+) -> Result<(usize, Accuracy), BesselError> {
     let n = y.len();
     let zero = T::zero();
     let czero = Complex::new(zero, zero);
@@ -110,9 +110,9 @@ pub(crate) fn zbesk<T: BesselFloat>(
         }
         nz += nw as usize;
         let status = if precision_warning {
-            BesselStatus::ReducedPrecision
+            Accuracy::Reduced
         } else {
-            BesselStatus::Normal
+            Accuracy::Normal
         };
         return Ok((nz, status));
     }
@@ -134,9 +134,9 @@ pub(crate) fn zbesk<T: BesselFloat>(
             if nn == 0 {
                 // All members underflowed; y is already zeroed by zuoik.
                 let status = if precision_warning {
-                    BesselStatus::ReducedPrecision
+                    Accuracy::Reduced
                 } else {
-                    BesselStatus::Normal
+                    Accuracy::Normal
                 };
                 return Ok((nz, status));
             }
@@ -165,9 +165,9 @@ pub(crate) fn zbesk<T: BesselFloat>(
     }
 
     let status = if precision_warning {
-        BesselStatus::ReducedPrecision
+        Accuracy::Reduced
     } else {
-        BesselStatus::Normal
+        Accuracy::Normal
     };
 
     Ok((nz, status))

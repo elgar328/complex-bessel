@@ -13,7 +13,7 @@ use crate::algo::constants::HPI;
 use crate::besi::zbesi;
 use crate::besk::zbesk;
 use crate::machine::BesselFloat;
-use crate::types::{BesselError, BesselStatus, Scaling};
+use crate::types::{Accuracy, BesselError, Scaling};
 use crate::utils::{mul_i, mul_neg_i};
 
 /// Compute Y_{fnu+j}(z) for j = 0, 1, ..., n-1.
@@ -30,7 +30,7 @@ pub(crate) fn zbesy<T: BesselFloat>(
     fnu: T,
     scaling: Scaling,
     y: &mut [Complex<T>],
-) -> Result<(usize, BesselStatus), BesselError> {
+) -> Result<(usize, Accuracy), BesselError> {
     let n = y.len();
     let zero = T::zero();
     let one = T::one();
@@ -93,7 +93,7 @@ pub(crate) fn zbesy<T: BesselFloat>(
             // Conjugate if original Im(z) < 0 (Fortran lines 1390-1394)
             y[0] = if z.im < zero { cy_val.conj() } else { cy_val };
 
-            return Ok((nz, BesselStatus::Normal));
+            return Ok((nz, Accuracy::Normal));
         }
 
         // KODE=2: scaled version with underflow protection (Fortran lines 1396-1456)
@@ -137,7 +137,7 @@ pub(crate) fn zbesy<T: BesselFloat>(
 
         let nz_out = if cy_val == czero && ey == zero { 1 } else { 0 };
 
-        return Ok((nz_out, BesselStatus::Normal));
+        return Ok((nz_out, Accuracy::Normal));
     }
 
     // For n > 1: requires alloc feature
@@ -172,7 +172,7 @@ pub(crate) fn zbesy<T: BesselFloat>(
                 }
             }
 
-            return Ok((nz, BesselStatus::Normal));
+            return Ok((nz, Accuracy::Normal));
         }
 
         // KODE=2: scaled version with underflow protection (Fortran lines 1396-1456)
@@ -225,7 +225,7 @@ pub(crate) fn zbesy<T: BesselFloat>(
             cspn = mul_neg_i(cspn);
         }
 
-        Ok((nz_out, BesselStatus::Normal))
+        Ok((nz_out, Accuracy::Normal))
     }
 
     #[cfg(not(feature = "alloc"))]

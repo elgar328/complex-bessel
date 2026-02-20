@@ -10,12 +10,12 @@ use crate::machine::BesselFloat;
 
 /// Status of the computation result.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum BesselStatus {
+pub enum Accuracy {
     /// Computation within normal precision bounds (full machine precision).
     Normal,
     /// Result computed but may have lost more than half of significant digits.
     /// Occurs when |z| or ν exceeds ~32767 for f64.
-    ReducedPrecision,
+    Reduced,
 }
 
 /// Result of an Airy function computation, returned by `_raw` functions
@@ -29,9 +29,9 @@ pub struct AiryResult<T: BesselFloat> {
     pub value: Complex<T>,
     /// Precision status of the computation.
     ///
-    /// [`BesselStatus::ReducedPrecision`] indicates that |z| is large enough
+    /// [`Accuracy::Reduced`] indicates that |z| is large enough
     /// for more than half of significant digits to be lost.
-    pub status: BesselStatus,
+    pub status: Accuracy,
 }
 
 /// Result of a sequence computation, returned by `_seq` functions
@@ -50,7 +50,7 @@ pub struct BesselResult<T: BesselFloat> {
     ///
     /// Single-value convenience functions do not expose this status;
     /// use a `_seq` function to inspect it when needed.
-    pub status: BesselStatus,
+    pub status: Accuracy,
 }
 
 /// Scaling option for Bessel function computation.

@@ -16,7 +16,7 @@ use crate::algo::s1s2::zs1s2;
 use crate::algo::uchk::zuchk;
 use crate::algo::unhj::zunhj;
 use crate::machine::BesselFloat;
-use crate::types::{AiryDerivative, BesselStatus, Scaling, SumOption};
+use crate::types::{Accuracy, AiryDerivative, Scaling, SumOption};
 use crate::utils::{mul_neg_i, reciprocal_z, zabs};
 
 /// CR1 = (1, sqrt(3)) (Fortran line 6196-6197)
@@ -200,10 +200,10 @@ pub(crate) fn zunk2<T: BesselFloat>(
         let (ai, _nai, _) = zairy(c2_arg, AiryDerivative::Value, Scaling::Exponential).unwrap_or((
             czero,
             0,
-            BesselStatus::Normal,
+            Accuracy::Normal,
         ));
         let (dai, _ndai, _) = zairy(c2_arg, AiryDerivative::Derivative, Scaling::Exponential)
-            .unwrap_or((czero, 0, BesselStatus::Normal));
+            .unwrap_or((czero, 0, Accuracy::Normal));
 
         let mut s2 = phi_arr[jj] * (ai * asum_arr[jj] + cr2 * (dai * bsum_arr[jj])) * cs;
 
@@ -523,10 +523,10 @@ pub(crate) fn zunk2<T: BesselFloat>(
         let (ai, _nai, _) = zairy(argd, AiryDerivative::Value, Scaling::Exponential).unwrap_or((
             czero,
             0,
-            BesselStatus::Normal,
+            Accuracy::Normal,
         ));
         let (dai, _ndai, _) = zairy(argd, AiryDerivative::Derivative, Scaling::Exponential)
-            .unwrap_or((czero, 0, BesselStatus::Normal));
+            .unwrap_or((czero, 0, Accuracy::Normal));
 
         let mut s2 = phid * (ai * asumd + dai * bsumd) * cs_ac;
 
