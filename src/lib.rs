@@ -583,7 +583,7 @@ pub fn hankel2<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Besse
 /// Returns [`BesselError`] if the computation fails.
 #[inline]
 pub fn airy<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, BesselError> {
-    let (result, _nz) = airy::zairy(z, AiryDerivative::Value, Scaling::Unscaled)?;
+    let (result, _nz, _status) = airy::zairy(z, AiryDerivative::Value, Scaling::Unscaled)?;
     Ok(result)
 }
 
@@ -607,7 +607,7 @@ pub fn airy<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, BesselError> {
 /// Returns [`BesselError`] if the computation fails.
 #[inline]
 pub fn airyprime<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, BesselError> {
-    let (result, _nz) = airy::zairy(z, AiryDerivative::Derivative, Scaling::Unscaled)?;
+    let (result, _nz, _status) = airy::zairy(z, AiryDerivative::Derivative, Scaling::Unscaled)?;
     Ok(result)
 }
 
@@ -633,7 +633,8 @@ pub fn airyprime<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, BesselErro
 /// Returns [`BesselError`] if the computation fails.
 #[inline]
 pub fn biry<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, BesselError> {
-    airy::zbiry(z, AiryDerivative::Value, Scaling::Unscaled)
+    let (result, _status) = airy::zbiry(z, AiryDerivative::Value, Scaling::Unscaled)?;
+    Ok(result)
 }
 
 /// Derivative of the Airy function of the second kind, Bi'(z).
@@ -656,7 +657,8 @@ pub fn biry<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, BesselError> {
 /// Returns [`BesselError`] if the computation fails.
 #[inline]
 pub fn biryprime<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, BesselError> {
-    airy::zbiry(z, AiryDerivative::Derivative, Scaling::Unscaled)
+    let (result, _status) = airy::zbiry(z, AiryDerivative::Derivative, Scaling::Unscaled)?;
+    Ok(result)
 }
 
 // ── Scaled single-value functions ──
@@ -789,7 +791,7 @@ pub fn hankel2_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>
 /// Returns [`BesselError`] if the computation fails.
 #[inline]
 pub fn airy_scaled<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, BesselError> {
-    let (result, _nz) = airy::zairy(z, AiryDerivative::Value, Scaling::Exponential)?;
+    let (result, _nz, _status) = airy::zairy(z, AiryDerivative::Value, Scaling::Exponential)?;
     Ok(result)
 }
 
@@ -802,7 +804,7 @@ pub fn airy_scaled<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, BesselEr
 /// Returns [`BesselError`] if the computation fails.
 #[inline]
 pub fn airyprime_scaled<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, BesselError> {
-    let (result, _nz) = airy::zairy(z, AiryDerivative::Derivative, Scaling::Exponential)?;
+    let (result, _nz, _status) = airy::zairy(z, AiryDerivative::Derivative, Scaling::Exponential)?;
     Ok(result)
 }
 
@@ -819,7 +821,8 @@ pub fn airyprime_scaled<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Bes
 /// Returns [`BesselError`] if the computation fails.
 #[inline]
 pub fn biry_scaled<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, BesselError> {
-    airy::zbiry(z, AiryDerivative::Value, Scaling::Exponential)
+    let (result, _status) = airy::zbiry(z, AiryDerivative::Value, Scaling::Exponential)?;
+    Ok(result)
 }
 
 /// Scaled derivative of the Airy function of the second kind:
@@ -832,7 +835,8 @@ pub fn biry_scaled<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, BesselEr
 /// Returns [`BesselError`] if the computation fails.
 #[inline]
 pub fn biryprime_scaled<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, BesselError> {
-    airy::zbiry(z, AiryDerivative::Derivative, Scaling::Exponential)
+    let (result, _status) = airy::zbiry(z, AiryDerivative::Derivative, Scaling::Exponential)?;
+    Ok(result)
 }
 
 // ── Sequence functions with scaling option (require alloc) ──

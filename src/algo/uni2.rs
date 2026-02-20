@@ -13,7 +13,7 @@ use crate::algo::uchk::zuchk;
 use crate::algo::unhj::zunhj;
 use crate::algo::uoik::zuoik;
 use crate::machine::BesselFloat;
-use crate::types::{AiryDerivative, IkFlag, Scaling, SumOption};
+use crate::types::{AiryDerivative, BesselStatus, IkFlag, Scaling, SumOption};
 use crate::utils::{mul_i, mul_neg_i, reciprocal_z, zabs};
 
 use crate::algo::constants::{AIC, HPI};
@@ -220,10 +220,14 @@ pub(crate) fn zuni2<T: BesselFloat>(
 
             // ── Scale S1 and compute S2 (Fortran lines 7187-7216) ──
             // S2 = PHI * (Ai*ASUM + Ai'*BSUM)
-            let (ai, _nai) = zairy(result.arg, AiryDerivative::Value, Scaling::Exponential)
-                .unwrap_or((czero, 0));
-            let (dai, _ndai) = zairy(result.arg, AiryDerivative::Derivative, Scaling::Exponential)
-                .unwrap_or((czero, 0));
+            let (ai, _nai, _) = zairy(result.arg, AiryDerivative::Value, Scaling::Exponential)
+                .unwrap_or((czero, 0, BesselStatus::Normal));
+            let (dai, _ndai, _) = zairy(
+                result.arg,
+                AiryDerivative::Derivative,
+                Scaling::Exponential,
+            )
+            .unwrap_or((czero, 0, BesselStatus::Normal));
 
             let s2_airy = result.phi * (ai * result.asum + dai * result.bsum);
 

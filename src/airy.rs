@@ -11,7 +11,7 @@ use crate::algo::acai::zacai;
 use crate::algo::binu::zbinu;
 use crate::algo::bknu::zbknu;
 use crate::machine::BesselFloat;
-use crate::types::{AiryDerivative, BesselError, Scaling};
+use crate::types::{AiryDerivative, BesselError, BesselStatus, Scaling};
 use crate::utils::{zabs, zdiv};
 
 // ZAIRY constants (Fortran ZAIRY DATA, lines 1600-1603)
@@ -105,13 +105,15 @@ fn airy_power_series<T: BesselFloat>(
 ///
 /// Translation of Fortran ZAIRY (zbsubs.f lines 1462-1856).
 ///
-/// Returns `(result, nz)` where nz=0 normal, nz=1 underflow (result=0).
+/// Returns `(result, nz, status)` where nz=0 normal, nz=1 underflow (result=0).
+/// `status` is `BesselStatus::ReducedPrecision` when |z| > sqrt(AA^(2/3))
+/// (Fortran IERR=3: more than half of significant digits may be lost).
 #[inline]
 pub(crate) fn zairy<T: BesselFloat>(
     z: Complex<T>,
     id: AiryDerivative,
     kode: Scaling,
-) -> Result<(Complex<T>, i32), BesselError> {
+) -> Result<(Complex<T>, i32, BesselStatus), BesselError> {
     let zero = T::zero();
     let one = T::one();
     let tth = T::from_f64(TTH);
@@ -147,9 +149,9 @@ pub(crate) fn zairy<T: BesselFloat>(
             }
             let ai = Complex::new(c1, zero) - s1;
             return if kode == Scaling::Exponential {
-                Ok((zairy_scale_exp_zta(z, ai, tth), 0))
+                Ok((zairy_scale_exp_zta(z, ai, tth), 0, BesselStatus::Normal))
             } else {
-                Ok((ai, 0))
+                Ok((ai, 0, BesselStatus::Normal))
             };
         }
         // Ai'(z) ≈ -C2 + C1*z²/2 (Fortran lines 1827-1837)
@@ -160,9 +162,9 @@ pub(crate) fn zairy<T: BesselFloat>(
             ai = ai + s1 * c1;
         }
         return if kode == Scaling::Exponential {
-            Ok((zairy_scale_exp_zta(z, ai, tth), 0))
+            Ok((zairy_scale_exp_zta(z, ai, tth), 0, BesselStatus::Normal))
         } else {
-            Ok((ai, 0))
+            Ok((ai, 0, BesselStatus::Normal))
         };
     }
 
@@ -173,9 +175,9 @@ pub(crate) fn zairy<T: BesselFloat>(
         // Ai = C1*S1 - C2*(z*S2) (Fortran lines 1664-1665)
         let ai = s1 * c1 - z * s2 * c2;
         if kode == Scaling::Unscaled {
-            return Ok((ai, 0));
+            return Ok((ai, 0, BesselStatus::Normal));
         }
-        Ok((zairy_scale_exp_zta(z, ai, tth), 0))
+        Ok((zairy_scale_exp_zta(z, ai, tth), 0, BesselStatus::Normal))
     } else {
         // Ai' = -C2*S2 (Fortran lines 1676-1677)
         let mut ai = -(s2 * c2);
@@ -185,9 +187,9 @@ pub(crate) fn zairy<T: BesselFloat>(
             ai = ai + z * s1 * z * cc;
         }
         if kode == Scaling::Unscaled {
-            return Ok((ai, 0));
+            return Ok((ai, 0, BesselStatus::Normal));
         }
-        Ok((zairy_scale_exp_zta(z, ai, tth), 0))
+        Ok((zairy_scale_exp_zta(z, ai, tth), 0, BesselStatus::Normal))
     }
 }
 
@@ -229,7 +231,7 @@ fn zairy_large_z<T: BesselFloat>(
     tol: T,
     tth: T,
     coef: T,
-) -> Result<(Complex<T>, i32), BesselError> {
+) -> Result<(Complex<T>, i32, BesselStatus), BesselError> {
     let zero = T::zero();
     let one = T::one();
     let czero = Complex::new(zero, zero);
@@ -255,7 +257,14 @@ fn zairy_large_z<T: BesselFloat>(
     if az > aa {
         return Err(BesselError::TotalPrecisionLoss);
     }
-    // IERR=3 precision warning: not returned as error
+    // IERR=3 precision warning (Fortran ZAIRY lines 1728-1729):
+    // |z| > sqrt(AA^(2/3)) means more than half of significant digits lost
+    let aa_sqrt = aa.sqrt();
+    let status = if az > aa_sqrt {
+        BesselStatus::ReducedPrecision
+    } else {
+        BesselStatus::Normal
+    };
 
     // ZTA = (2/3)*z*sqrt(z) with branch cut correction (Fortran lines 1731-1749)
     let (csq, zta) = airy_zta(z, tth);
@@ -273,7 +282,7 @@ fn zairy_large_z<T: BesselFloat>(
             sfac = one / tol;
             if test_val < -elim {
                 // Underflow: return zero (Fortran label 210)
-                return Ok((czero, 1));
+                return Ok((czero, 1, status));
             }
         }
 
@@ -283,7 +292,7 @@ fn zairy_large_z<T: BesselFloat>(
         nz += nz_k as i32;
 
         let s1 = cy_buf[0] * coef;
-        return zairy_form_result(z, csq, s1, id, iflag, sfac, nz);
+        return zairy_form_result(z, csq, s1, id, iflag, sfac, nz, status);
     }
 
     // Re(zta) < 0 or Re(z) <= 0: analytic continuation via ZACAI
@@ -314,11 +323,12 @@ fn zairy_large_z<T: BesselFloat>(
     nz += nn;
 
     let s1 = cy_buf[0] * coef;
-    zairy_form_result(z, csq, s1, id, iflag, sfac, nz)
+    zairy_form_result(z, csq, s1, id, iflag, sfac, nz, status)
 }
 
 /// Form final Airy result from s1 = cy[0]*coef.
 /// Handles IFLAG scaling and ID dispatch (Fortran lines 1787-1813).
+#[allow(clippy::too_many_arguments)]
 fn zairy_form_result<T: BesselFloat>(
     z: Complex<T>,
     csq: Complex<T>,
@@ -327,23 +337,24 @@ fn zairy_form_result<T: BesselFloat>(
     iflag: i32,
     sfac: T,
     nz: i32,
-) -> Result<(Complex<T>, i32), BesselError> {
+    status: BesselStatus,
+) -> Result<(Complex<T>, i32, BesselStatus), BesselError> {
     if iflag == 0 {
         // Normal case
         if id == AiryDerivative::Value {
             // Ai = sqrt(z) * s1 (Fortran lines 1791-1792)
-            Ok((csq * s1, nz))
+            Ok((csq * s1, nz, status))
         } else {
             // Ai' = -(z * s1) (Fortran lines 1795-1796)
-            Ok((-(z * s1), nz))
+            Ok((-(z * s1), nz, status))
         }
     } else {
         // IFLAG != 0: scaled computation (Fortran lines 1798-1813)
         let s1s = s1 * sfac;
         if id == AiryDerivative::Value {
-            Ok((s1s * csq / sfac, nz))
+            Ok((s1s * csq / sfac, nz, status))
         } else {
-            Ok((-(s1s * z) / sfac, nz))
+            Ok((-(s1s * z) / sfac, nz, status))
         }
     }
 }
@@ -355,12 +366,15 @@ fn zairy_form_result<T: BesselFloat>(
 /// Translation of Fortran ZBIRY (zbsubs.f lines 1857-2222).
 ///
 /// KODE=2 returns exp(-|Re(zta)|)*Bi(z) where zta=(2/3)*z*sqrt(z).
+///
+/// Returns `(result, status)` where `status` is `BesselStatus::ReducedPrecision`
+/// when |z| > sqrt(AA^(2/3)) (Fortran IERR=3).
 #[inline]
 pub(crate) fn zbiry<T: BesselFloat>(
     z: Complex<T>,
     id: AiryDerivative,
     kode: Scaling,
-) -> Result<Complex<T>, BesselError> {
+) -> Result<(Complex<T>, BesselStatus), BesselError> {
     let zero = T::zero();
     let one = T::one();
     let tth = T::from_f64(TTH);
@@ -388,7 +402,7 @@ pub(crate) fn zbiry<T: BesselFloat>(
         // Tiny z (Fortran label 130, lines 2204-2208)
         // Bi = C1*(1-fid) + fid*C2 (real-valued)
         let bi = Complex::new(c1 * (one - fid) + fid * c2, zero);
-        return Ok(bi);
+        return Ok((bi, BesselStatus::Normal));
     }
 
     let (s1, s2) = airy_power_series(z, az, fid, tol);
@@ -397,10 +411,10 @@ pub(crate) fn zbiry<T: BesselFloat>(
         // Bi = C1*S1 + C2*(z*S2) (Fortran lines 2053-2054, note + sign)
         let bi = s1 * c1 + z * s2 * c2;
         if kode == Scaling::Unscaled {
-            return Ok(bi);
+            return Ok((bi, BesselStatus::Normal));
         }
         // KODE=2: multiply by exp(-|Re(zta)|) (Fortran lines 2056-2063)
-        Ok(zbiry_scale_exp(z, bi, tth))
+        Ok((zbiry_scale_exp(z, bi, tth), BesselStatus::Normal))
     } else {
         // Bi' = C2*S2 (Fortran lines 2066-2067, no minus sign)
         let mut bi = s2 * c2;
@@ -410,9 +424,9 @@ pub(crate) fn zbiry<T: BesselFloat>(
             bi = bi + z * s1 * z * cc;
         }
         if kode == Scaling::Unscaled {
-            return Ok(bi);
+            return Ok((bi, BesselStatus::Normal));
         }
-        Ok(zbiry_scale_exp(z, bi, tth))
+        Ok((zbiry_scale_exp(z, bi, tth), BesselStatus::Normal))
     }
 }
 
@@ -437,7 +451,7 @@ fn zbiry_large_z<T: BesselFloat>(
     tth: T,
     coef: T,
     pi_t: T,
-) -> Result<Complex<T>, BesselError> {
+) -> Result<(Complex<T>, BesselStatus), BesselError> {
     let zero = T::zero();
     let one = T::one();
     let two = T::from_f64(2.0);
@@ -462,6 +476,14 @@ fn zbiry_large_z<T: BesselFloat>(
     if az > aa {
         return Err(BesselError::TotalPrecisionLoss);
     }
+    // IERR=3 precision warning (Fortran ZBIRY lines 2118-2119):
+    // |z| > sqrt(AA^(2/3)) means more than half of significant digits lost
+    let aa_sqrt = aa.sqrt();
+    let status = if az > aa_sqrt {
+        BesselStatus::ReducedPrecision
+    } else {
+        BesselStatus::Normal
+    };
 
     // ZTA = (2/3)*z*sqrt(z) with branch cut correction (Fortran lines 2123-2139)
     let (csq, mut zta) = airy_zta(z, tth);
@@ -519,10 +541,10 @@ fn zbiry_large_z<T: BesselFloat>(
     // Form result (Fortran lines 2190-2202)
     if id == AiryDerivative::Value {
         // Bi = sqrt(z) * S1 / SFAC (Fortran lines 2191-2195)
-        Ok(csq * s1 / sfac)
+        Ok((csq * s1 / sfac, status))
     } else {
         // Bi' = z * S1 / SFAC (Fortran lines 2198-2202)
-        Ok(z * s1 / sfac)
+        Ok((z * s1 / sfac, status))
     }
 }
 
@@ -536,7 +558,7 @@ mod tests {
     #[test]
     fn zairy_zero() {
         // Ai(0) = C1 ≈ 0.35502805388781724
-        let (ai, nz) = zairy(
+        let (ai, nz, _status) = zairy(
             Complex64::new(0.0, 0.0),
             AiryDerivative::Value,
             Scaling::Unscaled,
@@ -550,7 +572,7 @@ mod tests {
     #[test]
     fn zairy_zero_deriv() {
         // Ai'(0) = -C2 ≈ -0.25881940379280680
-        let (ai, nz) = zairy(
+        let (ai, nz, _status) = zairy(
             Complex64::new(0.0, 0.0),
             AiryDerivative::Derivative,
             Scaling::Unscaled,
@@ -565,7 +587,7 @@ mod tests {
     fn zairy_small_real() {
         // Ai(0.5) via power series — compare to known value
         // Ai(0.5) ≈ 0.23169360648083349
-        let (ai, nz) = zairy(
+        let (ai, nz, _status) = zairy(
             Complex64::new(0.5, 0.0),
             AiryDerivative::Value,
             Scaling::Unscaled,
@@ -580,7 +602,7 @@ mod tests {
     fn zairy_negative_real() {
         // Ai(-1.0): oscillatory region, via ZACAI
         // Ai(-1.0) ≈ 0.53556088329235176
-        let (ai, nz) = zairy(
+        let (ai, nz, _status) = zairy(
             Complex64::new(-1.0, 0.0),
             AiryDerivative::Value,
             Scaling::Unscaled,
@@ -595,7 +617,7 @@ mod tests {
     fn zairy_complex() {
         // Ai(1+i): complex argument (mpmath 30-digit reference)
         // Ai(1+i) ≈ 0.060458308371838149 - 0.15188956587718140i
-        let (ai, nz) = zairy(
+        let (ai, nz, _status) = zairy(
             Complex64::new(1.0, 1.0),
             AiryDerivative::Value,
             Scaling::Unscaled,
@@ -611,7 +633,7 @@ mod tests {
     #[test]
     fn zbiry_zero() {
         // Bi(0) = BI_C1 ≈ 0.61492662744600074
-        let bi = zbiry(
+        let (bi, _status) = zbiry(
             Complex64::new(0.0, 0.0),
             AiryDerivative::Value,
             Scaling::Unscaled,
@@ -624,7 +646,7 @@ mod tests {
     #[test]
     fn zbiry_zero_deriv() {
         // Bi'(0) = BI_C2 ≈ 0.44828835735382636
-        let bi = zbiry(
+        let (bi, _status) = zbiry(
             Complex64::new(0.0, 0.0),
             AiryDerivative::Derivative,
             Scaling::Unscaled,
@@ -637,7 +659,7 @@ mod tests {
     #[test]
     fn zbiry_small_real() {
         // Bi(0.5) ≈ 0.85427704310315549 (mpmath 30-digit reference)
-        let bi = zbiry(
+        let (bi, _status) = zbiry(
             Complex64::new(0.5, 0.0),
             AiryDerivative::Value,
             Scaling::Unscaled,
@@ -651,10 +673,10 @@ mod tests {
     fn airy_wronskian() {
         // Wronskian: Ai(z)*Bi'(z) - Ai'(z)*Bi(z) = 1/pi
         let z = Complex64::new(0.5, 0.3);
-        let (ai, _) = zairy(z, AiryDerivative::Value, Scaling::Unscaled).unwrap();
-        let (ai_p, _) = zairy(z, AiryDerivative::Derivative, Scaling::Unscaled).unwrap();
-        let bi = zbiry(z, AiryDerivative::Value, Scaling::Unscaled).unwrap();
-        let bi_p = zbiry(z, AiryDerivative::Derivative, Scaling::Unscaled).unwrap();
+        let (ai, _, _) = zairy(z, AiryDerivative::Value, Scaling::Unscaled).unwrap();
+        let (ai_p, _, _) = zairy(z, AiryDerivative::Derivative, Scaling::Unscaled).unwrap();
+        let (bi, _) = zbiry(z, AiryDerivative::Value, Scaling::Unscaled).unwrap();
+        let (bi_p, _) = zbiry(z, AiryDerivative::Derivative, Scaling::Unscaled).unwrap();
 
         // W = Ai*Bi' - Ai'*Bi
         let w = ai * bi_p - ai_p * bi;
