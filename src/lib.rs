@@ -46,6 +46,23 @@
 //! let j32 = besselj(0.5_f32, z32).unwrap();
 //! ```
 //!
+//! # Functions
+//!
+//! | Function | Description | Scaled variant returns |
+//! |----------|-------------|------------------------|
+//! | [`besselj`]`(ν, z)`<br>[`besselj_scaled`]`(ν, z)`<br>[`besselj_seq`]`(ν, z, n, scaling)` | J<sub>ν</sub>(z), Bessel first kind | exp(−\|Im(z)\|) · J<sub>ν</sub>(z) |
+//! | [`bessely`]`(ν, z)`<br>[`bessely_scaled`]`(ν, z)`<br>[`bessely_seq`]`(ν, z, n, scaling)` | Y<sub>ν</sub>(z), Bessel second kind | exp(−\|Im(z)\|) · Y<sub>ν</sub>(z) |
+//! | [`besseli`]`(ν, z)`<br>[`besseli_scaled`]`(ν, z)`<br>[`besseli_seq`]`(ν, z, n, scaling)` | I<sub>ν</sub>(z), modified first kind | exp(−\|Re(z)\|) · I<sub>ν</sub>(z) |
+//! | [`besselk`]`(ν, z)`<br>[`besselk_scaled`]`(ν, z)`<br>[`besselk_seq`]`(ν, z, n, scaling)` | K<sub>ν</sub>(z), modified second kind | exp(z) · K<sub>ν</sub>(z) |
+//! | [`hankel1`]`(ν, z)`<br>[`hankel1_scaled`]`(ν, z)`<br>[`hankel1_seq`]`(ν, z, n, scaling)` | H<sub>ν</sub><sup>(1)</sup>(z), Hankel first kind | exp(−iz) · H<sub>ν</sub><sup>(1)</sup>(z) |
+//! | [`hankel2`]`(ν, z)`<br>[`hankel2_scaled`]`(ν, z)`<br>[`hankel2_seq`]`(ν, z, n, scaling)` | H<sub>ν</sub><sup>(2)</sup>(z), Hankel second kind | exp(iz) · H<sub>ν</sub><sup>(2)</sup>(z) |
+//! | [`airy`]`(z)`<br>[`airy_scaled`]`(z)`<br>[`airy_raw`]`(z, scaling)` | Ai(z), Airy first kind | exp(ζ) · Ai(z) |
+//! | [`airyprime`]`(z)`<br>[`airyprime_scaled`]`(z)`<br>[`airyprime_raw`]`(z, scaling)` | Ai′(z), derivative of Airy first kind | exp(ζ) · Ai′(z) |
+//! | [`biry`]`(z)`<br>[`biry_scaled`]`(z)`<br>[`biry_raw`]`(z, scaling)` | Bi(z), Airy second kind | exp(−\|Re(ζ)\|) · Bi(z) |
+//! | [`biryprime`]`(z)`<br>[`biryprime_scaled`]`(z)`<br>[`biryprime_raw`]`(z, scaling)` | Bi′(z), derivative of Airy second kind | exp(−\|Re(ζ)\|) · Bi′(z) |
+//!
+//! where ζ = (2/3) z√z.
+//!
 //! # Function variants
 //!
 //! The `_seq` variants ([`besselj_seq`], [`besselk_seq`], …) compute values at
@@ -55,30 +72,17 @@
 //! an [`AiryResult`] with [`Accuracy`].
 //! All other functions return only the computed value without [`Accuracy`].
 //!
-//! ```
-//! # #[cfg(feature = "alloc")] {
-//! use complex_bessel::*;
-//! use num_complex::Complex;
-//!
-//! let z = Complex::new(1.0, 2.0);
-//!
-//! // K_0(z), K_1(z), K_2(z)
-//! let seq = besselk_seq(0.0, z, 3, Scaling::Unscaled).unwrap();
-//! assert_eq!(seq.values.len(), 3);
-//! # }
-//! ```
-//!
 //! **[`Accuracy`]:**
 //!
 //! | Status | Meaning |
 //! |--------|---------|
 //! | [`Normal`](Accuracy::Normal) | Full machine precision |
-//! | [`Reduced`](Accuracy::Reduced) | More than half of significant digits may be lost; occurs only when \|z\| or ν exceeds ~32767 |
+//! | [`Reduced`](Accuracy::Reduced) | More than half of significant digits may be lost.<br>Occurs only when \|z\| or ν exceeds ~32767 |
 //!
 //! [`Reduced`](Accuracy::Reduced) is extremely rare in practice. SciPy's Bessel wrappers also silently
 //! discard the equivalent Amos IERR=3 flag by default.
 //!
-//! To check precision status, use a `_seq` function (Bessel) or a `_raw` function (Airy):
+//! To check accuracy status, use a `_seq` function (Bessel) or a `_raw` function (Airy):
 //!
 //! ```
 //! # #[cfg(feature = "alloc")] {
@@ -88,49 +92,11 @@
 //! let z = Complex::new(1.0, 2.0);
 //! let result = besselk_seq(0.0, z, 1, Scaling::Unscaled).unwrap();
 //! assert!(matches!(result.status, Accuracy::Normal));
-//! # }
-//! ```
 //!
-//! ```
-//! use complex_bessel::*;
-//! use num_complex::Complex;
-//!
-//! let z = Complex::new(1.0, 2.0);
 //! let result = airy_raw(z, Scaling::Unscaled).unwrap();
 //! assert!(matches!(result.status, Accuracy::Normal));
+//! # }
 //! ```
-//!
-//! # Exponential scaling
-//!
-//! The `_scaled` variants multiply by an exponential factor to prevent
-//! overflow/underflow for large arguments. See [`Scaling`] for the exact
-//! factor applied to each function.
-//!
-//! ```
-//! use complex_bessel::*;
-//! use num_complex::Complex;
-//!
-//! let z = Complex::new(100.0, 0.0);
-//!
-//! // K_0(100) ≈ 4.66e-45 — unscaled works but close to underflow
-//! let k = besselk(0.0, z).unwrap();
-//!
-//! // exp(100) * K_0(100) ≈ 0.1257 — scaled version stays in normal range
-//! let k_s = besselk_scaled(0.0, z).unwrap();
-//! ```
-//!
-//! | Function | Scaled variant returns |
-//! |----------|-----------------------|
-//! | J | exp(−\|Im(z)\|) · J(z) |
-//! | Y | exp(−\|Im(z)\|) · Y(z) |
-//! | I | exp(−\|Re(z)\|) · I(z) |
-//! | K | exp(z) · K(z) |
-//! | H<sup>(1)</sup> | exp(−iz) · H<sup>(1)</sup>(z) |
-//! | H<sup>(2)</sup> | exp(iz) · H<sup>(2)</sup>(z) |
-//! | Ai | exp(ζ) · Ai(z) |
-//! | Bi | exp(−\|Re(ζ)\|) · Bi(z) |
-//!
-//! where ζ = (2/3) z√z.
 //!
 //! # Negative orders
 //!
@@ -148,14 +114,14 @@
 //!
 //! # `no_std` support
 //!
-//! | Cargo features | Available API | Allocator required |
-//! |---------------|---------------|-----------|
-//! | `default-features = false` | 24 single-value functions | No |
-//! | `features = ["alloc"]` | + 6 `_seq` variants + [`BesselResult`] | Yes |
-//! | `features = ["std"]` (default) | + `impl Error for Error` | Yes |
+//! | Cargo features | Available API |
+//! |---------------|---------------|
+//! | `default-features = false` | 24 single-value functions |
+//! | `features = ["alloc"]` | + 6 `_seq` variants + [`BesselResult`] |
+//! | `features = ["std"]` (default) | + `impl Error for Error` |
 //!
-//! The 24 single-value functions include 12 Bessel (J/Y/I/K/H<sup>(1)</sup>/H<sup>(2)</sup> × unscaled/scaled),
-//! 8 Airy (Ai/Ai'/Bi/Bi' × unscaled/scaled), and 4 Airy `_raw` variants that return [`AiryResult`].
+//! The 24 single-value functions include 12 Bessel (J/Y/I/K/H<sup>(1)</sup>/H<sup>(2)</sup> × unscaled/scaled)
+//! and 12 Airy (Ai/Ai'/Bi/Bi' × unscaled/scaled/raw).
 //!
 //! ```toml
 //! # Bare no_std — no allocator needed:
