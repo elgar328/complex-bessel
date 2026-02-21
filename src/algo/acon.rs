@@ -13,7 +13,7 @@ use crate::algo::bknu::zbknu;
 use crate::algo::constants::PI;
 use crate::algo::s1s2::zs1s2;
 use crate::machine::BesselFloat;
-use crate::types::{BesselError, Scaling};
+use crate::types::{Error, Scaling};
 use crate::utils::{reciprocal_z, zabs};
 
 /// Analytic continuation of K function from right to left half-plane.
@@ -33,7 +33,7 @@ pub(crate) fn zacon<T: BesselFloat>(
     tol: T,
     elim: T,
     alim: T,
-) -> Result<usize, BesselError> {
+) -> Result<usize, Error> {
     let zero = T::zero();
     let one = T::one();
     let pi_t = T::from_f64(PI);
@@ -53,7 +53,7 @@ pub(crate) fn zacon<T: BesselFloat>(
     let mut k_buf = [czero; 2];
     let nw_k = zbknu(zn, fnu, kode, &mut k_buf[..nn_k], tol, elim, alim)?;
     if nw_k != 0 {
-        return Err(BesselError::Overflow);
+        return Err(Error::Overflow);
     }
 
     // Analytic continuation formula (Fortran lines 4214-4276)

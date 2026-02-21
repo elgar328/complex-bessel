@@ -10,7 +10,7 @@
 
 use crate::algo::constants::R1M5;
 use crate::machine::BesselFloat;
-use crate::types::BesselError;
+use crate::types::Error;
 
 /// ln(2π), used in Stirling's formula.
 const CON: f64 = 1.83787706640934548;
@@ -112,12 +112,12 @@ const CF_TABLE: [f64; 22] = [
 ///    reduction when z is below the convergence threshold ZMIN.
 ///
 /// Equivalent to Fortran DGAMLN in SLATEC / TOMS 644.
-pub(crate) fn gamln<T: BesselFloat>(z: T) -> Result<T, BesselError> {
+pub(crate) fn gamln<T: BesselFloat>(z: T) -> Result<T, Error> {
     let zero = T::zero();
     let one = T::one();
 
     if z <= zero {
-        return Err(BesselError::InvalidInput);
+        return Err(Error::InvalidInput);
     }
 
     // Table lookup for positive integers 1..100

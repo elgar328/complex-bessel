@@ -11,7 +11,7 @@ use crate::algo::bknu::zbknu;
 use crate::algo::bunk::zbunk;
 use crate::algo::uoik::zuoik;
 use crate::machine::BesselFloat;
-use crate::types::{Accuracy, BesselError, IkFlag, Scaling};
+use crate::types::{Accuracy, Error, IkFlag, Scaling};
 use crate::utils::zabs;
 
 /// Compute K_{ν+j}(z) for j = 0, 1, ..., n-1 into the provided slice.
@@ -40,20 +40,20 @@ pub(crate) fn zbesk<T: BesselFloat>(
     fnu: T,
     scaling: Scaling,
     y: &mut [Complex<T>],
-) -> Result<(usize, Accuracy), BesselError> {
+) -> Result<(usize, Accuracy), Error> {
     let n = y.len();
     let zero = T::zero();
     let czero = Complex::new(zero, zero);
 
     // ── Input validation (Fortran IERR=1) ──
     if n < 1 {
-        return Err(BesselError::InvalidInput);
+        return Err(Error::InvalidInput);
     }
     if fnu < zero {
-        return Err(BesselError::InvalidInput);
+        return Err(Error::InvalidInput);
     }
     if z == czero {
-        return Err(BesselError::InvalidInput);
+        return Err(Error::InvalidInput);
     }
 
     // ── Machine constants ──
@@ -73,7 +73,7 @@ pub(crate) fn zbesk<T: BesselFloat>(
 
     // ── Range check: total precision loss (IERR=4) ──
     if az > aa || fn_val > aa {
-        return Err(BesselError::TotalPrecisionLoss);
+        return Err(Error::TotalPrecisionLoss);
     }
 
     // ── Range check: partial precision loss (IERR=3) ──
@@ -83,7 +83,7 @@ pub(crate) fn zbesk<T: BesselFloat>(
     // ── Underflow limit: |z| too small ──
     let ufl = T::MACH_TINY * T::from_f64(1.0e3);
     if az < ufl {
-        return Err(BesselError::Overflow);
+        return Err(Error::Overflow);
     }
 
     // ── Dispatch based on FNU and z ──
@@ -103,9 +103,9 @@ pub(crate) fn zbesk<T: BesselFloat>(
         let nw = zbunk(z, fnu, scaling, mr, &mut y[..nn], tol, elim, alim);
         if nw < 0 {
             return if nw == -1 {
-                Err(BesselError::Overflow)
+                Err(Error::Overflow)
             } else {
-                Err(BesselError::ConvergenceFailure)
+                Err(Error::ConvergenceFailure)
             };
         }
         nz += nw as usize;
@@ -127,7 +127,7 @@ pub(crate) fn zbesk<T: BesselFloat>(
             // zuoik zeros the buffer; y[..nn] will be overwritten by actual computation later.
             let nuf = zuoik(z, fnu, scaling, IkFlag::K, &mut y[..nn], tol, elim, alim);
             if nuf < 0 {
-                return Err(BesselError::Overflow);
+                return Err(Error::Overflow);
             }
             nz += nuf as usize;
             nn -= nuf as usize;
@@ -147,7 +147,7 @@ pub(crate) fn zbesk<T: BesselFloat>(
             let half = T::from_f64(0.5);
             let aln = -(fn_val * (half * az).ln());
             if aln > elim {
-                return Err(BesselError::Overflow);
+                return Err(Error::Overflow);
             }
         }
     }
@@ -184,7 +184,7 @@ mod tests {
         let mut buf = [Complex64::new(0.0, 0.0)];
         assert!(matches!(
             zbesk(z, 0.0, Scaling::Unscaled, &mut buf),
-            Err(BesselError::InvalidInput)
+            Err(Error::InvalidInput)
         ));
     }
 
@@ -194,7 +194,7 @@ mod tests {
         let mut buf = [Complex64::new(0.0, 0.0)];
         assert!(matches!(
             zbesk(z, -1.0, Scaling::Unscaled, &mut buf),
-            Err(BesselError::InvalidInput)
+            Err(Error::InvalidInput)
         ));
     }
 
@@ -204,7 +204,7 @@ mod tests {
         let mut buf: [Complex64; 0] = [];
         assert!(matches!(
             zbesk(z, 0.0, Scaling::Unscaled, &mut buf),
-            Err(BesselError::InvalidInput)
+            Err(Error::InvalidInput)
         ));
     }
 }

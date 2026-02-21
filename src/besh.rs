@@ -16,7 +16,7 @@ use crate::algo::bunk::zbunk;
 use crate::algo::constants::HPI;
 use crate::algo::uoik::zuoik;
 use crate::machine::BesselFloat;
-use crate::types::{Accuracy, BesselError, HankelKind, IkFlag, Scaling};
+use crate::types::{Accuracy, Error, HankelKind, IkFlag, Scaling};
 use crate::utils::{mul_i, mul_neg_i, zabs};
 
 /// Compute H_{fnu+j}^(m)(z) for j = 0, 1, ..., n-1.
@@ -40,7 +40,7 @@ pub(crate) fn zbesh<T: BesselFloat>(
     kind: HankelKind,
     scaling: Scaling,
     y: &mut [Complex<T>],
-) -> Result<(usize, Accuracy), BesselError> {
+) -> Result<(usize, Accuracy), Error> {
     let zero = T::zero();
     let one = T::one();
     let two = T::from_f64(2.0);
@@ -50,13 +50,13 @@ pub(crate) fn zbesh<T: BesselFloat>(
 
     // ── Input validation (Fortran IERR=1, lines 176-183) ──
     if n < 1 {
-        return Err(BesselError::InvalidInput);
+        return Err(Error::InvalidInput);
     }
     if fnu < zero {
-        return Err(BesselError::InvalidInput);
+        return Err(Error::InvalidInput);
     }
     if z == czero {
-        return Err(BesselError::InvalidInput);
+        return Err(Error::InvalidInput);
     }
 
     let nn = n;
@@ -88,7 +88,7 @@ pub(crate) fn zbesh<T: BesselFloat>(
     let aa = aa_tol.min(bb);
 
     if az > aa || fn_val > aa {
-        return Err(BesselError::TotalPrecisionLoss);
+        return Err(Error::TotalPrecisionLoss);
     }
 
     let aa_sqrt = aa.sqrt();
@@ -97,7 +97,7 @@ pub(crate) fn zbesh<T: BesselFloat>(
     // ── Underflow limit (Fortran line 229-230) ──
     let ufl = T::MACH_TINY * T::from_f64(1.0e3);
     if az < ufl {
-        return Err(BesselError::Overflow);
+        return Err(Error::Overflow);
     }
 
     // ── Overflow pre-checks and dispatch (Fortran lines 231-268) ──
@@ -120,9 +120,9 @@ pub(crate) fn zbesh<T: BesselFloat>(
         let nw = zbunk(zn_call, fnu, scaling, mr, &mut y[..nn_eff], tol, elim, alim);
         if nw < 0 {
             return if nw == -1 {
-                Err(BesselError::Overflow)
+                Err(Error::Overflow)
             } else {
-                Err(BesselError::ConvergenceFailure)
+                Err(Error::ConvergenceFailure)
             };
         }
         nz += nw as usize;
@@ -142,7 +142,7 @@ pub(crate) fn zbesh<T: BesselFloat>(
                     alim,
                 );
                 if nuf < 0 {
-                    return Err(BesselError::Overflow);
+                    return Err(Error::Overflow);
                 }
                 nz += nuf as usize;
                 nn_eff -= nuf as usize;
@@ -150,7 +150,7 @@ pub(crate) fn zbesh<T: BesselFloat>(
                     // Fortran zbsubs.f lines 249, 338-344:
                     // IF(NN.EQ.0) GO TO 140 → IF(ZNR.LT.0) GO TO 230 (IERR=2)
                     if zn.re < zero {
-                        return Err(BesselError::Overflow);
+                        return Err(Error::Overflow);
                     }
                     // All underflowed — y is already zeroed, return early
                     let status = if precision_warning {
@@ -168,7 +168,7 @@ pub(crate) fn zbesh<T: BesselFloat>(
                 let arg = half * az;
                 let aln = -fn_val * arg.ln();
                 if aln > elim {
-                    return Err(BesselError::Overflow);
+                    return Err(Error::Overflow);
                 }
             }
         }
@@ -266,7 +266,7 @@ mod tests {
         let mut y = [Complex64::new(0.0, 0.0)];
         assert!(matches!(
             zbesh(z, 0.0, HankelKind::First, Scaling::Unscaled, &mut y),
-            Err(BesselError::InvalidInput)
+            Err(Error::InvalidInput)
         ));
     }
 
@@ -276,7 +276,7 @@ mod tests {
         let mut y = [Complex64::new(0.0, 0.0)];
         assert!(matches!(
             zbesh(z, -1.0, HankelKind::First, Scaling::Unscaled, &mut y),
-            Err(BesselError::InvalidInput)
+            Err(Error::InvalidInput)
         ));
     }
 
@@ -286,7 +286,7 @@ mod tests {
         let mut y: [Complex64; 0] = [];
         assert!(matches!(
             zbesh(z, 0.0, HankelKind::First, Scaling::Unscaled, &mut y),
-            Err(BesselError::InvalidInput)
+            Err(Error::InvalidInput)
         ));
     }
 

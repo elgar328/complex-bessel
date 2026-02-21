@@ -115,7 +115,7 @@ pub(crate) enum AiryDerivative {
 
 /// Error type for Bessel function computation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum BesselError {
+pub enum Error {
     /// Invalid input (e.g., z=0 for K/Y/H, n < 1 in sequence functions).
     InvalidInput,
     /// Overflow: |z| or ν too large, or |z| too small.
@@ -126,19 +126,19 @@ pub enum BesselError {
     ConvergenceFailure,
 }
 
-impl fmt::Display for BesselError {
+impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            BesselError::InvalidInput => {
+            Error::InvalidInput => {
                 write!(f, "invalid input: check z and nu constraints")
             }
-            BesselError::Overflow => {
+            Error::Overflow => {
                 write!(f, "overflow: result magnitude exceeds representable range")
             }
-            BesselError::TotalPrecisionLoss => {
+            Error::TotalPrecisionLoss => {
                 write!(f, "total precision loss: no significant digits remain")
             }
-            BesselError::ConvergenceFailure => {
+            Error::ConvergenceFailure => {
                 write!(
                     f,
                     "convergence failure: algorithm did not meet termination criteria"
@@ -149,4 +149,4 @@ impl fmt::Display for BesselError {
 }
 
 #[cfg(feature = "std")]
-impl std::error::Error for BesselError {}
+impl std::error::Error for Error {}

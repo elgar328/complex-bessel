@@ -14,7 +14,7 @@ use crate::algo::seri::zseri;
 use crate::algo::uoik::zuoik;
 use crate::algo::wrsk::zwrsk;
 use crate::machine::BesselFloat;
-use crate::types::{BesselError, IkFlag, Scaling};
+use crate::types::{Error, IkFlag, Scaling};
 use crate::utils::zabs;
 
 /// Compute I Bessel function in the right half z-plane.
@@ -31,7 +31,7 @@ pub(crate) fn zbinu<T: BesselFloat>(
     tol: T,
     elim: T,
     alim: T,
-) -> Result<usize, BesselError> {
+) -> Result<usize, Error> {
     let zero = T::zero();
     let one = T::one();
     let two = T::from_f64(2.0);
@@ -86,7 +86,7 @@ fn dispatch_20<T: BesselFloat>(
     elim: T,
     alim: T,
     cy: &mut [Complex<T>],
-) -> Result<usize, BesselError> {
+) -> Result<usize, Error> {
     let zero = T::zero();
     let one = T::one();
     let czero = Complex::new(zero, zero);
@@ -171,12 +171,12 @@ fn dispatch_20<T: BesselFloat>(
     Ok(*nz)
 }
 
-/// Map Fortran NW error codes to BesselError.
+/// Map Fortran NW error codes to Error.
 #[inline]
-fn handle_error<T>(nw: i32) -> Result<T, BesselError> {
+fn handle_error<T>(nw: i32) -> Result<T, Error> {
     if nw == -2 {
-        Err(BesselError::ConvergenceFailure)
+        Err(Error::ConvergenceFailure)
     } else {
-        Err(BesselError::Overflow)
+        Err(Error::Overflow)
     }
 }

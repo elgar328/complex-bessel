@@ -14,7 +14,7 @@ use crate::algo::kscl::zkscl;
 use crate::algo::shch::zshch;
 use crate::algo::uchk::zuchk;
 use crate::machine::BesselFloat;
-use crate::types::{BesselError, Scaling};
+use crate::types::{Error, Scaling};
 use crate::utils::{reciprocal_z, zabs, zdiv};
 
 // ── Constants from Fortran DATA statements ──
@@ -57,7 +57,7 @@ const CC: [f64; 8] = [
 /// # Returns
 /// `(y, nz)` where `y` is the vector of K values and `nz` is the number
 /// of underflowed (zeroed) leading components.
-/// Returns `Err(BesselError::ConvergenceFailure)` if the forward recurrence
+/// Returns `Err(Error::ConvergenceFailure)` if the forward recurrence
 /// loop in the Miller algorithm does not converge.
 pub(crate) fn zbknu<T: BesselFloat>(
     z: Complex<T>,
@@ -67,7 +67,7 @@ pub(crate) fn zbknu<T: BesselFloat>(
     tol: T,
     elim: T,
     alim: T,
-) -> Result<usize, BesselError> {
+) -> Result<usize, Error> {
     // Convenience conversions
     let zero = T::zero();
     let one = T::one();
@@ -337,7 +337,7 @@ pub(crate) fn zbknu<T: BesselFloat>(
             }
             if !converged {
                 // Label 310: convergence failure
-                return Err(BesselError::ConvergenceFailure);
+                return Err(Error::ConvergenceFailure);
             }
             // Label 160
             fk_val = fk_val + T::from_f64(SPI) * t1_angle * (t2_miller / caz).sqrt();
@@ -449,7 +449,7 @@ fn forward_recurrence<T: BesselFloat>(
     cssr: &[T; 3],
     csrr: &[T; 3],
     bry: &[T; 3],
-) -> Result<usize, BesselError> {
+) -> Result<usize, Error> {
     let one = T::one();
 
     // CK = (DNU + 1) * RZ
@@ -586,7 +586,7 @@ fn iflag1_recurrence<T: BesselFloat>(
     cssr: &[T; 3],
     csrr: &[T; 3],
     bry: &[T; 3],
-) -> Result<usize, BesselError> {
+) -> Result<usize, Error> {
     let zero = T::zero();
     let czero = Complex::new(zero, zero);
     let half = T::from_f64(0.5);
@@ -779,7 +779,7 @@ fn handle_iflag1_final<T: BesselFloat>(
     cssr: &[T; 3],
     csrr: &[T; 3],
     bry: &[T; 3],
-) -> Result<usize, BesselError> {
+) -> Result<usize, Error> {
     y[0] = s1;
     if n > 1 {
         y[1] = s2;

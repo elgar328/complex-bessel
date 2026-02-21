@@ -9,7 +9,7 @@ use num_complex::Complex;
 use crate::algo::bknu::zbknu;
 use crate::algo::rati::zrati;
 use crate::machine::BesselFloat;
-use crate::types::{BesselError, Scaling};
+use crate::types::{Error, Scaling};
 use crate::utils::{zabs, zdiv};
 
 /// Compute I Bessel function for Re(z) >= 0 via Wronskian normalization.
@@ -31,7 +31,7 @@ pub(crate) fn zwrsk<T: BesselFloat>(
     tol: T,
     elim: T,
     alim: T,
-) -> Result<usize, BesselError> {
+) -> Result<usize, Error> {
     let zero = T::zero();
     let one = T::one();
     let czero = Complex::new(zero, zero);
@@ -43,7 +43,7 @@ pub(crate) fn zwrsk<T: BesselFloat>(
     let nw = zbknu(z, fnu, kode, &mut cw, tol, elim, alim)?;
     if nw != 0 {
         // Any nonzero NW (including underflows) is fatal for normalization
-        return Err(BesselError::Overflow);
+        return Err(Error::Overflow);
     }
 
     // ── Step 2: I-function ratios via zrati (written directly into y) ──

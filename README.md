@@ -60,21 +60,20 @@ where ζ = (2/3) z√z.
 
 ## Function variants
 
-The `_seq` variants (`besselj_seq`, `besselk_seq`, …) correspond directly to the original Amos TOMS 644 subroutines. They compute values at consecutive orders ν, ν+1, …, ν+n−1 in a single call, sharing internal recurrence work, and return a `BesselResult` that includes an `Accuracy` field.
+The `_seq` variants (`besselj_seq`, `besselk_seq`, …) compute values at consecutive orders ν, ν+1, …, ν+n−1 in a single call and return a `BesselResult` that includes an `Accuracy` field.
 The `_raw` Airy variants (`airy_raw`, `biry_raw`, …) similarly return an `AiryResult` with `Accuracy`.
-
-The single-value functions (`besselj`, `besselk`, `airy`, …) compute one value and discard the status.
+All other functions return only the computed value without `Accuracy`.
 
 **`Accuracy`:**
 
 | Status | Meaning |
 |--------|---------|
 | `Normal` | Full machine precision |
-| `Reduced` | More than half of significant digits may be lost; occurs only when \|z\| or ν exceeds ~32767 |
+| `Reduced` | More than half of significant digits may be lost.<br>Occurs only when \|z\| or ν exceeds ~32767 |
 
 `Reduced` is extremely rare in practice. SciPy's Bessel wrappers also silently discard the equivalent Amos IERR=3 flag by default.
 
-To check precision status, use a `_seq` function (Bessel) or a `_raw` function (Airy):
+To check accuracy status, use a `_seq` function (Bessel) or a `_raw` function (Airy):
 
 ```rust
 use complex_bessel::*;
@@ -84,20 +83,19 @@ let z = Complex::new(1.0, 2.0);
 let result = besselk_seq(0.0, z, 1, Scaling::Unscaled).unwrap();
 assert!(matches!(result.status, Accuracy::Normal));
 
-// Airy: use a _raw function
 let result = airy_raw(z, Scaling::Unscaled).unwrap();
 assert!(matches!(result.status, Accuracy::Normal));
 ```
 
 ## `no_std` support
 
-| Cargo features | Available API | Allocator required |
-|---------------|---------------|:------------------:|
-| `default-features = false` | 24 single-value functions | No |
-| `features = ["alloc"]` | + 6 `_seq` variants + `BesselResult` | Yes |
-| `features = ["std"]` (default) | + `impl Error for BesselError` | Yes |
+| Cargo features | Available API |
+|---------------|---------------|
+| `default-features = false` | 24 single-value functions |
+| `features = ["alloc"]` | + 6 `_seq` variants + `BesselResult` |
+| `features = ["std"]` (default) | + `impl Error for Error` |
 
-The 24 single-value functions include 12 Bessel (J/Y/I/K/H<sup>(1)</sup>/H<sup>(2)</sup> × unscaled/scaled), 8 Airy (Ai/Ai'/Bi/Bi' × unscaled/scaled), and 4 Airy `_raw` variants that return `AiryResult`.
+The 24 single-value functions include 12 Bessel (J/Y/I/K/H<sup>(1)</sup>/H<sup>(2)</sup> × unscaled/scaled) and 12 Airy (Ai/Ai'/Bi/Bi' × unscaled/scaled/raw).
 
 ```toml
 # Bare no_std — no allocator needed:
@@ -109,7 +107,7 @@ complex-bessel = { version = "0.1", default-features = false, features = ["alloc
 
 ## Error handling
 
-All functions return `Result<_, BesselError>`. The four error variants are:
+All functions return `Result<_, Error>`. The four error variants are:
 
 | Variant | Cause |
 |---------|-------|
@@ -118,7 +116,7 @@ All functions return `Result<_, BesselError>`. The four error variants are:
 | `TotalPrecisionLoss` | Complete loss of significant digits; \|z\| or ν too large |
 | `ConvergenceFailure` | Internal algorithm did not converge |
 
-`BesselError` implements `Display` always and `std::error::Error` with the `std` feature.
+`Error` implements `Display` always and `std::error::Error` with the `std` feature.
 
 ## Accuracy
 

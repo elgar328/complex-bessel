@@ -13,7 +13,7 @@ use crate::algo::constants::HPI;
 use crate::besi::zbesi;
 use crate::besk::zbesk;
 use crate::machine::BesselFloat;
-use crate::types::{Accuracy, BesselError, Scaling};
+use crate::types::{Accuracy, Error, Scaling};
 use crate::utils::{mul_i, mul_neg_i};
 
 /// Compute Y_{fnu+j}(z) for j = 0, 1, ..., n-1.
@@ -30,7 +30,7 @@ pub(crate) fn zbesy<T: BesselFloat>(
     fnu: T,
     scaling: Scaling,
     y: &mut [Complex<T>],
-) -> Result<(usize, Accuracy), BesselError> {
+) -> Result<(usize, Accuracy), Error> {
     let n = y.len();
     let zero = T::zero();
     let one = T::one();
@@ -42,13 +42,13 @@ pub(crate) fn zbesy<T: BesselFloat>(
 
     // Input validation (Fortran lines 1342-1348)
     if n < 1 {
-        return Err(BesselError::InvalidInput);
+        return Err(Error::InvalidInput);
     }
     if fnu < zero {
-        return Err(BesselError::InvalidInput);
+        return Err(Error::InvalidInput);
     }
     if z == czero {
-        return Err(BesselError::InvalidInput);
+        return Err(Error::InvalidInput);
     }
 
     // Rotate argument: zn = (zz.im, -zz.re) where zz = z with Im >= 0
@@ -233,7 +233,7 @@ pub(crate) fn zbesy<T: BesselFloat>(
         // This path should never be reached in practice:
         // - Public single-value functions always use n==1
         // - _seq functions are #[cfg(feature = "alloc")]
-        Err(BesselError::InvalidInput)
+        Err(Error::InvalidInput)
     }
 }
 

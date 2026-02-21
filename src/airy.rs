@@ -11,7 +11,7 @@ use crate::algo::acai::zacai;
 use crate::algo::binu::zbinu;
 use crate::algo::bknu::zbknu;
 use crate::machine::BesselFloat;
-use crate::types::{Accuracy, AiryDerivative, BesselError, Scaling};
+use crate::types::{Accuracy, AiryDerivative, Error, Scaling};
 use crate::utils::{zabs, zdiv};
 
 // ZAIRY constants (Fortran ZAIRY DATA, lines 1600-1603)
@@ -113,7 +113,7 @@ pub(crate) fn zairy<T: BesselFloat>(
     z: Complex<T>,
     id: AiryDerivative,
     kode: Scaling,
-) -> Result<(Complex<T>, i32, Accuracy), BesselError> {
+) -> Result<(Complex<T>, i32, Accuracy), Error> {
     let zero = T::zero();
     let one = T::one();
     let tth = T::from_f64(TTH);
@@ -231,7 +231,7 @@ fn zairy_large_z<T: BesselFloat>(
     tol: T,
     tth: T,
     coef: T,
-) -> Result<(Complex<T>, i32, Accuracy), BesselError> {
+) -> Result<(Complex<T>, i32, Accuracy), Error> {
     let zero = T::zero();
     let one = T::one();
     let czero = Complex::new(zero, zero);
@@ -255,7 +255,7 @@ fn zairy_large_z<T: BesselFloat>(
     let mut aa = (half / tol).min(T::from_f64(1073741823.5));
     aa = aa.powf(tth);
     if az > aa {
-        return Err(BesselError::TotalPrecisionLoss);
+        return Err(Error::TotalPrecisionLoss);
     }
     // IERR=3 precision warning (Fortran ZAIRY lines 1728-1729):
     // |z| > sqrt(AA^(2/3)) means more than half of significant digits lost
@@ -303,7 +303,7 @@ fn zairy_large_z<T: BesselFloat>(
             iflag = 1;
             sfac = tol;
             if test_val > elim {
-                return Err(BesselError::Overflow);
+                return Err(Error::Overflow);
             }
         }
     }
@@ -315,9 +315,9 @@ fn zairy_large_z<T: BesselFloat>(
     if nn < 0 {
         // Fortran label 280
         return if nn == -1 {
-            Err(BesselError::Overflow)
+            Err(Error::Overflow)
         } else {
-            Err(BesselError::ConvergenceFailure)
+            Err(Error::ConvergenceFailure)
         };
     }
     nz += nn;
@@ -338,7 +338,7 @@ fn zairy_form_result<T: BesselFloat>(
     sfac: T,
     nz: i32,
     status: Accuracy,
-) -> Result<(Complex<T>, i32, Accuracy), BesselError> {
+) -> Result<(Complex<T>, i32, Accuracy), Error> {
     if iflag == 0 {
         // Normal case
         if id == AiryDerivative::Value {
@@ -374,7 +374,7 @@ pub(crate) fn zbiry<T: BesselFloat>(
     z: Complex<T>,
     id: AiryDerivative,
     kode: Scaling,
-) -> Result<(Complex<T>, Accuracy), BesselError> {
+) -> Result<(Complex<T>, Accuracy), Error> {
     let zero = T::zero();
     let one = T::one();
     let tth = T::from_f64(TTH);
@@ -451,7 +451,7 @@ fn zbiry_large_z<T: BesselFloat>(
     tth: T,
     coef: T,
     pi_t: T,
-) -> Result<(Complex<T>, Accuracy), BesselError> {
+) -> Result<(Complex<T>, Accuracy), Error> {
     let zero = T::zero();
     let one = T::one();
     let two = T::from_f64(2.0);
@@ -474,7 +474,7 @@ fn zbiry_large_z<T: BesselFloat>(
     let mut aa = (half / tol).min(T::from_f64(1073741823.5));
     aa = aa.powf(tth);
     if az > aa {
-        return Err(BesselError::TotalPrecisionLoss);
+        return Err(Error::TotalPrecisionLoss);
     }
     // IERR=3 precision warning (Fortran ZBIRY lines 2118-2119):
     // |z| > sqrt(AA^(2/3)) means more than half of significant digits lost
@@ -497,7 +497,7 @@ fn zbiry_large_z<T: BesselFloat>(
             let bb_test = bb_abs + T::from_f64(0.25) * az.ln();
             sfac = tol;
             if bb_test > elim {
-                return Err(BesselError::Overflow);
+                return Err(Error::Overflow);
             }
         }
     }

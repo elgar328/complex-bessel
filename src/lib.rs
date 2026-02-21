@@ -48,13 +48,12 @@
 //!
 //! # Function variants
 //!
-//! The `_seq` variants (`besselj_seq`, `besselk_seq`, …) correspond directly to the
-//! original Amos TOMS 644 subroutines. They compute values at consecutive orders
-//! ν, ν+1, …, ν+n−1 in a single call, sharing internal recurrence work, and return
+//! The `_seq` variants ([`besselj_seq`], [`besselk_seq`], …) compute values at
+//! consecutive orders ν, ν+1, …, ν+n−1 in a single call and return
 //! a [`BesselResult`] that includes an [`Accuracy`] field.
-//!
-//! The single-value functions (`besselj`, `besselk`, `besselk_scaled`, …) compute
-//! one order and discard the status.
+//! The `_raw` Airy variants ([`airy_raw`], [`biry_raw`], …) similarly return
+//! an [`AiryResult`] with [`Accuracy`].
+//! All other functions return only the computed value without [`Accuracy`].
 //!
 //! ```
 //! # #[cfg(feature = "alloc")] {
@@ -153,7 +152,7 @@
 //! |---------------|---------------|-----------|
 //! | `default-features = false` | 24 single-value functions | No |
 //! | `features = ["alloc"]` | + 6 `_seq` variants + [`BesselResult`] | Yes |
-//! | `features = ["std"]` (default) | + `impl Error for BesselError` | Yes |
+//! | `features = ["std"]` (default) | + `impl Error for Error` | Yes |
 //!
 //! The 24 single-value functions include 12 Bessel (J/Y/I/K/H<sup>(1)</sup>/H<sup>(2)</sup> × unscaled/scaled),
 //! 8 Airy (Ai/Ai'/Bi/Bi' × unscaled/scaled), and 4 Airy `_raw` variants that return [`AiryResult`].
@@ -168,16 +167,16 @@
 //!
 //! # Error handling
 //!
-//! All functions return `Result<_, BesselError>`. The four error variants are:
+//! All functions return `Result<_, Error>`. The four error variants are:
 //!
 //! | Variant | Cause |
 //! |---------|-------|
-//! | [`InvalidInput`](BesselError::InvalidInput) | z = 0 for K/Y/H, n < 1 |
-//! | [`Overflow`](BesselError::Overflow) | \|z\| or ν too large (or too small) for finite result |
-//! | [`TotalPrecisionLoss`](BesselError::TotalPrecisionLoss) | Complete loss of significant digits; \|z\| or ν too large |
-//! | [`ConvergenceFailure`](BesselError::ConvergenceFailure) | Internal algorithm did not converge |
+//! | [`InvalidInput`](Error::InvalidInput) | z = 0 for K/Y/H, n < 1 |
+//! | [`Overflow`](Error::Overflow) | \|z\| or ν too large (or too small) for finite result |
+//! | [`TotalPrecisionLoss`](Error::TotalPrecisionLoss) | Complete loss of significant digits; \|z\| or ν too large |
+//! | [`ConvergenceFailure`](Error::ConvergenceFailure) | Internal algorithm did not converge |
 //!
-//! [`BesselError`] implements `Display` always and `std::error::Error` with the `std` feature.
+//! [`Error`] implements `Display` always and `std::error::Error` with the `std` feature.
 
 #![warn(missing_docs)]
 #![cfg_attr(not(feature = "std"), no_std)]
@@ -199,7 +198,7 @@ pub(crate) mod utils;
 pub use machine::BesselFloat;
 #[cfg(feature = "alloc")]
 pub use types::BesselResult;
-pub use types::{Accuracy, AiryResult, BesselError, Scaling};
+pub use types::{Accuracy, AiryResult, Error, Scaling};
 
 use num_complex::Complex;
 use types::{AiryDerivative, HankelKind};
@@ -279,7 +278,7 @@ fn besselj_internal<T: BesselFloat>(
     nu: T,
     z: Complex<T>,
     scaling: Scaling,
-) -> Result<Complex<T>, BesselError> {
+) -> Result<Complex<T>, Error> {
     let zero = T::zero();
     let czero = Complex::new(zero, zero);
     if nu >= zero {
@@ -311,7 +310,7 @@ fn bessely_internal<T: BesselFloat>(
     nu: T,
     z: Complex<T>,
     scaling: Scaling,
-) -> Result<Complex<T>, BesselError> {
+) -> Result<Complex<T>, Error> {
     let zero = T::zero();
     let czero = Complex::new(zero, zero);
     if nu >= zero {
@@ -343,7 +342,7 @@ fn besseli_internal<T: BesselFloat>(
     nu: T,
     z: Complex<T>,
     scaling: Scaling,
-) -> Result<Complex<T>, BesselError> {
+) -> Result<Complex<T>, Error> {
     let zero = T::zero();
     let czero = Complex::new(zero, zero);
     if nu >= zero {
@@ -380,7 +379,7 @@ fn besselk_internal<T: BesselFloat>(
     nu: T,
     z: Complex<T>,
     scaling: Scaling,
-) -> Result<Complex<T>, BesselError> {
+) -> Result<Complex<T>, Error> {
     // K_{-ν}(z) = K_ν(z) (DLMF 10.27.3) — K is even in ν
     let abs_nu = nu.abs();
     let zero = T::zero();
@@ -395,7 +394,7 @@ fn hankel_internal<T: BesselFloat>(
     nu: T,
     z: Complex<T>,
     scaling: Scaling,
-) -> Result<Complex<T>, BesselError> {
+) -> Result<Complex<T>, Error> {
     let zero = T::zero();
     if nu >= zero {
         let mut y = [Complex::new(zero, zero)];
@@ -433,9 +432,9 @@ fn hankel_internal<T: BesselFloat>(
 ///
 /// # Errors
 ///
-/// Returns [`BesselError`] if the computation fails (overflow, precision loss, etc.).
+/// Returns [`Error`] if the computation fails (overflow, precision loss, etc.).
 #[inline]
-pub fn besselj<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, BesselError> {
+pub fn besselj<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error> {
     besselj_internal(nu, z, Scaling::Unscaled)
 }
 
@@ -460,9 +459,9 @@ pub fn besselj<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Besse
 ///
 /// # Errors
 ///
-/// Returns [`BesselError`] if the computation fails (overflow, z = 0, etc.).
+/// Returns [`Error`] if the computation fails (overflow, z = 0, etc.).
 #[inline]
-pub fn bessely<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, BesselError> {
+pub fn bessely<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error> {
     bessely_internal(nu, z, Scaling::Unscaled)
 }
 
@@ -487,9 +486,9 @@ pub fn bessely<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Besse
 ///
 /// # Errors
 ///
-/// Returns [`BesselError`] if the computation fails (overflow, precision loss, etc.).
+/// Returns [`Error`] if the computation fails (overflow, precision loss, etc.).
 #[inline]
-pub fn besseli<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, BesselError> {
+pub fn besseli<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error> {
     besseli_internal(nu, z, Scaling::Unscaled)
 }
 
@@ -511,9 +510,9 @@ pub fn besseli<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Besse
 ///
 /// # Errors
 ///
-/// Returns [`BesselError`] if the computation fails (overflow, z = 0, etc.).
+/// Returns [`Error`] if the computation fails (overflow, z = 0, etc.).
 #[inline]
-pub fn besselk<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, BesselError> {
+pub fn besselk<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error> {
     besselk_internal(nu, z, Scaling::Unscaled)
 }
 
@@ -538,9 +537,9 @@ pub fn besselk<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Besse
 ///
 /// # Errors
 ///
-/// Returns [`BesselError`] if the computation fails (overflow, z = 0, etc.).
+/// Returns [`Error`] if the computation fails (overflow, z = 0, etc.).
 #[inline]
-pub fn hankel1<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, BesselError> {
+pub fn hankel1<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error> {
     hankel_internal(HankelKind::First, nu, z, Scaling::Unscaled)
 }
 
@@ -565,9 +564,9 @@ pub fn hankel1<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Besse
 ///
 /// # Errors
 ///
-/// Returns [`BesselError`] if the computation fails (overflow, z = 0, etc.).
+/// Returns [`Error`] if the computation fails (overflow, z = 0, etc.).
 #[inline]
-pub fn hankel2<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, BesselError> {
+pub fn hankel2<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error> {
     hankel_internal(HankelKind::Second, nu, z, Scaling::Unscaled)
 }
 
@@ -590,9 +589,9 @@ pub fn hankel2<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Besse
 ///
 /// # Errors
 ///
-/// Returns [`BesselError`] if the computation fails.
+/// Returns [`Error`] if the computation fails.
 #[inline]
-pub fn airy<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, BesselError> {
+pub fn airy<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Error> {
     let (result, _nz, _status) = airy::zairy(z, AiryDerivative::Value, Scaling::Unscaled)?;
     Ok(result)
 }
@@ -614,9 +613,9 @@ pub fn airy<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, BesselError> {
 ///
 /// # Errors
 ///
-/// Returns [`BesselError`] if the computation fails.
+/// Returns [`Error`] if the computation fails.
 #[inline]
-pub fn airyprime<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, BesselError> {
+pub fn airyprime<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Error> {
     let (result, _nz, _status) = airy::zairy(z, AiryDerivative::Derivative, Scaling::Unscaled)?;
     Ok(result)
 }
@@ -640,9 +639,9 @@ pub fn airyprime<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, BesselErro
 ///
 /// # Errors
 ///
-/// Returns [`BesselError`] if the computation fails.
+/// Returns [`Error`] if the computation fails.
 #[inline]
-pub fn biry<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, BesselError> {
+pub fn biry<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Error> {
     let (result, _status) = airy::zbiry(z, AiryDerivative::Value, Scaling::Unscaled)?;
     Ok(result)
 }
@@ -664,9 +663,9 @@ pub fn biry<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, BesselError> {
 ///
 /// # Errors
 ///
-/// Returns [`BesselError`] if the computation fails.
+/// Returns [`Error`] if the computation fails.
 #[inline]
-pub fn biryprime<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, BesselError> {
+pub fn biryprime<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Error> {
     let (result, _status) = airy::zbiry(z, AiryDerivative::Derivative, Scaling::Unscaled)?;
     Ok(result)
 }
@@ -685,9 +684,9 @@ pub fn biryprime<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, BesselErro
 ///
 /// # Errors
 ///
-/// Returns [`BesselError`] if the computation fails.
+/// Returns [`Error`] if the computation fails.
 #[inline]
-pub fn besselj_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, BesselError> {
+pub fn besselj_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error> {
     besselj_internal(nu, z, Scaling::Exponential)
 }
 
@@ -702,9 +701,9 @@ pub fn besselj_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>
 ///
 /// # Errors
 ///
-/// Returns [`BesselError`] if the computation fails.
+/// Returns [`Error`] if the computation fails.
 #[inline]
-pub fn bessely_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, BesselError> {
+pub fn bessely_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error> {
     bessely_internal(nu, z, Scaling::Exponential)
 }
 
@@ -719,9 +718,9 @@ pub fn bessely_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>
 ///
 /// # Errors
 ///
-/// Returns [`BesselError`] if the computation fails.
+/// Returns [`Error`] if the computation fails.
 #[inline]
-pub fn besseli_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, BesselError> {
+pub fn besseli_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error> {
     besseli_internal(nu, z, Scaling::Exponential)
 }
 
@@ -749,9 +748,9 @@ pub fn besseli_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>
 ///
 /// # Errors
 ///
-/// Returns [`BesselError`] if the computation fails.
+/// Returns [`Error`] if the computation fails.
 #[inline]
-pub fn besselk_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, BesselError> {
+pub fn besselk_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error> {
     besselk_internal(nu, z, Scaling::Exponential)
 }
 
@@ -766,9 +765,9 @@ pub fn besselk_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>
 ///
 /// # Errors
 ///
-/// Returns [`BesselError`] if the computation fails.
+/// Returns [`Error`] if the computation fails.
 #[inline]
-pub fn hankel1_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, BesselError> {
+pub fn hankel1_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error> {
     hankel_internal(HankelKind::First, nu, z, Scaling::Exponential)
 }
 
@@ -783,9 +782,9 @@ pub fn hankel1_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>
 ///
 /// # Errors
 ///
-/// Returns [`BesselError`] if the computation fails.
+/// Returns [`Error`] if the computation fails.
 #[inline]
-pub fn hankel2_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, BesselError> {
+pub fn hankel2_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error> {
     hankel_internal(HankelKind::Second, nu, z, Scaling::Exponential)
 }
 
@@ -798,9 +797,9 @@ pub fn hankel2_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>
 ///
 /// # Errors
 ///
-/// Returns [`BesselError`] if the computation fails.
+/// Returns [`Error`] if the computation fails.
 #[inline]
-pub fn airy_scaled<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, BesselError> {
+pub fn airy_scaled<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Error> {
     let (result, _nz, _status) = airy::zairy(z, AiryDerivative::Value, Scaling::Exponential)?;
     Ok(result)
 }
@@ -811,9 +810,9 @@ pub fn airy_scaled<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, BesselEr
 ///
 /// # Errors
 ///
-/// Returns [`BesselError`] if the computation fails.
+/// Returns [`Error`] if the computation fails.
 #[inline]
-pub fn airyprime_scaled<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, BesselError> {
+pub fn airyprime_scaled<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Error> {
     let (result, _nz, _status) = airy::zairy(z, AiryDerivative::Derivative, Scaling::Exponential)?;
     Ok(result)
 }
@@ -828,9 +827,9 @@ pub fn airyprime_scaled<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Bes
 ///
 /// # Errors
 ///
-/// Returns [`BesselError`] if the computation fails.
+/// Returns [`Error`] if the computation fails.
 #[inline]
-pub fn biry_scaled<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, BesselError> {
+pub fn biry_scaled<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Error> {
     let (result, _status) = airy::zbiry(z, AiryDerivative::Value, Scaling::Exponential)?;
     Ok(result)
 }
@@ -842,9 +841,9 @@ pub fn biry_scaled<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, BesselEr
 ///
 /// # Errors
 ///
-/// Returns [`BesselError`] if the computation fails.
+/// Returns [`Error`] if the computation fails.
 #[inline]
-pub fn biryprime_scaled<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, BesselError> {
+pub fn biryprime_scaled<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Error> {
     let (result, _status) = airy::zbiry(z, AiryDerivative::Derivative, Scaling::Exponential)?;
     Ok(result)
 }
@@ -861,12 +860,9 @@ pub fn biryprime_scaled<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Bes
 ///
 /// # Errors
 ///
-/// Returns [`BesselError`] if the computation fails.
+/// Returns [`Error`] if the computation fails.
 #[inline]
-pub fn airy_raw<T: BesselFloat>(
-    z: Complex<T>,
-    scaling: Scaling,
-) -> Result<AiryResult<T>, BesselError> {
+pub fn airy_raw<T: BesselFloat>(z: Complex<T>, scaling: Scaling) -> Result<AiryResult<T>, Error> {
     let (value, _nz, status) = airy::zairy(z, AiryDerivative::Value, scaling)?;
     Ok(AiryResult { value, status })
 }
@@ -881,12 +877,12 @@ pub fn airy_raw<T: BesselFloat>(
 ///
 /// # Errors
 ///
-/// Returns [`BesselError`] if the computation fails.
+/// Returns [`Error`] if the computation fails.
 #[inline]
 pub fn airyprime_raw<T: BesselFloat>(
     z: Complex<T>,
     scaling: Scaling,
-) -> Result<AiryResult<T>, BesselError> {
+) -> Result<AiryResult<T>, Error> {
     let (value, _nz, status) = airy::zairy(z, AiryDerivative::Derivative, scaling)?;
     Ok(AiryResult { value, status })
 }
@@ -901,12 +897,9 @@ pub fn airyprime_raw<T: BesselFloat>(
 ///
 /// # Errors
 ///
-/// Returns [`BesselError`] if the computation fails.
+/// Returns [`Error`] if the computation fails.
 #[inline]
-pub fn biry_raw<T: BesselFloat>(
-    z: Complex<T>,
-    scaling: Scaling,
-) -> Result<AiryResult<T>, BesselError> {
+pub fn biry_raw<T: BesselFloat>(z: Complex<T>, scaling: Scaling) -> Result<AiryResult<T>, Error> {
     let (value, status) = airy::zbiry(z, AiryDerivative::Value, scaling)?;
     Ok(AiryResult { value, status })
 }
@@ -921,12 +914,12 @@ pub fn biry_raw<T: BesselFloat>(
 ///
 /// # Errors
 ///
-/// Returns [`BesselError`] if the computation fails.
+/// Returns [`Error`] if the computation fails.
 #[inline]
 pub fn biryprime_raw<T: BesselFloat>(
     z: Complex<T>,
     scaling: Scaling,
-) -> Result<AiryResult<T>, BesselError> {
+) -> Result<AiryResult<T>, Error> {
     let (value, status) = airy::zbiry(z, AiryDerivative::Derivative, scaling)?;
     Ok(AiryResult { value, status })
 }
@@ -939,8 +932,8 @@ extern crate alloc as alloc_crate;
 #[cfg(feature = "alloc")]
 fn seq_helper<T: BesselFloat>(
     n: usize,
-    f: impl FnOnce(&mut [Complex<T>]) -> Result<(usize, Accuracy), BesselError>,
-) -> Result<BesselResult<T>, BesselError> {
+    f: impl FnOnce(&mut [Complex<T>]) -> Result<(usize, Accuracy), Error>,
+) -> Result<BesselResult<T>, Error> {
     let zero = T::zero();
     let mut values = alloc_crate::vec![Complex::new(zero, zero); n];
     let (underflow_count, status) = f(&mut values)?;
@@ -1001,7 +994,7 @@ fn besselk_seq_neg<T: BesselFloat>(
     z: Complex<T>,
     n: usize,
     scaling: Scaling,
-) -> Result<BesselResult<T>, BesselError> {
+) -> Result<BesselResult<T>, Error> {
     let zero = T::zero();
     let czero = Complex::new(zero, zero);
     let abs_nu = nu.abs();
@@ -1106,7 +1099,7 @@ fn hankel_seq_neg<T: BesselFloat>(
     z: Complex<T>,
     n: usize,
     scaling: Scaling,
-) -> Result<BesselResult<T>, BesselError> {
+) -> Result<BesselResult<T>, Error> {
     let zero = T::zero();
     let czero = Complex::new(zero, zero);
     let abs_nu = nu.abs();
@@ -1200,7 +1193,7 @@ fn besselj_seq_neg<T: BesselFloat>(
     z: Complex<T>,
     n: usize,
     scaling: Scaling,
-) -> Result<BesselResult<T>, BesselError> {
+) -> Result<BesselResult<T>, Error> {
     let zero = T::zero();
     let czero = Complex::new(zero, zero);
     let abs_nu = nu.abs();
@@ -1301,7 +1294,7 @@ fn bessely_seq_neg<T: BesselFloat>(
     z: Complex<T>,
     n: usize,
     scaling: Scaling,
-) -> Result<BesselResult<T>, BesselError> {
+) -> Result<BesselResult<T>, Error> {
     let zero = T::zero();
     let czero = Complex::new(zero, zero);
     let abs_nu = nu.abs();
@@ -1399,7 +1392,7 @@ fn besseli_seq_neg<T: BesselFloat>(
     z: Complex<T>,
     n: usize,
     scaling: Scaling,
-) -> Result<BesselResult<T>, BesselError> {
+) -> Result<BesselResult<T>, Error> {
     let zero = T::zero();
     let czero = Complex::new(zero, zero);
     let abs_nu = nu.abs();
@@ -1525,13 +1518,13 @@ fn besseli_seq_neg<T: BesselFloat>(
 ///
 /// # Errors
 ///
-/// Returns [`BesselError::InvalidInput`] if n < 1.
+/// Returns [`Error::InvalidInput`] if n < 1.
 pub fn besselj_seq<T: BesselFloat>(
     nu: T,
     z: Complex<T>,
     n: usize,
     scaling: Scaling,
-) -> Result<BesselResult<T>, BesselError> {
+) -> Result<BesselResult<T>, Error> {
     if nu < T::zero() {
         return besselj_seq_neg(nu, z, n, scaling);
     }
@@ -1556,13 +1549,13 @@ pub fn besselj_seq<T: BesselFloat>(
 ///
 /// # Errors
 ///
-/// Returns [`BesselError::InvalidInput`] if n < 1.
+/// Returns [`Error::InvalidInput`] if n < 1.
 pub fn bessely_seq<T: BesselFloat>(
     nu: T,
     z: Complex<T>,
     n: usize,
     scaling: Scaling,
-) -> Result<BesselResult<T>, BesselError> {
+) -> Result<BesselResult<T>, Error> {
     if nu < T::zero() {
         return bessely_seq_neg(nu, z, n, scaling);
     }
@@ -1587,13 +1580,13 @@ pub fn bessely_seq<T: BesselFloat>(
 ///
 /// # Errors
 ///
-/// Returns [`BesselError::InvalidInput`] if n < 1.
+/// Returns [`Error::InvalidInput`] if n < 1.
 pub fn besseli_seq<T: BesselFloat>(
     nu: T,
     z: Complex<T>,
     n: usize,
     scaling: Scaling,
-) -> Result<BesselResult<T>, BesselError> {
+) -> Result<BesselResult<T>, Error> {
     if nu < T::zero() {
         return besseli_seq_neg(nu, z, n, scaling);
     }
@@ -1630,13 +1623,13 @@ pub fn besseli_seq<T: BesselFloat>(
 ///
 /// # Errors
 ///
-/// Returns [`BesselError::InvalidInput`] if n < 1.
+/// Returns [`Error::InvalidInput`] if n < 1.
 pub fn besselk_seq<T: BesselFloat>(
     nu: T,
     z: Complex<T>,
     n: usize,
     scaling: Scaling,
-) -> Result<BesselResult<T>, BesselError> {
+) -> Result<BesselResult<T>, Error> {
     if nu < T::zero() {
         return besselk_seq_neg(nu, z, n, scaling);
     }
@@ -1659,13 +1652,13 @@ pub fn besselk_seq<T: BesselFloat>(
 ///
 /// # Errors
 ///
-/// Returns [`BesselError::InvalidInput`] if n < 1.
+/// Returns [`Error::InvalidInput`] if n < 1.
 pub fn hankel1_seq<T: BesselFloat>(
     nu: T,
     z: Complex<T>,
     n: usize,
     scaling: Scaling,
-) -> Result<BesselResult<T>, BesselError> {
+) -> Result<BesselResult<T>, Error> {
     if nu < T::zero() {
         return hankel_seq_neg(HankelKind::First, nu, z, n, scaling);
     }
@@ -1688,13 +1681,13 @@ pub fn hankel1_seq<T: BesselFloat>(
 ///
 /// # Errors
 ///
-/// Returns [`BesselError::InvalidInput`] if n < 1.
+/// Returns [`Error::InvalidInput`] if n < 1.
 pub fn hankel2_seq<T: BesselFloat>(
     nu: T,
     z: Complex<T>,
     n: usize,
     scaling: Scaling,
-) -> Result<BesselResult<T>, BesselError> {
+) -> Result<BesselResult<T>, Error> {
     if nu < T::zero() {
         return hankel_seq_neg(HankelKind::Second, nu, z, n, scaling);
     }
@@ -1727,8 +1720,8 @@ mod neg_order_seq_tests {
         tol: f64,
         label: &str,
     ) where
-        F: FnOnce(f64, Complex64, usize, Scaling) -> Result<BesselResult<f64>, BesselError>,
-        G: Fn(f64, Complex64) -> Result<Complex64, BesselError>,
+        F: FnOnce(f64, Complex64, usize, Scaling) -> Result<BesselResult<f64>, Error>,
+        G: Fn(f64, Complex64) -> Result<Complex64, Error>,
     {
         let result = seq_fn(nu, z, n, scaling).unwrap();
         assert_eq!(result.values.len(), n, "{label}: wrong length");

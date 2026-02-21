@@ -7,7 +7,7 @@ use num_complex::Complex;
 use crate::algo::binu::zbinu;
 use crate::algo::constants::PI;
 use crate::machine::BesselFloat;
-use crate::types::{Accuracy, BesselError, Scaling};
+use crate::types::{Accuracy, Error, Scaling};
 use crate::utils::zabs;
 
 /// Compute I_{fnu+j}(z) for j = 0, 1, ..., n-1.
@@ -19,7 +19,7 @@ pub(crate) fn zbesi<T: BesselFloat>(
     fnu: T,
     scaling: Scaling,
     y: &mut [Complex<T>],
-) -> Result<(usize, Accuracy), BesselError> {
+) -> Result<(usize, Accuracy), Error> {
     let zero = T::zero();
     let one = T::one();
     let pi_t = T::from_f64(PI);
@@ -28,10 +28,10 @@ pub(crate) fn zbesi<T: BesselFloat>(
 
     // Input validation (Fortran IERR=1, lines 518-523)
     if n < 1 {
-        return Err(BesselError::InvalidInput);
+        return Err(Error::InvalidInput);
     }
     if fnu < zero {
-        return Err(BesselError::InvalidInput);
+        return Err(Error::InvalidInput);
     }
 
     // Machine constants (Fortran lines 535-547)
@@ -49,7 +49,7 @@ pub(crate) fn zbesi<T: BesselFloat>(
     let aa = aa_tol.min(bb);
 
     if az > aa || fn_val > aa {
-        return Err(BesselError::TotalPrecisionLoss);
+        return Err(Error::TotalPrecisionLoss);
     }
 
     let aa_sqrt = aa.sqrt();

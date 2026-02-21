@@ -17,7 +17,7 @@ use crate::algo::mlri::zmlri;
 use crate::algo::s1s2::zs1s2;
 use crate::algo::seri::zseri;
 use crate::machine::BesselFloat;
-use crate::types::{BesselError, Scaling};
+use crate::types::{Error, Scaling};
 use crate::utils::zabs;
 
 /// Analytic continuation for Airy functions.
@@ -39,7 +39,7 @@ pub(crate) fn zacai<T: BesselFloat>(
     tol: T,
     elim: T,
     alim: T,
-) -> Result<i32, BesselError> {
+) -> Result<i32, Error> {
     let zero = T::zero();
     let one = T::one();
     let two = T::from_f64(2.0);
@@ -67,9 +67,9 @@ pub(crate) fn zacai<T: BesselFloat>(
         let nw = zasyi(zn, fnu, kode, &mut i_buf, rl, tol, elim, alim);
         if nw < 0 {
             return Err(if nw == -2 {
-                BesselError::ConvergenceFailure
+                Error::ConvergenceFailure
             } else {
-                BesselError::Overflow
+                Error::Overflow
             });
         }
     } else {
@@ -77,9 +77,9 @@ pub(crate) fn zacai<T: BesselFloat>(
         let nw = zmlri(zn, fnu, kode, &mut i_buf, tol);
         if nw < 0 {
             return Err(if nw == -2 {
-                BesselError::ConvergenceFailure
+                Error::ConvergenceFailure
             } else {
-                BesselError::Overflow
+                Error::Overflow
             });
         }
     }
@@ -90,7 +90,7 @@ pub(crate) fn zacai<T: BesselFloat>(
     let nw_k = zbknu(zn, fnu, kode, &mut k_buf, tol, elim, alim)?;
     if nw_k != 0 {
         // NW != 0 → error (Fortran line 4737 GO TO 80)
-        return Err(BesselError::Overflow);
+        return Err(Error::Overflow);
     }
 
     let fmr = T::from_f64(mr as f64);
