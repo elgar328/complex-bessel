@@ -118,9 +118,21 @@ All functions return `Result<_, Error>`. The four error variants are:
 
 `Error` implements `Display` always and `std::error::Error` with the `std` feature.
 
-## Accuracy
+## Accuracy & performance
 
-Results agree with the original Fortran TOMS 644 to ~14 significant digits (f64). Comprehensive accuracy analysis is maintained in a [separate repository](https://github.com/elgar328/complex-bessel-accuracy).
+Precision of complex-bessel (Rust), AMOS/TOMS 644 (Fortran), and SciPy (Python) across all functions.
+
+[![Accuracy — relative error vs mpmath](https://raw.githubusercontent.com/elgar328/complex-bessel-test/main/images/accuracy.svg)](https://github.com/elgar328/complex-bessel-test/blob/main/images/accuracy.pdf)
+
+Since this library is a Rust translation of AMOS/TOMS 644, the two should produce nearly identical results.
+
+[![Rust vs Fortran — relative error](https://raw.githubusercontent.com/elgar328/complex-bessel-test/main/images/fidelity.svg)](https://github.com/elgar328/complex-bessel-test/blob/main/images/fidelity.pdf)
+
+Median evaluation time per function call.
+
+[![Performance — median time per call](https://raw.githubusercontent.com/elgar328/complex-bessel-test/main/images/eval_time.svg)](https://github.com/elgar328/complex-bessel-test/blob/main/images/eval_time.pdf)
+
+Details in the [test repository](https://github.com/elgar328/complex-bessel-test).
 
 ## License
 
