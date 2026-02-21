@@ -29,23 +29,6 @@
 //! let ai_prime = airyprime(z).unwrap();
 //! ```
 //!
-//! # Generic types
-//!
-//! All functions are generic over `f64` and `f32` via the [`BesselFloat`] trait:
-//!
-//! ```
-//! use complex_bessel::besselj;
-//! use num_complex::Complex;
-//!
-//! // f64 (default)
-//! let z64 = Complex::new(1.0_f64, 2.0);
-//! let j64 = besselj(0.5_f64, z64).unwrap();
-//!
-//! // f32
-//! let z32 = Complex::new(1.0_f32, 2.0);
-//! let j32 = besselj(0.5_f32, z32).unwrap();
-//! ```
-//!
 //! # Functions
 //!
 //! | Function | Description | Scaled variant returns |
@@ -62,6 +45,20 @@
 //! | [`biryprime`]`(z)`<br>[`biryprime_scaled`]`(z)`<br>[`biryprime_raw`]`(z, scaling)` | Bi′(z), derivative of Airy second kind | exp(−\|Re(ζ)\|) · Bi′(z) |
 //!
 //! where ζ = (2/3) z√z.
+//!
+//! # Negative orders
+//!
+//! All functions (single-value and `_seq` variants) accept any real order, including negative values.
+//! DLMF reflection formulas are applied automatically:
+//!
+//! - **J**: J<sub>−ν</sub>(z) = cos(νπ) J<sub>ν</sub>(z) − sin(νπ) Y<sub>ν</sub>(z) (DLMF 10.4.1)
+//! - **Y**: Y<sub>−ν</sub>(z) = sin(νπ) J<sub>ν</sub>(z) + cos(νπ) Y<sub>ν</sub>(z) (DLMF 10.4.2)
+//! - **I**: I<sub>−ν</sub>(z) = I<sub>ν</sub>(z) + (2/π) sin(νπ) K<sub>ν</sub>(z) (DLMF 10.27.2)
+//! - **K**: K<sub>−ν</sub>(z) = K<sub>ν</sub>(z) (even in ν, DLMF 10.27.3)
+//! - **H<sup>(1)</sup>**: H<sup>(1)</sup><sub>−ν</sub>(z) = exp(νπi) H<sup>(1)</sup><sub>ν</sub>(z) (DLMF 10.4.6)
+//! - **H<sup>(2)</sup>**: H<sup>(2)</sup><sub>−ν</sub>(z) = exp(−νπi) H<sup>(2)</sup><sub>ν</sub>(z) (DLMF 10.4.7)
+//!
+//! For integer orders, simplified identities are used (e.g., J<sub>−n</sub>(z) = (−1)<sup>n</sup> J<sub>n</sub>(z)).
 //!
 //! # Function variants
 //!
@@ -98,19 +95,18 @@
 //! # }
 //! ```
 //!
-//! # Negative orders
+//! # Error handling
 //!
-//! All functions (single-value and `_seq` variants) accept any real order, including negative values.
-//! DLMF reflection formulas are applied automatically:
+//! All functions return `Result<_, Error>`. The four error variants are:
 //!
-//! - **J**: J<sub>−ν</sub>(z) = cos(νπ) J<sub>ν</sub>(z) − sin(νπ) Y<sub>ν</sub>(z) (DLMF 10.4.1)
-//! - **Y**: Y<sub>−ν</sub>(z) = sin(νπ) J<sub>ν</sub>(z) + cos(νπ) Y<sub>ν</sub>(z) (DLMF 10.4.2)
-//! - **I**: I<sub>−ν</sub>(z) = I<sub>ν</sub>(z) + (2/π) sin(νπ) K<sub>ν</sub>(z) (DLMF 10.27.2)
-//! - **K**: K<sub>−ν</sub>(z) = K<sub>ν</sub>(z) (even in ν, DLMF 10.27.3)
-//! - **H<sup>(1)</sup>**: H<sup>(1)</sup><sub>−ν</sub>(z) = exp(νπi) H<sup>(1)</sup><sub>ν</sub>(z) (DLMF 10.4.6)
-//! - **H<sup>(2)</sup>**: H<sup>(2)</sup><sub>−ν</sub>(z) = exp(−νπi) H<sup>(2)</sup><sub>ν</sub>(z) (DLMF 10.4.7)
+//! | Variant | Cause |
+//! |---------|-------|
+//! | [`InvalidInput`](Error::InvalidInput) | z = 0 for K/Y/H, n < 1 |
+//! | [`Overflow`](Error::Overflow) | \|z\| or ν too large (or too small) for finite result |
+//! | [`TotalPrecisionLoss`](Error::TotalPrecisionLoss) | Complete loss of significant digits; \|z\| or ν too large |
+//! | [`ConvergenceFailure`](Error::ConvergenceFailure) | Internal algorithm did not converge |
 //!
-//! For integer orders, simplified identities are used (e.g., J<sub>−n</sub>(z) = (−1)<sup>n</sup> J<sub>n</sub>(z)).
+//! [`Error`] implements `Display` always and `std::error::Error` with the `std` feature.
 //!
 //! # `no_std` support
 //!
@@ -130,19 +126,6 @@
 //! # no_std with alloc (adds _seq functions and BesselResult):
 //! complex-bessel = { version = "0.1", default-features = false, features = ["alloc"] }
 //! ```
-//!
-//! # Error handling
-//!
-//! All functions return `Result<_, Error>`. The four error variants are:
-//!
-//! | Variant | Cause |
-//! |---------|-------|
-//! | [`InvalidInput`](Error::InvalidInput) | z = 0 for K/Y/H, n < 1 |
-//! | [`Overflow`](Error::Overflow) | \|z\| or ν too large (or too small) for finite result |
-//! | [`TotalPrecisionLoss`](Error::TotalPrecisionLoss) | Complete loss of significant digits; \|z\| or ν too large |
-//! | [`ConvergenceFailure`](Error::ConvergenceFailure) | Internal algorithm did not converge |
-//!
-//! [`Error`] implements `Display` always and `std::error::Error` with the `std` feature.
 
 #![warn(missing_docs)]
 #![cfg_attr(not(feature = "std"), no_std)]

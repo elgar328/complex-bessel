@@ -87,6 +87,19 @@ let result = airy_raw(z, Scaling::Unscaled).unwrap();
 assert!(matches!(result.status, Accuracy::Normal));
 ```
 
+## Error handling
+
+All functions return `Result<_, Error>`. The four error variants are:
+
+| Variant | Cause |
+|---------|-------|
+| `InvalidInput` | z = 0 for K/Y/H, n < 1 |
+| `Overflow` | \|z\| or ν too large (or too small) for finite result |
+| `TotalPrecisionLoss` | Complete loss of significant digits; \|z\| or ν too large |
+| `ConvergenceFailure` | Internal algorithm did not converge |
+
+`Error` implements `Display` always and `std::error::Error` with the `std` feature.
+
 ## `no_std` support
 
 | Cargo features | Available API |
@@ -105,19 +118,6 @@ complex-bessel = { version = "0.1", default-features = false }
 complex-bessel = { version = "0.1", default-features = false, features = ["alloc"] }
 ```
 
-## Error handling
-
-All functions return `Result<_, Error>`. The four error variants are:
-
-| Variant | Cause |
-|---------|-------|
-| `InvalidInput` | z = 0 for K/Y/H, n < 1 |
-| `Overflow` | \|z\| or ν too large (or too small) for finite result |
-| `TotalPrecisionLoss` | Complete loss of significant digits; \|z\| or ν too large |
-| `ConvergenceFailure` | Internal algorithm did not converge |
-
-`Error` implements `Display` always and `std::error::Error` with the `std` feature.
-
 ## Accuracy & performance
 
 Precision of complex-bessel (Rust), AMOS/TOMS 644 (Fortran), and SciPy (Python) across all functions.
@@ -132,7 +132,7 @@ Median evaluation time per function call.
 
 [![Performance — median time per call](https://raw.githubusercontent.com/elgar328/complex-bessel-test/main/images/eval_time.svg)](https://github.com/elgar328/complex-bessel-test/blob/main/images/eval_time.pdf)
 
-Details in the [test repository](https://github.com/elgar328/complex-bessel-test).
+For methodology, datasets, and full benchmark results, see the [test repository](https://github.com/elgar328/complex-bessel-test).
 
 ## License
 
