@@ -51,12 +51,12 @@
 //! All functions (single-value and `_seq` variants) accept any real order, including negative values.
 //! DLMF reflection formulas are applied automatically:
 //!
-//! - **J**: J<sub>−ν</sub>(z) = cos(νπ) J<sub>ν</sub>(z) − sin(νπ) Y<sub>ν</sub>(z) (DLMF 10.4.1)
-//! - **Y**: Y<sub>−ν</sub>(z) = sin(νπ) J<sub>ν</sub>(z) + cos(νπ) Y<sub>ν</sub>(z) (DLMF 10.4.2)
+//! - **J**: J<sub>−ν</sub>(z) = cos(νπ) J<sub>ν</sub>(z) − sin(νπ) Y<sub>ν</sub>(z) (DLMF 10.2.3)
+//! - **Y**: Y<sub>−ν</sub>(z) = sin(νπ) J<sub>ν</sub>(z) + cos(νπ) Y<sub>ν</sub>(z) (DLMF 10.2.3)
 //! - **I**: I<sub>−ν</sub>(z) = I<sub>ν</sub>(z) + (2/π) sin(νπ) K<sub>ν</sub>(z) (DLMF 10.27.2)
 //! - **K**: K<sub>−ν</sub>(z) = K<sub>ν</sub>(z) (even in ν, DLMF 10.27.3)
 //! - **H<sup>(1)</sup>**: H<sup>(1)</sup><sub>−ν</sub>(z) = exp(νπi) H<sup>(1)</sup><sub>ν</sub>(z) (DLMF 10.4.6)
-//! - **H<sup>(2)</sup>**: H<sup>(2)</sup><sub>−ν</sub>(z) = exp(−νπi) H<sup>(2)</sup><sub>ν</sub>(z) (DLMF 10.4.7)
+//! - **H<sup>(2)</sup>**: H<sup>(2)</sup><sub>−ν</sub>(z) = exp(−νπi) H<sup>(2)</sup><sub>ν</sub>(z) (DLMF 10.4.6)
 //!
 //! For integer orders, simplified identities are used (e.g., J<sub>−n</sub>(z) = (−1)<sup>n</sup> J<sub>n</sub>(z)).
 //!
@@ -167,13 +167,13 @@ fn as_integer<T: BesselFloat>(nu: T) -> Option<i64> {
 
 // ── Element-wise reflection helpers (shared by single-value and _seq) ──
 
-/// J_{-ν}(z) = cos(νπ)·J_ν(z) − sin(νπ)·Y_ν(z)  (DLMF 10.4.1)
+/// J_{-ν}(z) = cos(νπ)·J_ν(z) − sin(νπ)·Y_ν(z)  (DLMF 10.2.3)
 #[inline]
 fn reflect_j_element<T: BesselFloat>(order: T, j: Complex<T>, y: Complex<T>) -> Complex<T> {
     j * utils::cospi(order) - y * utils::sinpi(order)
 }
 
-/// Y_{-ν}(z) = sin(νπ)·J_ν(z) + cos(νπ)·Y_ν(z)  (DLMF 10.4.2)
+/// Y_{-ν}(z) = sin(νπ)·J_ν(z) + cos(νπ)·Y_ν(z)  (DLMF 10.2.3)
 #[inline]
 fn reflect_y_element<T: BesselFloat>(order: T, j: Complex<T>, y: Complex<T>) -> Complex<T> {
     j * utils::sinpi(order) + y * utils::cospi(order)
@@ -365,7 +365,7 @@ fn hankel_internal<T: BesselFloat>(
 /// Computes a single value of the Bessel function J_ν(z) for complex z
 /// and real order ν (any real value, including negative).
 ///
-/// For negative ν, the DLMF 10.4.1 reflection formula is applied:
+/// For negative ν, the DLMF 10.2.3 reflection formula is applied:
 /// `J_{-ν}(z) = cos(νπ) J_ν(z) - sin(νπ) Y_ν(z)`.
 ///
 /// # Example
@@ -392,7 +392,7 @@ pub fn besselj<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error
 /// Computes a single value of the Bessel function Y_ν(z) for complex z
 /// and real order ν (any real value, including negative).
 ///
-/// For negative ν, the DLMF 10.4.2 reflection formula is applied:
+/// For negative ν, the DLMF 10.2.3 reflection formula is applied:
 /// `Y_{-ν}(z) = sin(νπ) J_ν(z) + cos(νπ) Y_ν(z)`.
 ///
 /// # Example
@@ -497,7 +497,7 @@ pub fn hankel1<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error
 /// Computes a single value of H_ν^(2)(z) for complex z and real order ν
 /// (any real value, including negative).
 ///
-/// For negative ν, the DLMF 10.4.7 reflection formula is applied:
+/// For negative ν, the DLMF 10.4.6 reflection formula is applied:
 /// `H^(2)_{-ν}(z) = exp(-νπi) H^(2)_ν(z)`.
 ///
 /// # Example
@@ -1624,7 +1624,7 @@ pub fn hankel1_seq<T: BesselFloat>(
 /// The `scaling` parameter selects [`Scaling::Unscaled`] or [`Scaling::Exponential`];
 /// see [crate-level docs](crate#exponential-scaling) for details.
 ///
-/// Negative orders are supported: H^(2)_{−ν}(z) = exp(−νπi) H^(2)_ν(z) (DLMF 10.4.7).
+/// Negative orders are supported: H^(2)_{−ν}(z) = exp(−νπi) H^(2)_ν(z) (DLMF 10.4.6).
 ///
 /// See [crate-level docs](crate#consecutive-orders) for more on sequence functions.
 ///
