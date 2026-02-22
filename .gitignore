@@ -1,16 +1,1 @@
-# Project planning documents
-PROJECT_PLAN.md
-PUBLISH_PLAN.md
-CLAUDE.md
-
-# Downloaded reference materials (reproducible via refs/download.sh)
-refs/fortran/
-refs/cpp/
-refs/papers/
-
-
-# macOS
-.DS_Store
-
-# Added by cargo
 /target

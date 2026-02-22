@@ -1,6 +1,6 @@
 [package]
 name = "complex-bessel"
-version = "0.1.0-alpha.1"
+version = "0.1.0"
 edition = "2024"
 rust-version = "1.85"
 description = "Pure Rust implementation of complex Bessel functions (J, Y, I, K, H, Airy) based on Amos Algorithm 644"
@@ -9,18 +9,17 @@ keywords = ["bessel", "complex", "special-functions", "mathematics", "no-std"]
 categories = ["mathematics", "science", "no-std"]
 readme = "README.md"
 repository = "https://github.com/elgar328/complex-bessel"
-exclude = ["refs/", "scripts/", "PUBLISH_PLAN.md", "PROJECT_PLAN.md"]
 
 [dependencies]
-num-complex = { version = "0.4", default-features = false }
+num-complex = { version = "0.4", default-features = false, features = ["libm"] }
 num-traits = { version = "0.2", default-features = false, features = ["libm"] }
 
 [features]
 default = ["std"]
-std = ["num-complex/std", "num-traits/std"]
+std = ["alloc", "num-complex/std", "num-traits/std"]
+alloc = []
 
-[dev-dependencies]
-criterion = "0.5"
-approx = "0.5"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+[[example]]
+name = "basic"
+required-features = ["alloc"]
+
