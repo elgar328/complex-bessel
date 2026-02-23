@@ -195,7 +195,7 @@ fn reflect_y_element<T: BesselFloat>(order: T, j: Complex<T>, y: Complex<T>) -> 
 fn reflect_i_element<T: BesselFloat>(order: T, i_val: Complex<T>, k_val: Complex<T>) -> Complex<T> {
     let pi = T::from_f64(core::f64::consts::PI);
     let two = T::from_f64(2.0);
-    i_val + k_val * (two / pi * utils::sinpi(order))
+    utils::mul_add_scalar(k_val, two / pi * utils::sinpi(order), i_val)
 }
 
 /// H^(m)_{-ν}(z) = exp(±νπi)·H^(m)_ν(z)  (DLMF 10.4.6/7)

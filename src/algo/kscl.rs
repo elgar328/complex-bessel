@@ -6,7 +6,7 @@ use num_complex::Complex;
 
 use crate::algo::uchk::zuchk;
 use crate::machine::BesselFloat;
-use crate::utils::zabs;
+use crate::utils::{mul_add, zabs};
 
 /// Rescale K function values that may underflow.
 ///
@@ -106,7 +106,7 @@ pub(crate) fn zkscl<T: BesselFloat>(
 
         // Recurrence step: s2_new = ck*s2 + s1
         let cs = s2;
-        s2 = ck * cs + s1;
+        s2 = mul_add(ck, cs, s1);
         s1 = cs;
         ck = ck + rz;
 

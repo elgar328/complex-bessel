@@ -11,7 +11,7 @@ use crate::algo::uni1::zuni1;
 use crate::algo::uni2::zuni2;
 use crate::machine::BesselFloat;
 use crate::types::Scaling;
-use crate::utils::{reciprocal_z, zabs};
+use crate::utils::{mul_add_scalar, reciprocal_z, zabs};
 
 /// Output metadata of ZBUNI (no Vec — results written into caller-provided slice).
 #[derive(Debug, Clone, Copy)]
@@ -130,7 +130,7 @@ pub(crate) fn zbuni<T: BesselFloat>(
     for _i in 0..nui {
         let prev = s2;
         let cfn = dfnu + fnui_val;
-        s2 = rz * prev * cfn + s1;
+        s2 = mul_add_scalar(rz * prev, cfn, s1);
         s1 = prev;
         fnui_val = fnui_val - one;
 
@@ -165,7 +165,7 @@ pub(crate) fn zbuni<T: BesselFloat>(
     for _i in 0..nl {
         let prev = s2;
         let cfn = fnu + fnui_val;
-        s2 = rz * prev * cfn + s1;
+        s2 = mul_add_scalar(rz * prev, cfn, s1);
         s1 = prev;
         let c2_scaled = s2 * cscrr;
         y[k - 1] = c2_scaled;

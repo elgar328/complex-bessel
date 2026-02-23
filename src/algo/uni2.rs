@@ -14,7 +14,7 @@ use crate::algo::unhj::zunhj;
 use crate::algo::uoik::zuoik;
 use crate::machine::BesselFloat;
 use crate::types::{Accuracy, AiryDerivative, IkFlag, Scaling, SumOption};
-use crate::utils::{mul_i, mul_neg_i, reciprocal_z, zabs};
+use crate::utils::{mul_add, mul_i, mul_neg_i, reciprocal_z, zabs};
 
 use crate::algo::constants::{AIC, HPI};
 
@@ -229,7 +229,7 @@ pub(crate) fn zuni2<T: BesselFloat>(
             )
             .unwrap_or((czero, 0, Accuracy::Normal));
 
-            let s2_airy = result.phi * (ai * result.asum + dai * result.bsum);
+            let s2_airy = result.phi * mul_add(ai, result.asum, dai * result.bsum);
 
             let s1_scaled = s1_exp.exp() * cssr[iflag - 1];
             let mut s2_val = s2_airy * s1_scaled;

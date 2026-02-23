@@ -17,7 +17,7 @@ use crate::algo::uchk::zuchk;
 use crate::algo::unhj::zunhj;
 use crate::machine::BesselFloat;
 use crate::types::{Accuracy, AiryDerivative, Scaling, SumOption};
-use crate::utils::{mul_neg_i, reciprocal_z, zabs};
+use crate::utils::{mul_add, mul_neg_i, reciprocal_z, zabs};
 
 /// CR1 = (1, sqrt(3)) (Fortran line 6196-6197)
 const CR1: [f64; 2] = [1.0, 1.73205080756887729];
@@ -205,7 +205,7 @@ pub(crate) fn zunk2<T: BesselFloat>(
         let (dai, _ndai, _) = zairy(c2_arg, AiryDerivative::Derivative, Scaling::Exponential)
             .unwrap_or((czero, 0, Accuracy::Normal));
 
-        let mut s2 = phi_arr[jj] * (ai * asum_arr[jj] + cr2 * (dai * bsum_arr[jj])) * cs;
+        let mut s2 = phi_arr[jj] * mul_add(ai, asum_arr[jj], cr2 * (dai * bsum_arr[jj])) * cs;
 
         // Scale by exp(S1) (Fortran lines 6313-6318)
         let s1_scaled = s1_exp.exp() * cssr[kflag - 1];
@@ -312,7 +312,7 @@ pub(crate) fn zunk2<T: BesselFloat>(
 
         for y_item in y.iter_mut().take(n).skip(ib - 1) {
             let prev = s2;
-            s2 = ck * prev + s1;
+            s2 = mul_add(ck, prev, s1);
             s1 = prev;
             ck = ck + rz;
             let c2_scaled = s2 * c1r_rec;
@@ -455,7 +455,7 @@ pub(crate) fn zunk2<T: BesselFloat>(
                 nz += s1s2_result.nz;
                 iuf = s1s2_result.iuf;
             }
-            y[kk_idx - 1] = cspn * s1_k + s2_k_final;
+            y[kk_idx - 1] = mul_add(cspn, s1_k, s2_k_final);
             kk_idx -= 1;
             cspn = -cspn;
             cs_ac = mul_neg_i(cs_ac);
@@ -496,7 +496,7 @@ pub(crate) fn zunk2<T: BesselFloat>(
                     nz += s1s2_result.nz;
                     iuf = s1s2_result.iuf;
                 }
-                y[kk_idx - 1] = cspn * s1_k + s2_k_final;
+                y[kk_idx - 1] = mul_add(cspn, s1_k, s2_k_final);
                 kk_idx -= 1;
                 cspn = -cspn;
                 cs_ac = mul_neg_i(cs_ac);
@@ -528,7 +528,7 @@ pub(crate) fn zunk2<T: BesselFloat>(
         let (dai, _ndai, _) = zairy(argd, AiryDerivative::Derivative, Scaling::Exponential)
             .unwrap_or((czero, 0, Accuracy::Normal));
 
-        let mut s2 = phid * (ai * asumd + dai * bsumd) * cs_ac;
+        let mut s2 = phid * mul_add(ai, asumd, dai * bsumd) * cs_ac;
 
         // Scale by exp(S1) (Fortran lines 6555-6560)
         let s1_scaled = s1_exp.exp() * cssr[iflag - 1];
@@ -556,7 +556,7 @@ pub(crate) fn zunk2<T: BesselFloat>(
             nz += s1s2_result.nz;
             iuf = s1s2_result.iuf;
         }
-        y[kk_idx - 1] = cspn * s1_k + s2_k;
+        y[kk_idx - 1] = mul_add(cspn, s1_k, s2_k);
         kk_idx -= 1;
         cspn = -cspn;
         cs_ac = mul_neg_i(cs_ac);
@@ -602,7 +602,7 @@ pub(crate) fn zunk2<T: BesselFloat>(
             nz += s1s2_result.nz;
             iuf = s1s2_result.iuf;
         }
-        y[kk_idx - 1] = cspn * c1_k + c2_k;
+        y[kk_idx - 1] = mul_add(cspn, c1_k, c2_k);
         kk_idx -= 1;
         cspn = -cspn;
 

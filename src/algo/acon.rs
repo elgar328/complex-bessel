@@ -14,7 +14,7 @@ use crate::algo::constants::PI;
 use crate::algo::s1s2::zs1s2;
 use crate::machine::BesselFloat;
 use crate::types::{Error, Scaling};
-use crate::utils::{reciprocal_z, zabs};
+use crate::utils::{mul_add, reciprocal_z, zabs};
 
 /// Analytic continuation of K function from right to left half-plane.
 ///
@@ -102,7 +102,7 @@ pub(crate) fn zacon<T: BesselFloat>(
     }
 
     // Y(1) = CSPN*C1 + CSGN*C2 (Fortran lines 4253-4256)
-    y[0] = cspn * c1 + csgn * c2;
+    y[0] = mul_add(cspn, c1, csgn * c2);
 
     if n == 1 {
         return Ok(nz);
@@ -123,7 +123,7 @@ pub(crate) fn zacon<T: BesselFloat>(
         iuf = s1s2_out.iuf;
     }
 
-    y[1] = cspn * c1 + csgn * c2;
+    y[1] = mul_add(cspn, c1, csgn * c2);
 
     if n == 2 {
         return Ok(nz);
@@ -158,7 +158,7 @@ pub(crate) fn zacon<T: BesselFloat>(
 
     for y_item in y[2..n].iter_mut() {
         let prev = s2_k;
-        s2_k = ck * prev + s1_k;
+        s2_k = mul_add(ck, prev, s1_k);
         s1_k = prev;
 
         c1 = s2_k * csr;
@@ -184,7 +184,7 @@ pub(crate) fn zacon<T: BesselFloat>(
         }
 
         // Y(I) = CSPN*C1 + CSGN*C2 (Fortran lines 4347-4350)
-        *y_item = cspn * c1 + csgn * c2;
+        *y_item = mul_add(cspn, c1, csgn * c2);
 
         ck = ck + rz;
         cspn = -cspn;

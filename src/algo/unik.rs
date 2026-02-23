@@ -11,7 +11,7 @@ use num_complex::Complex;
 
 use crate::machine::BesselFloat;
 use crate::types::{IkFlag, SumOption};
-use crate::utils::zdiv;
+use crate::utils::{mul_add, zdiv};
 
 // CON(1) = 1/sqrt(2*pi), CON(2) = sqrt(pi/2)
 // Fortran zbsubs.f lines 4837-4838
@@ -284,7 +284,7 @@ pub(crate) fn zunik<T: BesselFloat>(
             l += 1;
             let c_val = T::from_f64(C_COEFFS[l]);
             // s = s * t2 + c[l] (Fortran lines 4967-4969)
-            s_sum = s_sum * t2 + Complex::new(c_val, zero);
+            s_sum = mul_add(s_sum, t2, Complex::new(c_val, zero));
         }
 
         // crfn = crfn * sr_new (Fortran lines 4971-4973)

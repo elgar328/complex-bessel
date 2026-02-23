@@ -9,7 +9,7 @@ use crate::algo::gamln::gamln;
 use crate::algo::uchk::zuchk;
 use crate::machine::BesselFloat;
 use crate::types::Scaling;
-use crate::utils::{reciprocal_z, zabs, zdiv};
+use crate::utils::{mul_add_scalar, reciprocal_z, zabs, zdiv};
 
 /// Power series computation of I Bessel function.
 ///
@@ -209,7 +209,7 @@ pub(crate) fn zseri<T: BesselFloat>(
             let mut l = 2usize; // iteration index (Fortran L=3..NN, we use 2..nn-1)
             while l < nn {
                 let ck_val = s2;
-                s2 = s1 + rz * ck_val * (ak_val + fnu);
+                s2 = mul_add_scalar(rz * ck_val, ak_val + fnu, s1);
                 s1 = ck_val;
                 let ck_scaled = s2 * crscr;
                 y[k as usize] = ck_scaled;
@@ -222,7 +222,7 @@ pub(crate) fn zseri<T: BesselFloat>(
                     // IB = L + 1 in Fortran; remaining iterations continue unscaled
                     while l < nn {
                         let ki = k as usize;
-                        y[ki] = rz * y[ki + 1] * (ak_val + fnu) + y[ki + 2];
+                        y[ki] = mul_add_scalar(rz * y[ki + 1], ak_val + fnu, y[ki + 2]);
                         ak_val = ak_val - one;
                         k -= 1;
                         l += 1;
@@ -236,7 +236,7 @@ pub(crate) fn zseri<T: BesselFloat>(
         // Unscaled recurrence (Fortran label 100, lines 3749-3756)
         for _ in 2..nn {
             let ki = k as usize;
-            y[ki] = rz * y[ki + 1] * (ak_val + fnu) + y[ki + 2];
+            y[ki] = mul_add_scalar(rz * y[ki + 1], ak_val + fnu, y[ki + 2]);
             ak_val = ak_val - one;
             k -= 1;
         }

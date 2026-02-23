@@ -12,7 +12,7 @@ use num_complex::Complex;
 use crate::algo::constants::PI;
 use crate::machine::BesselFloat;
 use crate::types::Scaling;
-use crate::utils::{reciprocal_z, zabs, zdiv};
+use crate::utils::{mul_add, mul_add_scalar, reciprocal_z, zabs, zdiv};
 
 /// Asymptotic expansion of I Bessel function for large |z|.
 ///
@@ -141,7 +141,7 @@ pub(crate) fn zasyi<T: BesselFloat>(
         let mut s2 = cs1;
         if z.re + z.re < elim {
             let exp_2z = (-(z + z)).exp();
-            s2 = s2 + exp_2z * p1 * cs2;
+            s2 = mul_add(exp_2z * p1, cs2, s2);
         }
 
         // Update fdn, negate p1, store result (Fortran lines 3942-3947)
@@ -168,7 +168,7 @@ pub(crate) fn zasyi<T: BesselFloat>(
 
     for _ in 2..nn {
         let ki = k_idx as usize;
-        y[ki] = rz * y[ki + 1] * (ak_rec + fnu) + y[ki + 2];
+        y[ki] = mul_add_scalar(rz * y[ki + 1], ak_rec + fnu, y[ki + 2]);
         ak_rec = ak_rec - one;
         k_idx -= 1;
     }

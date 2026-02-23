@@ -10,7 +10,7 @@ use crate::algo::bknu::zbknu;
 use crate::algo::rati::zrati;
 use crate::machine::BesselFloat;
 use crate::types::{Error, Scaling};
-use crate::utils::{zabs, zdiv};
+use crate::utils::{mul_add, zabs, zdiv};
 
 /// Compute I Bessel function for Re(z) >= 0 via Wronskian normalization.
 ///
@@ -80,7 +80,7 @@ pub(crate) fn zwrsk<T: BesselFloat>(
 
     // PT = ratio * C1 + C2 = (ratio * K(fnu) + K(fnu+1)) * csclr
     // (Fortran lines 3590-3593)
-    let pt = ratio_saved * c1 + c2;
+    let pt = mul_add(ratio_saved, c1, c2);
 
     // CT = z * PT (Fortran lines 3594-3595)
     let ct = z * pt;
