@@ -98,15 +98,13 @@ All functions return `Result<_, Error>`. The four error variants are:
 | `TotalPrecisionLoss` | Complete loss of significant digits; \|z\| or ν too large |
 | `ConvergenceFailure` | Internal algorithm did not converge |
 
-`Error` implements `Display` always and `std::error::Error` with the `std` feature.
-
 ## `no_std` support
 
 | Cargo features | Available API |
 |---------------|---------------|
 | `default-features = false` | 24 single-value functions |
-| `features = ["alloc"]` | + 6 `_seq` variants + `BesselResult` |
-| `features = ["std"]` (default) | + `impl Error for Error` |
+| `features = ["alloc"]` | full API (+ 6 `_seq` variants) |
+| `features = ["std"]` (default) | full API, with platform-native math |
 
 The 24 single-value functions include 12 Bessel (J/Y/I/K/H<sup>(1)</sup>/H<sup>(2)</sup> × unscaled/scaled) and 12 Airy (Ai/Ai'/Bi/Bi' × unscaled/scaled/raw).
 
@@ -114,7 +112,7 @@ The 24 single-value functions include 12 Bessel (J/Y/I/K/H<sup>(1)</sup>/H<sup>(
 # Bare no_std — no allocator needed:
 complex-bessel = { version = "0.1", default-features = false }
 
-# no_std with alloc (adds _seq functions and BesselResult):
+# no_std + alloc — full API:
 complex-bessel = { version = "0.1", default-features = false, features = ["alloc"] }
 ```
 

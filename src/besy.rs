@@ -4,7 +4,7 @@
 //! Y(fnu, z) = i*CC*I(fnu, arg) - (2/pi)*conj(CC)*K(fnu, arg)
 //! where CC = exp(-i*pi*fnu/2), arg = z*exp(-i*pi/2).
 
-#[cfg(all(feature = "alloc", not(feature = "std")))]
+#[cfg(feature = "alloc")]
 use alloc::vec;
 
 use num_complex::Complex;
