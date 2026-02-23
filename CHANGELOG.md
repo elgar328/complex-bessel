@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Use unconditional `#![no_std]` with `core::error::Error` (MSRV 1.81+).
+- Apply FMA (fused multiply-add) optimization across all arithmetic hot paths
+  (`mul_add`, `mul_add_scalar`, scalar `fma` — 38 call sites in 19 files).
+
 ## [0.1.0] - 2026-02-22
 
 ### Added
