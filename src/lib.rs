@@ -7,7 +7,7 @@
 //! - **Consecutive orders** — `_seq` variants return ν, ν+1, …, ν+n−1 in one call
 //! - **Exponential scaling** — `_scaled` variants prevent overflow/underflow
 //! - **Negative orders** — supports ν < 0 via DLMF reflection formulas (not in Amos)
-//! - **`no_std` support** — 3-tier: bare `no_std` (no allocator), `alloc`, `std` (default)
+//! - **`no_std` support** — 3-tier: bare `no_std`, `alloc`, `std` (default)
 //!
 //! # Quick start
 //!
@@ -56,13 +56,13 @@
 //!
 //! # Negative orders
 //!
-//! All functions (single-value and `_seq` variants) accept any real order, including negative values.
+//! All functions accept any real order, including negative values.
 //! DLMF reflection formulas are applied automatically:
 //!
 //! - **J**: J<sub>−ν</sub>(z) = cos(νπ) J<sub>ν</sub>(z) − sin(νπ) Y<sub>ν</sub>(z) (DLMF 10.2.3)
 //! - **Y**: Y<sub>−ν</sub>(z) = sin(νπ) J<sub>ν</sub>(z) + cos(νπ) Y<sub>ν</sub>(z) (DLMF 10.2.3)
 //! - **I**: I<sub>−ν</sub>(z) = I<sub>ν</sub>(z) + (2/π) sin(νπ) K<sub>ν</sub>(z) (DLMF 10.27.2)
-//! - **K**: K<sub>−ν</sub>(z) = K<sub>ν</sub>(z) (even in ν, DLMF 10.27.3)
+//! - **K**: K<sub>−ν</sub>(z) = K<sub>ν</sub>(z) (DLMF 10.27.3)
 //! - **H<sup>(1)</sup>**: H<sup>(1)</sup><sub>−ν</sub>(z) = exp(νπi) H<sup>(1)</sup><sub>ν</sub>(z) (DLMF 10.4.6)
 //! - **H<sup>(2)</sup>**: H<sup>(2)</sup><sub>−ν</sub>(z) = exp(−νπi) H<sup>(2)</sup><sub>ν</sub>(z) (DLMF 10.4.6)
 //!
@@ -84,7 +84,7 @@
 //! | Status | Meaning |
 //! |--------|---------|
 //! | [`Normal`](Accuracy::Normal) | Full machine precision |
-//! | [`Reduced`](Accuracy::Reduced) | More than half of significant digits may be lost.<br>Occurs only when \|z\| or ν exceeds ~32767 |
+//! | [`Reduced`](Accuracy::Reduced) | More than half of significant digits may be lost |
 //!
 //! [`Reduced`](Accuracy::Reduced) is extremely rare in practice. SciPy's Bessel wrappers also silently
 //! discard the equivalent Amos IERR=3 flag by default.
@@ -339,7 +339,7 @@ fn besselk_internal<T: BesselFloat>(
     z: Complex<T>,
     scaling: Scaling,
 ) -> Result<Complex<T>, Error> {
-    // K_{-ν}(z) = K_ν(z) (DLMF 10.27.3) — K is even in ν
+    // K_{-ν}(z) = K_ν(z) (DLMF 10.27.3)
     let abs_nu = nu.abs();
     let zero = T::zero();
     let mut y = [Complex::new(zero, zero)];
@@ -456,7 +456,7 @@ pub fn besseli<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error
 /// Computes a single value of K_ν(z) for complex z and real order ν
 /// (any real value, including negative).
 ///
-/// For negative ν, K_{-ν}(z) = K_ν(z) (K is even in ν, DLMF 10.27.3).
+/// For negative ν, K_{-ν}(z) = K_ν(z) (DLMF 10.27.3).
 ///
 /// # Example
 ///
@@ -727,7 +727,7 @@ pub fn besseli_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>
 /// K_ν(z) decays exponentially for large Re(z), so unscaled values can underflow
 /// to zero. The scaling factor `exp(z)` keeps the result in a normal range.
 ///
-/// Supports negative ν (K is even in ν: K_{-ν} = K_ν).
+/// Supports negative ν: K_{-ν}(z) = K_ν(z).
 ///
 /// See [crate-level docs](crate#exponential-scaling) for the full scaling table.
 ///
@@ -1755,7 +1755,7 @@ pub fn besseli_seq<T: BesselFloat>(
 /// The `scaling` parameter selects [`Scaling::Unscaled`] or [`Scaling::Exponential`];
 /// see [crate-level docs](crate#exponential-scaling) for details.
 ///
-/// Negative orders are supported: K_{−ν}(z) = K_ν(z) (K is even in ν).
+/// Negative orders are supported: K_{−ν}(z) = K_ν(z).
 ///
 /// See [crate-level docs](crate#consecutive-orders) for more on sequence functions.
 ///

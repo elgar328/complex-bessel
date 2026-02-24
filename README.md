@@ -14,7 +14,7 @@ Pure Rust implementation of complex Bessel functions based on **Amos Algorithm 6
 - **Consecutive orders** — `_seq` variants return ν, ν+1, …, ν+n−1 in one call
 - **Exponential scaling** — `_scaled` variants prevent overflow/underflow
 - **Negative orders** — supports ν < 0 via DLMF reflection formulas (not in Amos)
-- **`no_std` support** — 3-tier: bare `no_std` (no allocator), `alloc`, `std` (default)
+- **`no_std` support** — 3-tier: bare `no_std`, `alloc`, `std` (default)
 
 ## Quick start
 
@@ -69,7 +69,7 @@ All other functions return only the computed value without `Accuracy`.
 | Status | Meaning |
 |--------|---------|
 | `Normal` | Full machine precision |
-| `Reduced` | More than half of significant digits may be lost.<br>Occurs only when \|z\| or ν exceeds ~32767 |
+| `Reduced` | More than half of significant digits may be lost |
 
 `Reduced` is extremely rare in practice. SciPy's Bessel wrappers also silently discard the equivalent Amos IERR=3 flag by default.
 

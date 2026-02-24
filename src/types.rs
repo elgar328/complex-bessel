@@ -14,7 +14,10 @@ pub enum Accuracy {
     /// Computation within normal precision bounds (full machine precision).
     Normal,
     /// Result computed but may have lost more than half of significant digits.
-    /// Occurs when |z| or ν exceeds ~32767 for f64.
+    ///
+    /// Triggered when:
+    /// - Bessel functions: |z| or ν exceeds ~32767 (f64)
+    /// - Airy functions: |z| exceeds ~1024 (f64)
     Reduced,
 }
 
