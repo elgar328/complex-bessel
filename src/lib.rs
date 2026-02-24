@@ -370,7 +370,7 @@ fn hankel_internal<T: BesselFloat>(
 
 // ── Single-value convenience functions ──
 
-/// Bessel function of the first kind, J_ν(z).
+/// Bessel function of the first kind, J<sub>ν</sub>(z).
 ///
 /// Computes a single value of the Bessel function J_ν(z) for complex z
 /// and real order ν (any real value, including negative).
@@ -397,7 +397,7 @@ pub fn besselj<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error
     besselj_internal(nu, z, Scaling::Unscaled)
 }
 
-/// Bessel function of the second kind, Y_ν(z).
+/// Bessel function of the second kind, Y<sub>ν</sub>(z).
 ///
 /// Computes a single value of the Bessel function Y_ν(z) for complex z
 /// and real order ν (any real value, including negative).
@@ -424,7 +424,7 @@ pub fn bessely<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error
     bessely_internal(nu, z, Scaling::Unscaled)
 }
 
-/// Modified Bessel function of the first kind, I_ν(z).
+/// Modified Bessel function of the first kind, I<sub>ν</sub>(z).
 ///
 /// Computes a single value of I_ν(z) for complex z and real order ν
 /// (any real value, including negative).
@@ -451,7 +451,7 @@ pub fn besseli<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error
     besseli_internal(nu, z, Scaling::Unscaled)
 }
 
-/// Modified Bessel function of the second kind, K_ν(z).
+/// Modified Bessel function of the second kind, K<sub>ν</sub>(z).
 ///
 /// Computes a single value of K_ν(z) for complex z and real order ν
 /// (any real value, including negative).
@@ -477,7 +477,7 @@ pub fn besselk<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error
     besselk_internal(nu, z, Scaling::Unscaled)
 }
 
-/// Hankel function of the first kind, H_ν^(1)(z).
+/// Hankel function of the first kind, H<sub>ν</sub><sup>(1)</sup>(z).
 ///
 /// Computes a single value of H_ν^(1)(z) for complex z and real order ν
 /// (any real value, including negative).
@@ -505,7 +505,7 @@ pub fn hankel1<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error
     hankel_internal(HankelKind::First, nu, z, Scaling::Unscaled)
 }
 
-/// Hankel function of the second kind, H_ν^(2)(z).
+/// Hankel function of the second kind, H<sub>ν</sub><sup>(2)</sup>(z).
 ///
 /// Computes a single value of H_ν^(2)(z) for complex z and real order ν
 /// (any real value, including negative).
@@ -536,7 +536,7 @@ pub fn hankel2<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error
 /// Airy function Ai(z).
 ///
 /// Computes the Airy function of the first kind for complex z.
-/// Ai(z) is a solution to the differential equation `w'' - z·w = 0`
+/// Ai(z) is a solution to the differential equation w′′ − z·w = 0
 /// that decays exponentially for large positive real z.
 ///
 /// # Example
@@ -562,7 +562,7 @@ pub fn airy<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Error> {
 /// Derivative of the Airy function, Ai'(z).
 ///
 /// Computes the derivative of the Airy function of the first kind for complex z.
-/// Satisfies the differential equation `Ai''(z) = z · Ai(z)`.
+/// Satisfies the differential equation Ai′′(z) = z · Ai(z).
 ///
 /// # Example
 ///
@@ -587,7 +587,7 @@ pub fn airyprime<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Error> {
 /// Airy function of the second kind, Bi(z).
 ///
 /// Computes the Airy function Bi(z) for complex z.
-/// Bi(z) is the solution to `w'' - z·w = 0` that grows exponentially
+/// Bi(z) is the solution to w′′ − z·w = 0 that grows exponentially
 /// for large positive real z.
 ///
 /// # Example
@@ -613,7 +613,7 @@ pub fn biry<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Error> {
 /// Derivative of the Airy function of the second kind, Bi'(z).
 ///
 /// Computes the derivative of Bi(z) for complex z.
-/// Satisfies the differential equation `Bi''(z) = z · Bi(z)`.
+/// Satisfies the differential equation Bi′′(z) = z · Bi(z).
 ///
 /// # Example
 ///
@@ -637,7 +637,7 @@ pub fn biryprime<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Error> {
 
 // ── Scaled single-value functions ──
 
-/// Scaled Bessel function of the first kind: `exp(-|Im(z)|) · J_ν(z)`.
+/// Scaled Bessel function of the first kind, exp(−|Im(z)|) · J<sub>ν</sub>(z).
 ///
 /// The exponential factor cancels the asymptotic growth of J for large imaginary
 /// arguments, keeping results in a representable floating-point range.
@@ -666,7 +666,7 @@ pub fn besselj_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>
     besselj_internal(nu, z, Scaling::Exponential)
 }
 
-/// Scaled Bessel function of the second kind: `exp(-|Im(z)|) · Y_ν(z)`.
+/// Scaled Bessel function of the second kind, exp(−|Im(z)|) · Y<sub>ν</sub>(z).
 ///
 /// The exponential factor cancels the asymptotic growth of Y for large imaginary
 /// arguments, keeping results in a representable floating-point range.
@@ -694,10 +694,10 @@ pub fn bessely_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>
     bessely_internal(nu, z, Scaling::Exponential)
 }
 
-/// Scaled modified Bessel function of the first kind: `exp(-|Re(z)|) · I_ν(z)`.
+/// Scaled modified Bessel function of the first kind, exp(−|Re(z)|) · I<sub>ν</sub>(z).
 ///
 /// I_ν(z) grows exponentially for large |Re(z)|, so the unscaled value can
-/// easily overflow. The scaling factor `exp(-|Re(z)|)` keeps the result finite.
+/// easily overflow. The scaling factor exp(−|Re(z)|) keeps the result finite.
 ///
 /// Supports negative ν via the same reflection formula as [`besseli`].
 ///
@@ -722,7 +722,7 @@ pub fn besseli_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>
     besseli_internal(nu, z, Scaling::Exponential)
 }
 
-/// Scaled modified Bessel function of the second kind: `exp(z) · K_ν(z)`.
+/// Scaled modified Bessel function of the second kind, exp(z) · K<sub>ν</sub>(z).
 ///
 /// K_ν(z) decays exponentially for large Re(z), so unscaled values can underflow
 /// to zero. The scaling factor `exp(z)` keeps the result in a normal range.
@@ -752,7 +752,7 @@ pub fn besselk_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>
     besselk_internal(nu, z, Scaling::Exponential)
 }
 
-/// Scaled Hankel function of the first kind: `exp(-iz) · H_ν^(1)(z)`.
+/// Scaled Hankel function of the first kind, exp(−iz) · H<sub>ν</sub><sup>(1)</sup>(z).
 ///
 /// H^(1) grows exponentially in the lower half-plane;
 /// the scaling factor removes this growth, preventing overflow.
@@ -780,7 +780,7 @@ pub fn hankel1_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>
     hankel_internal(HankelKind::First, nu, z, Scaling::Exponential)
 }
 
-/// Scaled Hankel function of the second kind: `exp(iz) · H_ν^(2)(z)`.
+/// Scaled Hankel function of the second kind, exp(iz) · H<sub>ν</sub><sup>(2)</sup>(z).
 ///
 /// H^(2) grows exponentially in the upper half-plane;
 /// the scaling factor removes this growth, preventing overflow.
@@ -808,7 +808,7 @@ pub fn hankel2_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>
     hankel_internal(HankelKind::Second, nu, z, Scaling::Exponential)
 }
 
-/// Scaled Airy function: `exp(ζ) · Ai(z)`, where ζ = (2/3) z√z.
+/// Scaled Airy function, exp(ζ) · Ai(z), where ζ = (2/3) z√z.
 ///
 /// Ai(z) decays super-exponentially for large positive real z.
 /// The scaling factor `exp(ζ)` keeps the result representable.
@@ -835,10 +835,10 @@ pub fn airy_scaled<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Error> {
     Ok(result)
 }
 
-/// Scaled derivative of the Airy function: `exp(ζ) · Ai'(z)`, where ζ = (2/3) z√z.
+/// Scaled derivative of the Airy function, exp(ζ) · Ai'(z), where ζ = (2/3) z√z.
 ///
 /// Ai'(z) decays super-exponentially for large positive real z, just as Ai(z) does.
-/// Satisfies the differential equation `Ai''(z) = z · Ai(z)`.
+/// Satisfies the differential equation Ai′′(z) = z · Ai(z).
 ///
 /// See [crate-level docs](crate#exponential-scaling) for the full scaling table.
 ///
@@ -862,11 +862,10 @@ pub fn airyprime_scaled<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Err
     Ok(result)
 }
 
-/// Scaled Airy function of the second kind: `exp(-|Re(ζ)|) · Bi(z)`,
-/// where ζ = (2/3) z√z.
+/// Scaled Airy function of the second kind, exp(−|Re(ζ)|) · Bi(z), where ζ = (2/3) z√z.
 ///
 /// Bi(z) grows super-exponentially for large positive real z.
-/// The scaling factor `exp(-|Re(ζ)|)` keeps the result representable.
+/// The scaling factor exp(−|Re(ζ)|) keeps the result representable.
 ///
 /// See [crate-level docs](crate#exponential-scaling) for the full scaling table.
 ///
@@ -890,11 +889,10 @@ pub fn biry_scaled<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Error> {
     Ok(result)
 }
 
-/// Scaled derivative of the Airy function of the second kind:
-/// `exp(-|Re(ζ)|) · Bi'(z)`, where ζ = (2/3) z√z.
+/// Scaled derivative of the Airy function of the second kind, exp(−|Re(ζ)|) · Bi'(z), where ζ = (2/3) z√z.
 ///
 /// Bi'(z) grows super-exponentially for large positive real z, just as Bi(z) does.
-/// Satisfies the differential equation `Bi''(z) = z · Bi(z)`.
+/// Satisfies the differential equation Bi′′(z) = z · Bi(z).
 ///
 /// See [crate-level docs](crate#exponential-scaling) for the full scaling table.
 ///
@@ -1605,7 +1603,7 @@ fn besseli_seq_neg<T: BesselFloat>(
 }
 
 #[cfg(feature = "alloc")]
-/// Compute J_{ν+j}(z) for j = 0, 1, …, n−1 in a single call.
+/// Compute J<sub>ν+j</sub>(z) for j = 0, 1, …, n−1 in a single call.
 ///
 /// Returns a [`BesselResult`] containing `n` values and an [`Accuracy`]:
 /// - [`Accuracy::Normal`] — full machine precision
@@ -1652,7 +1650,7 @@ pub fn besselj_seq<T: BesselFloat>(
 }
 
 #[cfg(feature = "alloc")]
-/// Compute Y_{ν+j}(z) for j = 0, 1, …, n−1 in a single call.
+/// Compute Y<sub>ν+j</sub>(z) for j = 0, 1, …, n−1 in a single call.
 ///
 /// Returns a [`BesselResult`] containing `n` values and an [`Accuracy`]:
 /// - [`Accuracy::Normal`] — full machine precision
@@ -1699,7 +1697,7 @@ pub fn bessely_seq<T: BesselFloat>(
 }
 
 #[cfg(feature = "alloc")]
-/// Compute I_{ν+j}(z) for j = 0, 1, …, n−1 in a single call.
+/// Compute I<sub>ν+j</sub>(z) for j = 0, 1, …, n−1 in a single call.
 ///
 /// Returns a [`BesselResult`] containing `n` values and an [`Accuracy`]:
 /// - [`Accuracy::Normal`] — full machine precision
@@ -1746,7 +1744,7 @@ pub fn besseli_seq<T: BesselFloat>(
 }
 
 #[cfg(feature = "alloc")]
-/// Compute K_{ν+j}(z) for j = 0, 1, …, n−1 in a single call.
+/// Compute K<sub>ν+j</sub>(z) for j = 0, 1, …, n−1 in a single call.
 ///
 /// Returns a [`BesselResult`] containing `n` values and an [`Accuracy`]:
 /// - [`Accuracy::Normal`] — full machine precision
@@ -1791,7 +1789,7 @@ pub fn besselk_seq<T: BesselFloat>(
 }
 
 #[cfg(feature = "alloc")]
-/// Compute H_{ν+j}^(1)(z) for j = 0, 1, …, n−1 in a single call.
+/// Compute H<sub>ν+j</sub><sup>(1)</sup>(z) for j = 0, 1, …, n−1 in a single call.
 ///
 /// Returns a [`BesselResult`] containing `n` values and an [`Accuracy`]:
 /// - [`Accuracy::Normal`] — full machine precision
@@ -1836,7 +1834,7 @@ pub fn hankel1_seq<T: BesselFloat>(
 }
 
 #[cfg(feature = "alloc")]
-/// Compute H_{ν+j}^(2)(z) for j = 0, 1, …, n−1 in a single call.
+/// Compute H<sub>ν+j</sub><sup>(2)</sup>(z) for j = 0, 1, …, n−1 in a single call.
 ///
 /// Returns a [`BesselResult`] containing `n` values and an [`Accuracy`]:
 /// - [`Accuracy::Normal`] — full machine precision
