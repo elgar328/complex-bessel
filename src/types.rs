@@ -1,4 +1,4 @@
-//! Core types for Bessel function computation.
+//! Core types for Bessel and Airy function computation.
 
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
@@ -54,9 +54,11 @@ pub struct BesselResult<T: BesselFloat> {
     pub status: Accuracy,
 }
 
-/// Scaling option for Bessel function computation.
+/// Scaling option for Bessel and Airy function computation.
 ///
-/// The `_scaled` variant returns factor · f(z), where factor is:
+/// When [`Exponential`](Scaling::Exponential) is selected, the result is
+/// multiplied by an exponential factor to prevent overflow or underflow.
+/// The factor depends on the function type:
 /// - J, Y: exp(−|Im(z)|)
 /// - I: exp(−|Re(z)|)
 /// - K: exp(z)

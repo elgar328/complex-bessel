@@ -4,7 +4,7 @@
 
 use num_traits::Float;
 
-/// Floating-point trait for Bessel function computation.
+/// Floating-point trait for Bessel and Airy function computation.
 ///
 /// Implemented for `f64` and `f32`. Provides machine constants and
 /// derived thresholds used by the Amos algorithm.
