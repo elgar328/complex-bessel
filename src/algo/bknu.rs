@@ -15,7 +15,7 @@ use crate::algo::shch::zshch;
 use crate::algo::uchk::zuchk;
 use crate::machine::BesselFloat;
 use crate::types::{Error, Scaling};
-use crate::utils::{reciprocal_z, zabs, zdiv};
+use crate::utils::{mul_add, reciprocal_z, zabs, zdiv};
 
 // ── Constants from Fortran DATA statements ──
 
@@ -176,8 +176,8 @@ pub(crate) fn zbknu<T: BesselFloat>(
                     q = q / (ak + dnu);
                     let rak = one / ak;
                     ck = ck * cz * rak;
-                    s1 = s1 + ck * f;
-                    s2 = s2 + ck * (p - f * ak);
+                    s1 = mul_add(ck, f, s1);
+                    s2 = mul_add(ck, p - f * ak, s2);
                     a1 = a1 * t1_sq * rak;
                     bk = bk + ak + ak + one;
                     ak = ak + one;
@@ -215,7 +215,7 @@ pub(crate) fn zbknu<T: BesselFloat>(
                     q = q / (ak + dnu);
                     let rak = one / ak;
                     ck = ck * cz * rak;
-                    s1 = s1 + ck * f;
+                    s1 = mul_add(ck, f, s1);
                     a1 = a1 * t1_sq * rak;
                     bk = bk + ak + ak + one;
                     ak = ak + one;
@@ -323,7 +323,7 @@ pub(crate) fn zbknu<T: BesselFloat>(
                 let ak_inner = fhs_miller / fks;
                 let cbr = ckr_fwd / (fk_val + one);
                 let ptr = p2r;
-                p2r = cbr * p2r - p1r * ak_inner;
+                p2r = cbr.fma(p2r, -(p1r * ak_inner));
                 p1r = ptr;
                 ckr_fwd = ckr_fwd + two;
                 fks = fks + fk_val + fk_val + two;
@@ -476,7 +476,7 @@ fn forward_recurrence<T: BesselFloat>(
 
         for _i in inub..inu_adj {
             let st = s2;
-            s2 = ck * st + s1;
+            s2 = mul_add(ck, st, s1);
             s1 = st;
             ck = ck + rz;
 
@@ -535,7 +535,7 @@ fn forward_recurrence<T: BesselFloat>(
 
         for i in kk..n {
             let p2_val = s2;
-            s2 = ck * p2_val + s1;
+            s2 = mul_add(ck, p2_val, s1);
             s1 = p2_val;
             ck = ck + rz;
             let p2_scaled = s2 * p1r;
@@ -607,7 +607,7 @@ fn iflag1_recurrence<T: BesselFloat>(
 
     for i in 0..inu {
         let st = s2;
-        s2 = ck * st + s1;
+        s2 = mul_add(ck, st, s1);
         s1 = st;
         ck = ck + rz;
 
@@ -657,7 +657,7 @@ fn iflag1_recurrence<T: BesselFloat>(
 
             for _i in inub..inu {
                 let st = s2;
-                s2 = ck * st + s1;
+                s2 = mul_add(ck, st, s1);
                 s1 = st;
                 ck = ck + rz;
 
@@ -705,7 +705,7 @@ fn iflag1_recurrence<T: BesselFloat>(
 
                 for i in kk_idx..n {
                     let p2_val = s2;
-                    s2 = ck * p2_val + s1;
+                    s2 = mul_add(ck, p2_val, s1);
                     s1 = p2_val;
                     ck = ck + rz;
                     let p2_scaled = s2 * p1r;
@@ -822,7 +822,7 @@ fn handle_iflag1_final<T: BesselFloat>(
 
         for i in kk_idx..n {
             let p2_val = s2_local;
-            s2_local = ck * p2_val + s1_local;
+            s2_local = mul_add(ck, p2_val, s1_local);
             s1_local = p2_val;
             ck = ck + rz;
             let p2_scaled = s2_local * p1r;

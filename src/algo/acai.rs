@@ -18,7 +18,7 @@ use crate::algo::s1s2::zs1s2;
 use crate::algo::seri::zseri;
 use crate::machine::BesselFloat;
 use crate::types::{Error, Scaling};
-use crate::utils::zabs;
+use crate::utils::{mul_add, zabs};
 
 /// Analytic continuation for Airy functions.
 ///
@@ -129,7 +129,7 @@ pub(crate) fn zacai<T: BesselFloat>(
     }
 
     // Y(1) = CSPN*C1 + CSGN*C2 (Fortran lines 4771-4772)
-    y[0] = cspn * c1 + csgn * c2;
+    y[0] = mul_add(cspn, c1, csgn * c2);
 
     Ok(nz)
 }

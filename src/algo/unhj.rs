@@ -13,7 +13,7 @@ use num_complex::Complex;
 
 use crate::machine::BesselFloat;
 use crate::types::SumOption;
-use crate::utils::{zabs, zdiv};
+use crate::utils::{mul_add, zabs, zdiv};
 
 // ── Coefficient tables (Fortran DATA blocks, zbsubs.f lines 5068-5442) ──
 
@@ -659,7 +659,7 @@ fn large_w2_branch<T: BesselFloat>(
     // UP(2) (Fortran lines 5641-5644, 0-based index 1)
     let c2_val = T::from_f64(C_COEFFS[1]); // C(2)
     let c3_val = T::from_f64(C_COEFFS[2]); // C(3)
-    let up1 = Complex::new(t2.re * c2_val + c3_val, t2.im * c2_val) * tfn;
+    let up1 = Complex::new(t2.re.fma(c2_val, c3_val), t2.im * c2_val) * tfn;
 
     let mut bsum = up1 + zc_init;
     let mut asum = czero;
@@ -711,7 +711,7 @@ fn large_w2_branch<T: BesselFloat>(
             let mut za = Complex::new(T::from_f64(C_COEFFS[l - 1]), zero);
             for _j in 1..kp1 {
                 l += 1;
-                za = za * t2 + Complex::new(T::from_f64(C_COEFFS[l - 1]), zero);
+                za = mul_add(za, t2, Complex::new(T::from_f64(C_COEFFS[l - 1]), zero));
             }
             // PTFN = PTFN * TFN (Fortran lines 5681-5683)
             ptfn = ptfn * tfn;

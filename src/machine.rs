@@ -4,7 +4,7 @@
 
 use num_traits::Float;
 
-/// Floating-point trait for Bessel function computation.
+/// Floating-point trait for Bessel and Airy function computation.
 ///
 /// Implemented for `f64` and `f32`. Provides machine constants and
 /// derived thresholds used by the Amos algorithm.
@@ -39,6 +39,15 @@ pub trait BesselFloat: Float + core::fmt::Debug + 'static {
     fn elim() -> Self;
     /// Overflow elimination threshold: ELIM + max(-2.303*R1M5*(DIGITS-1), -41.45).
     fn alim() -> Self;
+
+    /// Fused multiply-add: `self * a + b`.
+    ///
+    /// With `std` enabled, uses hardware FMA via the C library `fma()`.
+    /// Without `std`, falls back to plain `self * a + b` to avoid the
+    /// slow software FMA in libm.
+    ///
+    /// Named `fma` to avoid ambiguity with [`Float::mul_add`].
+    fn fma(self, a: Self, b: Self) -> Self;
 }
 
 impl BesselFloat for f64 {
@@ -73,6 +82,18 @@ impl BesselFloat for f64 {
     fn alim() -> f64 {
         664.8716455337102
     } // ELIM + max(-2.303*R1M5*(DIGITS-1), -41.45)
+
+    #[cfg(feature = "std")]
+    #[inline]
+    fn fma(self, a: f64, b: f64) -> f64 {
+        Float::mul_add(self, a, b)
+    }
+
+    #[cfg(not(feature = "std"))]
+    #[inline]
+    fn fma(self, a: f64, b: f64) -> f64 {
+        self * a + b
+    }
 }
 
 // Derived constants are written at full f64 precision to document the exact
@@ -110,4 +131,16 @@ impl BesselFloat for f32 {
     fn alim() -> f32 {
         63.80475216144317
     } // ELIM + max(-2.303*R1M5*(DIGITS-1), -41.45)
+
+    #[cfg(feature = "std")]
+    #[inline]
+    fn fma(self, a: f32, b: f32) -> f32 {
+        Float::mul_add(self, a, b)
+    }
+
+    #[cfg(not(feature = "std"))]
+    #[inline]
+    fn fma(self, a: f32, b: f32) -> f32 {
+        self * a + b
+    }
 }

@@ -7,7 +7,7 @@ use num_complex::Complex;
 use crate::algo::gamln::gamln;
 use crate::machine::BesselFloat;
 use crate::types::Scaling;
-use crate::utils::{reciprocal_z, zabs};
+use crate::utils::{mul_add, mul_add_scalar, reciprocal_z, zabs};
 
 /// Miller algorithm for I Bessel function.
 ///
@@ -51,7 +51,7 @@ pub(crate) fn zmlri<T: BesselFloat>(
     let mut i_val: i32 = 0;
     for i in 1..=80 {
         let pt = p2;
-        p2 = p1 - ck * pt;
+        p2 = mul_add(-ck, pt, p1);
         p1 = pt;
         ck = ck + rz;
         let ap = zabs(p2);
@@ -82,7 +82,7 @@ pub(crate) fn zmlri<T: BesselFloat>(
         let mut found = false;
         for kk in 1..=80 {
             let pt = p2;
-            p2 = p1 - ck * pt;
+            p2 = mul_add(-ck, pt, p1);
             p1 = pt;
             ck = ck + rz;
             let ap = zabs(p2);
@@ -125,11 +125,11 @@ pub(crate) fn zmlri<T: BesselFloat>(
     // Backward recurrence: first phase (kk down to inu+1) — Fortran DO 50
     for _i in 1..=km {
         let pt = p2;
-        p2 = p1 + rz * pt * (fkk + fnf);
+        p2 = mul_add_scalar(rz * pt, fkk + fnf, p1);
         p1 = pt;
         ak = one - tfnf / (fkk + tfnf);
         let ack_val = bk * ak;
-        sum = sum + p1 * (ack_val + bk);
+        sum = mul_add_scalar(p1, ack_val + bk, sum);
         bk = ack_val;
         fkk = fkk - one;
     }

@@ -6,6 +6,31 @@ use num_complex::Complex;
 
 use crate::machine::BesselFloat;
 
+/// Fused multiply-add for Complex: `s * a + b`.
+///
+/// Uses hardware FMA (std) or plain arithmetic (no_std) via
+/// [`BesselFloat::fma`], avoiding the slow software FMA in libm
+/// that `num_complex::Complex::mul_add` would invoke under `no_std`.
+#[inline]
+pub(crate) fn mul_add<T: BesselFloat>(s: Complex<T>, a: Complex<T>, b: Complex<T>) -> Complex<T> {
+    // (s.re + s.im*i)(a.re + a.im*i) + (b.re + b.im*i)
+    // re = s.re*a.re - s.im*a.im + b.re
+    // im = s.re*a.im + s.im*a.re + b.im
+    Complex::new(
+        BesselFloat::fma(s.re, a.re, b.re) - s.im * a.im,
+        BesselFloat::fma(s.re, a.im, BesselFloat::fma(s.im, a.re, b.im)),
+    )
+}
+
+/// Fused multiply-add for Complex × scalar: `s * a + b`.
+///
+/// More efficient than full complex `mul_add` — no cross-term multiplications.
+/// Uses hardware FMA (std) or plain arithmetic (no_std) via [`BesselFloat::fma`].
+#[inline]
+pub(crate) fn mul_add_scalar<T: BesselFloat>(s: Complex<T>, a: T, b: Complex<T>) -> Complex<T> {
+    Complex::new(s.re.fma(a, b.re), s.im.fma(a, b.im))
+}
+
 /// Multiply a complex number by i: (a+bi)·i = -b+ai.
 #[inline]
 pub(crate) fn mul_i<T: BesselFloat>(c: Complex<T>) -> Complex<T> {

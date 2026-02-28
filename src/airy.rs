@@ -12,7 +12,7 @@ use crate::algo::binu::zbinu;
 use crate::algo::bknu::zbknu;
 use crate::machine::BesselFloat;
 use crate::types::{Accuracy, AiryDerivative, Error, Scaling};
-use crate::utils::{zabs, zdiv};
+use crate::utils::{mul_add_scalar, zabs, zdiv};
 
 // ZAIRY constants (Fortran ZAIRY DATA, lines 1600-1603)
 use crate::algo::constants::{PI, TTH};
@@ -401,7 +401,7 @@ pub(crate) fn zbiry<T: BesselFloat>(
     if az < tol {
         // Tiny z (Fortran label 130, lines 2204-2208)
         // Bi = C1*(1-fid) + fid*C2 (real-valued)
-        let bi = Complex::new(c1 * (one - fid) + fid * c2, zero);
+        let bi = Complex::new(c1.fma(one - fid, fid * c2), zero);
         return Ok((bi, Accuracy::Normal));
     }
 
@@ -531,7 +531,7 @@ fn zbiry_large_z<T: BesselFloat>(
 
     // Backward recurrence: I_{fnu2-1} = 2*fnu2*(CY(1)/ZTA) + CY(2)
     // (Fortran lines 2182-2184)
-    let s2 = zdiv(cy2_0, zta) * (fnu2 + fnu2) + cy2_1;
+    let s2 = mul_add_scalar(zdiv(cy2_0, zta), fnu2 + fnu2, cy2_1);
 
     // Final combination (Fortran lines 2185-2189)
     let aa_rot = fmr * (fnu2 - one);

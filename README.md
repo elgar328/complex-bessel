@@ -14,13 +14,13 @@ Pure Rust implementation of complex Bessel functions based on **Amos Algorithm 6
 - **Consecutive orders** — `_seq` variants return ν, ν+1, …, ν+n−1 in one call
 - **Exponential scaling** — `_scaled` variants prevent overflow/underflow
 - **Negative orders** — supports ν < 0 via DLMF reflection formulas (not in Amos)
-- **`no_std` support** — 3-tier: bare `no_std` (no allocator), `alloc`, `std` (default)
+- **`no_std` support** — 3-tier: bare `no_std`, `alloc`, `std` (default)
 
 ## Quick start
 
 ```toml
 [dependencies]
-complex-bessel = "0.1"
+complex-bessel = "0.2"
 ```
 
 ```rust
@@ -69,7 +69,7 @@ All other functions return only the computed value without `Accuracy`.
 | Status | Meaning |
 |--------|---------|
 | `Normal` | Full machine precision |
-| `Reduced` | More than half of significant digits may be lost.<br>Occurs only when \|z\| or ν exceeds ~32767 |
+| `Reduced` | More than half of significant digits may be lost |
 
 `Reduced` is extremely rare in practice. SciPy's Bessel wrappers also silently discard the equivalent Amos IERR=3 flag by default.
 
@@ -94,19 +94,17 @@ All functions return `Result<_, Error>`. The four error variants are:
 | Variant | Cause |
 |---------|-------|
 | `InvalidInput` | z = 0 for K/Y/H, n < 1 |
-| `Overflow` | \|z\| or ν too large (or too small) for finite result |
-| `TotalPrecisionLoss` | Complete loss of significant digits; \|z\| or ν too large |
+| `Overflow` | \|z\| or \|ν\| too large (or \|z\| too small) for finite result |
+| `TotalPrecisionLoss` | \|z\| or \|ν\| too large for meaningful computation |
 | `ConvergenceFailure` | Internal algorithm did not converge |
-
-`Error` implements `Display` always and `std::error::Error` with the `std` feature.
 
 ## `no_std` support
 
 | Cargo features | Available API |
 |---------------|---------------|
 | `default-features = false` | 24 single-value functions |
-| `features = ["alloc"]` | + 6 `_seq` variants + `BesselResult` |
-| `features = ["std"]` (default) | + `impl Error for Error` |
+| `features = ["alloc"]` | full API (+ 6 `_seq` variants) |
+| `features = ["std"]` (default) | full API, with platform-native math |
 
 The 24 single-value functions include 12 Bessel (J/Y/I/K/H<sup>(1)</sup>/H<sup>(2)</sup> × unscaled/scaled) and 12 Airy (Ai/Ai'/Bi/Bi' × unscaled/scaled/raw).
 
@@ -114,7 +112,7 @@ The 24 single-value functions include 12 Bessel (J/Y/I/K/H<sup>(1)</sup>/H<sup>(
 # Bare no_std — no allocator needed:
 complex-bessel = { version = "0.1", default-features = false }
 
-# no_std with alloc (adds _seq functions and BesselResult):
+# no_std + alloc — full API:
 complex-bessel = { version = "0.1", default-features = false, features = ["alloc"] }
 ```
 
@@ -128,7 +126,7 @@ Since this library is a Rust translation of AMOS/TOMS 644, the two should produc
 
 [![Rust vs Fortran — relative error](https://raw.githubusercontent.com/elgar328/complex-bessel-test/main/images/fidelity.svg)](https://github.com/elgar328/complex-bessel-test/blob/main/images/fidelity.pdf)
 
-Median evaluation time per function call.
+Median evaluation time per function call. On average, **19% faster** than AMOS (Fortran) and **8× faster** than SciPy (Python).
 
 [![Performance — median time per call](https://raw.githubusercontent.com/elgar328/complex-bessel-test/main/images/eval_time.svg)](https://github.com/elgar328/complex-bessel-test/blob/main/images/eval_time.pdf)
 

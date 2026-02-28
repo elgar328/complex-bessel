@@ -14,7 +14,7 @@ use crate::algo::uchk::zuchk;
 use crate::algo::unik::{UnikCache, zunik};
 use crate::machine::BesselFloat;
 use crate::types::{IkFlag, Scaling, SumOption};
-use crate::utils::{reciprocal_z, zabs};
+use crate::utils::{mul_add, reciprocal_z, zabs};
 
 /// Compute K(fnu,z) via Region 1 uniform asymptotic expansion + analytic continuation.
 ///
@@ -261,7 +261,7 @@ pub(crate) fn zunk1<T: BesselFloat>(
 
         for y_item in y.iter_mut().take(n).skip(ib - 1) {
             let prev = s2;
-            s2 = ck * prev + s1;
+            s2 = mul_add(ck, prev, s1);
             s1 = prev;
             ck = ck + rz;
             let c2_scaled = s2 * c1r;
@@ -385,7 +385,7 @@ pub(crate) fn zunk1<T: BesselFloat>(
                 nz += s1s2_result.nz;
                 iuf = s1s2_result.iuf;
             }
-            y[kk - 1] = cspn * s1_k + s2_k;
+            y[kk - 1] = mul_add(cspn, s1_k, s2_k);
             kk -= 1;
             cspn = -cspn;
 
@@ -426,7 +426,7 @@ pub(crate) fn zunk1<T: BesselFloat>(
                     nz += s1s2_result.nz;
                     iuf = s1s2_result.iuf;
                 }
-                y[kk - 1] = cspn * s1_k + s2_k;
+                y[kk - 1] = mul_add(cspn, s1_k, s2_k);
                 kk -= 1;
                 cspn = -cspn;
 
@@ -479,7 +479,7 @@ pub(crate) fn zunk1<T: BesselFloat>(
         }
 
         // Y(KK) = CSPN * K_part + I_part (Fortran lines 6080-6081)
-        y[kk - 1] = cspn * s1_k + s2_k;
+        y[kk - 1] = mul_add(cspn, s1_k, s2_k);
         kk -= 1;
         cspn = -cspn;
 
@@ -529,7 +529,7 @@ pub(crate) fn zunk1<T: BesselFloat>(
             iuf = s1s2_result.iuf;
         }
 
-        y[kk - 1] = cspn * c1_k + c2_k;
+        y[kk - 1] = mul_add(cspn, c1_k, c2_k);
         kk -= 1;
         cspn = -cspn;
 
