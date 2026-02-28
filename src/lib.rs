@@ -112,8 +112,8 @@
 //! | Variant | Cause |
 //! |---------|-------|
 //! | [`InvalidInput`](Error::InvalidInput) | z = 0 for K/Y/H, n < 1 |
-//! | [`Overflow`](Error::Overflow) | \|z\| or ν too large (or too small) for finite result |
-//! | [`TotalPrecisionLoss`](Error::TotalPrecisionLoss) | Complete loss of significant digits; \|z\| or ν too large |
+//! | [`Overflow`](Error::Overflow) | \|z\| or \|ν\| too large (or \|z\| too small) for finite result |
+//! | [`TotalPrecisionLoss`](Error::TotalPrecisionLoss) | \|z\| or \|ν\| too large for meaningful computation |
 //! | [`ConvergenceFailure`](Error::ConvergenceFailure) | Internal algorithm did not converge |
 //!
 //! # `no_std` support
@@ -372,11 +372,12 @@ fn hankel_internal<T: BesselFloat>(
 
 /// Bessel function of the first kind, J<sub>ν</sub>(z).
 ///
-/// Computes a single value of the Bessel function J_ν(z) for complex z
-/// and real order ν (any real value, including negative).
+/// Computes a single value of J_ν(z) for complex z and real order ν
+/// (any real value, including negative).
 ///
 /// For negative ν, the DLMF 10.2.3 reflection formula is applied:
 /// `J_{-ν}(z) = cos(νπ) J_ν(z) - sin(νπ) Y_ν(z)`.
+/// For negative integer n, `J_{−n}(z) = (−1)^n J_n(z)`.
 ///
 /// # Example
 ///
@@ -391,7 +392,10 @@ fn hankel_internal<T: BesselFloat>(
 ///
 /// # Errors
 ///
-/// Returns [`Error`] if the computation fails (overflow, precision loss, etc.).
+/// - [`Error::InvalidInput`] if z = 0 and ν is a negative non-integer.
+/// - [`Error::Overflow`] if |z| or |ν| is too large for a finite result.
+/// - [`Error::TotalPrecisionLoss`] if |z| or |ν| is too large for any significant digits (roughly > 10⁹ for f64).
+/// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
 #[inline]
 pub fn besselj<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error> {
     besselj_internal(nu, z, Scaling::Unscaled)
@@ -399,11 +403,12 @@ pub fn besselj<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error
 
 /// Bessel function of the second kind, Y<sub>ν</sub>(z).
 ///
-/// Computes a single value of the Bessel function Y_ν(z) for complex z
-/// and real order ν (any real value, including negative).
+/// Computes a single value of Y_ν(z) for complex z and real order ν
+/// (any real value, including negative).
 ///
 /// For negative ν, the DLMF 10.2.3 reflection formula is applied:
 /// `Y_{-ν}(z) = sin(νπ) J_ν(z) + cos(νπ) Y_ν(z)`.
+/// For negative integer n, `Y_{−n}(z) = (−1)^n Y_n(z)`.
 ///
 /// # Example
 ///
@@ -418,7 +423,10 @@ pub fn besselj<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error
 ///
 /// # Errors
 ///
-/// Returns [`Error`] if the computation fails (overflow, z = 0, etc.).
+/// - [`Error::InvalidInput`] if z = 0.
+/// - [`Error::Overflow`] if |z| is too small or too large for a finite result.
+/// - [`Error::TotalPrecisionLoss`] if |z| or |ν| is too large for any significant digits (roughly > 10⁹ for f64).
+/// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
 #[inline]
 pub fn bessely<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error> {
     bessely_internal(nu, z, Scaling::Unscaled)
@@ -431,6 +439,7 @@ pub fn bessely<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error
 ///
 /// For negative ν, the DLMF 10.27.2 reflection formula is applied:
 /// `I_{-ν}(z) = I_ν(z) + (2/π) sin(νπ) K_ν(z)`.
+/// For negative integer n, `I_{−n}(z) = I_n(z)`.
 ///
 /// # Example
 ///
@@ -445,7 +454,10 @@ pub fn bessely<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error
 ///
 /// # Errors
 ///
-/// Returns [`Error`] if the computation fails (overflow, precision loss, etc.).
+/// - [`Error::InvalidInput`] if z = 0 and ν is a negative non-integer.
+/// - [`Error::Overflow`] if |z| or |ν| is too large for a finite result.
+/// - [`Error::TotalPrecisionLoss`] if |z| or |ν| is too large for any significant digits (roughly > 10⁹ for f64).
+/// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
 #[inline]
 pub fn besseli<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error> {
     besseli_internal(nu, z, Scaling::Unscaled)
@@ -471,7 +483,10 @@ pub fn besseli<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error
 ///
 /// # Errors
 ///
-/// Returns [`Error`] if the computation fails (overflow, z = 0, etc.).
+/// - [`Error::InvalidInput`] if z = 0.
+/// - [`Error::Overflow`] if |z| is too small or too large for a finite result.
+/// - [`Error::TotalPrecisionLoss`] if |z| or |ν| is too large for any significant digits (roughly > 10⁹ for f64).
+/// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
 #[inline]
 pub fn besselk<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error> {
     besselk_internal(nu, z, Scaling::Unscaled)
@@ -484,6 +499,7 @@ pub fn besselk<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error
 ///
 /// For negative ν, the DLMF 10.4.6 reflection formula is applied:
 /// `H^(1)_{-ν}(z) = exp(νπi) H^(1)_ν(z)`.
+/// For negative integer n, `H^(1)_{−n}(z) = (−1)^n H^(1)_n(z)`.
 ///
 /// # Example
 ///
@@ -499,7 +515,10 @@ pub fn besselk<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error
 ///
 /// # Errors
 ///
-/// Returns [`Error`] if the computation fails (overflow, z = 0, etc.).
+/// - [`Error::InvalidInput`] if z = 0.
+/// - [`Error::Overflow`] if |z| is too small or too large for a finite result.
+/// - [`Error::TotalPrecisionLoss`] if |z| or |ν| is too large for any significant digits (roughly > 10⁹ for f64).
+/// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
 #[inline]
 pub fn hankel1<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error> {
     hankel_internal(HankelKind::First, nu, z, Scaling::Unscaled)
@@ -512,6 +531,7 @@ pub fn hankel1<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error
 ///
 /// For negative ν, the DLMF 10.4.6 reflection formula is applied:
 /// `H^(2)_{-ν}(z) = exp(-νπi) H^(2)_ν(z)`.
+/// For negative integer n, `H^(2)_{−n}(z) = (−1)^n H^(2)_n(z)`.
 ///
 /// # Example
 ///
@@ -521,13 +541,16 @@ pub fn hankel1<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error
 ///
 /// let z = Complex::new(1.0_f64, 0.0);
 /// let h = hankel2(0.0, z).unwrap();
-/// assert!((h.re - 0.7652).abs() < 1e-3);  // Re = J_0(1) ≈ 0.7652
-/// assert!((h.im + 0.0883).abs() < 1e-3);  // Im = -Y_0(1) ≈ -0.0883
+/// assert!((h.re - 0.7652).abs() < 1e-3); // Re = J_0(1) ≈ 0.7652
+/// assert!((h.im + 0.0883).abs() < 1e-3); // Im = -Y_0(1) ≈ -0.0883
 /// ```
 ///
 /// # Errors
 ///
-/// Returns [`Error`] if the computation fails (overflow, z = 0, etc.).
+/// - [`Error::InvalidInput`] if z = 0.
+/// - [`Error::Overflow`] if |z| is too small or too large for a finite result.
+/// - [`Error::TotalPrecisionLoss`] if |z| or |ν| is too large for any significant digits (roughly > 10⁹ for f64).
+/// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
 #[inline]
 pub fn hankel2<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error> {
     hankel_internal(HankelKind::Second, nu, z, Scaling::Unscaled)
@@ -535,9 +558,9 @@ pub fn hankel2<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error
 
 /// Airy function Ai(z).
 ///
-/// Computes the Airy function of the first kind for complex z.
+/// Computes the Airy function Ai(z) for complex z.
 /// Ai(z) is a solution to the differential equation w′′ − z·w = 0
-/// that decays exponentially for large positive real z.
+/// that decays super-exponentially for large positive real z.
 ///
 /// # Example
 ///
@@ -552,7 +575,9 @@ pub fn hankel2<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error
 ///
 /// # Errors
 ///
-/// Returns [`Error`] if the computation fails.
+/// - [`Error::Overflow`] if |z| is too large for a finite result.
+/// - [`Error::TotalPrecisionLoss`] if |z| is too large for any significant digits (roughly > 10⁶ for f64).
+/// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
 #[inline]
 pub fn airy<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Error> {
     let (result, _nz, _status) = airy::zairy(z, AiryDerivative::Value, Scaling::Unscaled)?;
@@ -561,7 +586,8 @@ pub fn airy<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Error> {
 
 /// Derivative of the Airy function, Ai'(z).
 ///
-/// Computes the derivative of the Airy function of the first kind for complex z.
+/// Computes the derivative of Ai(z) for complex z.
+/// Ai'(z) decays super-exponentially for large positive real z, just as Ai(z) does.
 /// Satisfies the differential equation Ai′′(z) = z · Ai(z).
 ///
 /// # Example
@@ -577,7 +603,9 @@ pub fn airy<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Error> {
 ///
 /// # Errors
 ///
-/// Returns [`Error`] if the computation fails.
+/// - [`Error::Overflow`] if |z| is too large for a finite result.
+/// - [`Error::TotalPrecisionLoss`] if |z| is too large for any significant digits (roughly > 10⁶ for f64).
+/// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
 #[inline]
 pub fn airyprime<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Error> {
     let (result, _nz, _status) = airy::zairy(z, AiryDerivative::Derivative, Scaling::Unscaled)?;
@@ -587,7 +615,7 @@ pub fn airyprime<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Error> {
 /// Airy function of the second kind, Bi(z).
 ///
 /// Computes the Airy function Bi(z) for complex z.
-/// Bi(z) is the solution to w′′ − z·w = 0 that grows exponentially
+/// Bi(z) is the solution to w′′ − z·w = 0 that grows super-exponentially
 /// for large positive real z.
 ///
 /// # Example
@@ -603,7 +631,9 @@ pub fn airyprime<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Error> {
 ///
 /// # Errors
 ///
-/// Returns [`Error`] if the computation fails.
+/// - [`Error::Overflow`] if |z| is too large for a finite result.
+/// - [`Error::TotalPrecisionLoss`] if |z| is too large for any significant digits (roughly > 10⁶ for f64).
+/// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
 #[inline]
 pub fn biry<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Error> {
     let (result, _status) = airy::zbiry(z, AiryDerivative::Value, Scaling::Unscaled)?;
@@ -613,6 +643,7 @@ pub fn biry<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Error> {
 /// Derivative of the Airy function of the second kind, Bi'(z).
 ///
 /// Computes the derivative of Bi(z) for complex z.
+/// Bi'(z) grows super-exponentially for large positive real z, just as Bi(z) does.
 /// Satisfies the differential equation Bi′′(z) = z · Bi(z).
 ///
 /// # Example
@@ -628,7 +659,9 @@ pub fn biry<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Error> {
 ///
 /// # Errors
 ///
-/// Returns [`Error`] if the computation fails.
+/// - [`Error::Overflow`] if |z| is too large for a finite result.
+/// - [`Error::TotalPrecisionLoss`] if |z| is too large for any significant digits (roughly > 10⁶ for f64).
+/// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
 #[inline]
 pub fn biryprime<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Error> {
     let (result, _status) = airy::zbiry(z, AiryDerivative::Derivative, Scaling::Unscaled)?;
@@ -641,7 +674,6 @@ pub fn biryprime<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Error> {
 ///
 /// The exponential factor cancels the asymptotic growth of J for large imaginary
 /// arguments, keeping results in a representable floating-point range.
-/// This is especially useful when |Im(z)| is large.
 ///
 /// Supports negative ν via the same reflection formula as [`besselj`].
 ///
@@ -660,7 +692,10 @@ pub fn biryprime<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Error> {
 ///
 /// # Errors
 ///
-/// Returns [`Error`] if the computation fails.
+/// - [`Error::InvalidInput`] if z = 0 and ν is a negative non-integer.
+/// - [`Error::Overflow`] if |z| or |ν| is too large for a finite result.
+/// - [`Error::TotalPrecisionLoss`] if |z| or |ν| is too large for any significant digits (roughly > 10⁹ for f64).
+/// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
 #[inline]
 pub fn besselj_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error> {
     besselj_internal(nu, z, Scaling::Exponential)
@@ -688,7 +723,10 @@ pub fn besselj_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>
 ///
 /// # Errors
 ///
-/// Returns [`Error`] if the computation fails.
+/// - [`Error::InvalidInput`] if z = 0.
+/// - [`Error::Overflow`] if |z| is too small or too large for a finite result.
+/// - [`Error::TotalPrecisionLoss`] if |z| or |ν| is too large for any significant digits (roughly > 10⁹ for f64).
+/// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
 #[inline]
 pub fn bessely_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error> {
     bessely_internal(nu, z, Scaling::Exponential)
@@ -716,7 +754,10 @@ pub fn bessely_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>
 ///
 /// # Errors
 ///
-/// Returns [`Error`] if the computation fails.
+/// - [`Error::InvalidInput`] if z = 0 and ν is a negative non-integer.
+/// - [`Error::Overflow`] if |z| or |ν| is too large for a finite result.
+/// - [`Error::TotalPrecisionLoss`] if |z| or |ν| is too large for any significant digits (roughly > 10⁹ for f64).
+/// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
 #[inline]
 pub fn besseli_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error> {
     besseli_internal(nu, z, Scaling::Exponential)
@@ -725,9 +766,9 @@ pub fn besseli_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>
 /// Scaled modified Bessel function of the second kind, exp(z) · K<sub>ν</sub>(z).
 ///
 /// K_ν(z) decays exponentially for large Re(z), so unscaled values can underflow
-/// to zero. The scaling factor `exp(z)` keeps the result in a normal range.
+/// to zero. The scaling factor exp(z) keeps the result in a normal range.
 ///
-/// Supports negative ν: K_{-ν}(z) = K_ν(z).
+/// Supports negative ν via the same reflection formula as [`besselk`].
 ///
 /// See [crate-level docs](crate#exponential-scaling) for the full scaling table.
 ///
@@ -746,7 +787,10 @@ pub fn besseli_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>
 ///
 /// # Errors
 ///
-/// Returns [`Error`] if the computation fails.
+/// - [`Error::InvalidInput`] if z = 0.
+/// - [`Error::Overflow`] if |z| is too small or too large for a finite result.
+/// - [`Error::TotalPrecisionLoss`] if |z| or |ν| is too large for any significant digits (roughly > 10⁹ for f64).
+/// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
 #[inline]
 pub fn besselk_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error> {
     besselk_internal(nu, z, Scaling::Exponential)
@@ -774,7 +818,10 @@ pub fn besselk_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>
 ///
 /// # Errors
 ///
-/// Returns [`Error`] if the computation fails.
+/// - [`Error::InvalidInput`] if z = 0.
+/// - [`Error::Overflow`] if |z| is too small or too large for a finite result.
+/// - [`Error::TotalPrecisionLoss`] if |z| or |ν| is too large for any significant digits (roughly > 10⁹ for f64).
+/// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
 #[inline]
 pub fn hankel1_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error> {
     hankel_internal(HankelKind::First, nu, z, Scaling::Exponential)
@@ -802,7 +849,10 @@ pub fn hankel1_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>
 ///
 /// # Errors
 ///
-/// Returns [`Error`] if the computation fails.
+/// - [`Error::InvalidInput`] if z = 0.
+/// - [`Error::Overflow`] if |z| is too small or too large for a finite result.
+/// - [`Error::TotalPrecisionLoss`] if |z| or |ν| is too large for any significant digits (roughly > 10⁹ for f64).
+/// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
 #[inline]
 pub fn hankel2_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error> {
     hankel_internal(HankelKind::Second, nu, z, Scaling::Exponential)
@@ -811,7 +861,7 @@ pub fn hankel2_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>
 /// Scaled Airy function, exp(ζ) · Ai(z), where ζ = (2/3) z√z.
 ///
 /// Ai(z) decays super-exponentially for large positive real z.
-/// The scaling factor `exp(ζ)` keeps the result representable.
+/// The scaling factor exp(ζ) keeps the result representable.
 ///
 /// See [crate-level docs](crate#exponential-scaling) for the full scaling table.
 ///
@@ -828,7 +878,9 @@ pub fn hankel2_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>
 ///
 /// # Errors
 ///
-/// Returns [`Error`] if the computation fails.
+/// - [`Error::Overflow`] if |z| is too large for a finite result.
+/// - [`Error::TotalPrecisionLoss`] if |z| is too large for any significant digits (roughly > 10⁶ for f64).
+/// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
 #[inline]
 pub fn airy_scaled<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Error> {
     let (result, _nz, _status) = airy::zairy(z, AiryDerivative::Value, Scaling::Exponential)?;
@@ -838,7 +890,7 @@ pub fn airy_scaled<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Error> {
 /// Scaled derivative of the Airy function, exp(ζ) · Ai'(z), where ζ = (2/3) z√z.
 ///
 /// Ai'(z) decays super-exponentially for large positive real z, just as Ai(z) does.
-/// Satisfies the differential equation Ai′′(z) = z · Ai(z).
+/// The scaling factor exp(ζ) keeps the result representable.
 ///
 /// See [crate-level docs](crate#exponential-scaling) for the full scaling table.
 ///
@@ -855,7 +907,9 @@ pub fn airy_scaled<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Error> {
 ///
 /// # Errors
 ///
-/// Returns [`Error`] if the computation fails.
+/// - [`Error::Overflow`] if |z| is too large for a finite result.
+/// - [`Error::TotalPrecisionLoss`] if |z| is too large for any significant digits (roughly > 10⁶ for f64).
+/// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
 #[inline]
 pub fn airyprime_scaled<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Error> {
     let (result, _nz, _status) = airy::zairy(z, AiryDerivative::Derivative, Scaling::Exponential)?;
@@ -882,7 +936,9 @@ pub fn airyprime_scaled<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Err
 ///
 /// # Errors
 ///
-/// Returns [`Error`] if the computation fails.
+/// - [`Error::Overflow`] if |z| is too large for a finite result.
+/// - [`Error::TotalPrecisionLoss`] if |z| is too large for any significant digits (roughly > 10⁶ for f64).
+/// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
 #[inline]
 pub fn biry_scaled<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Error> {
     let (result, _status) = airy::zbiry(z, AiryDerivative::Value, Scaling::Exponential)?;
@@ -892,7 +948,7 @@ pub fn biry_scaled<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Error> {
 /// Scaled derivative of the Airy function of the second kind, exp(−|Re(ζ)|) · Bi'(z), where ζ = (2/3) z√z.
 ///
 /// Bi'(z) grows super-exponentially for large positive real z, just as Bi(z) does.
-/// Satisfies the differential equation Bi′′(z) = z · Bi(z).
+/// The scaling factor exp(−|Re(ζ)|) keeps the result representable.
 ///
 /// See [crate-level docs](crate#exponential-scaling) for the full scaling table.
 ///
@@ -909,7 +965,9 @@ pub fn biry_scaled<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Error> {
 ///
 /// # Errors
 ///
-/// Returns [`Error`] if the computation fails.
+/// - [`Error::Overflow`] if |z| is too large for a finite result.
+/// - [`Error::TotalPrecisionLoss`] if |z| is too large for any significant digits (roughly > 10⁶ for f64).
+/// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
 #[inline]
 pub fn biryprime_scaled<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Error> {
     let (result, _status) = airy::zbiry(z, AiryDerivative::Derivative, Scaling::Exponential)?;
@@ -918,10 +976,11 @@ pub fn biryprime_scaled<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Err
 
 // ── Airy _raw functions (expose Accuracy) ──
 
-/// Airy function Ai(z) with precision status.
+/// Airy function Ai(z) with accuracy status.
 ///
-/// Like [`airy`], but returns an [`AiryResult`] that includes
-/// [`Accuracy`] for detecting precision loss at large |z|.
+/// Like [`airy`], but returns an [`AiryResult`] that includes an [`Accuracy`] status:
+/// - [`Accuracy::Normal`] — no significant precision loss
+/// - [`Accuracy::Reduced`] — more than half of significant digits may be lost (|z| very large)
 ///
 /// The `scaling` parameter selects [`Scaling::Unscaled`] or [`Scaling::Exponential`];
 /// see [crate-level docs](crate#exponential-scaling) for details.
@@ -940,17 +999,20 @@ pub fn biryprime_scaled<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Err
 ///
 /// # Errors
 ///
-/// Returns [`Error`] if the computation fails.
+/// - [`Error::Overflow`] if |z| is too large for a finite result.
+/// - [`Error::TotalPrecisionLoss`] if |z| is too large for any significant digits (roughly > 10⁶ for f64).
+/// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
 #[inline]
 pub fn airy_raw<T: BesselFloat>(z: Complex<T>, scaling: Scaling) -> Result<AiryResult<T>, Error> {
     let (value, _nz, status) = airy::zairy(z, AiryDerivative::Value, scaling)?;
     Ok(AiryResult { value, status })
 }
 
-/// Derivative of the Airy function Ai'(z) with precision status.
+/// Derivative of the Airy function Ai'(z) with accuracy status.
 ///
-/// Like [`airyprime`], but returns an [`AiryResult`] that includes
-/// [`Accuracy`] for detecting precision loss at large |z|.
+/// Like [`airyprime`], but returns an [`AiryResult`] that includes an [`Accuracy`] status:
+/// - [`Accuracy::Normal`] — no significant precision loss
+/// - [`Accuracy::Reduced`] — more than half of significant digits may be lost (|z| very large)
 ///
 /// The `scaling` parameter selects [`Scaling::Unscaled`] or [`Scaling::Exponential`];
 /// see [crate-level docs](crate#exponential-scaling) for details.
@@ -969,7 +1031,9 @@ pub fn airy_raw<T: BesselFloat>(z: Complex<T>, scaling: Scaling) -> Result<AiryR
 ///
 /// # Errors
 ///
-/// Returns [`Error`] if the computation fails.
+/// - [`Error::Overflow`] if |z| is too large for a finite result.
+/// - [`Error::TotalPrecisionLoss`] if |z| is too large for any significant digits (roughly > 10⁶ for f64).
+/// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
 #[inline]
 pub fn airyprime_raw<T: BesselFloat>(
     z: Complex<T>,
@@ -979,10 +1043,11 @@ pub fn airyprime_raw<T: BesselFloat>(
     Ok(AiryResult { value, status })
 }
 
-/// Airy function of the second kind Bi(z) with precision status.
+/// Airy function of the second kind Bi(z) with accuracy status.
 ///
-/// Like [`biry`], but returns an [`AiryResult`] that includes
-/// [`Accuracy`] for detecting precision loss at large |z|.
+/// Like [`biry`], but returns an [`AiryResult`] that includes an [`Accuracy`] status:
+/// - [`Accuracy::Normal`] — no significant precision loss
+/// - [`Accuracy::Reduced`] — more than half of significant digits may be lost (|z| very large)
 ///
 /// The `scaling` parameter selects [`Scaling::Unscaled`] or [`Scaling::Exponential`];
 /// see [crate-level docs](crate#exponential-scaling) for details.
@@ -1001,17 +1066,20 @@ pub fn airyprime_raw<T: BesselFloat>(
 ///
 /// # Errors
 ///
-/// Returns [`Error`] if the computation fails.
+/// - [`Error::Overflow`] if |z| is too large for a finite result.
+/// - [`Error::TotalPrecisionLoss`] if |z| is too large for any significant digits (roughly > 10⁶ for f64).
+/// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
 #[inline]
 pub fn biry_raw<T: BesselFloat>(z: Complex<T>, scaling: Scaling) -> Result<AiryResult<T>, Error> {
     let (value, status) = airy::zbiry(z, AiryDerivative::Value, scaling)?;
     Ok(AiryResult { value, status })
 }
 
-/// Derivative of the Airy function of the second kind Bi'(z) with precision status.
+/// Derivative of the Airy function of the second kind Bi'(z) with accuracy status.
 ///
-/// Like [`biryprime`], but returns an [`AiryResult`] that includes
-/// [`Accuracy`] for detecting precision loss at large |z|.
+/// Like [`biryprime`], but returns an [`AiryResult`] that includes an [`Accuracy`] status:
+/// - [`Accuracy::Normal`] — no significant precision loss
+/// - [`Accuracy::Reduced`] — more than half of significant digits may be lost (|z| very large)
 ///
 /// The `scaling` parameter selects [`Scaling::Unscaled`] or [`Scaling::Exponential`];
 /// see [crate-level docs](crate#exponential-scaling) for details.
@@ -1030,7 +1098,9 @@ pub fn biry_raw<T: BesselFloat>(z: Complex<T>, scaling: Scaling) -> Result<AiryR
 ///
 /// # Errors
 ///
-/// Returns [`Error`] if the computation fails.
+/// - [`Error::Overflow`] if |z| is too large for a finite result.
+/// - [`Error::TotalPrecisionLoss`] if |z| is too large for any significant digits (roughly > 10⁶ for f64).
+/// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
 #[inline]
 pub fn biryprime_raw<T: BesselFloat>(
     z: Complex<T>,
@@ -1606,17 +1676,13 @@ fn besseli_seq_neg<T: BesselFloat>(
 /// Compute J<sub>ν+j</sub>(z) for j = 0, 1, …, n−1 in a single call.
 ///
 /// Returns a [`BesselResult`] containing `n` values and an [`Accuracy`]:
-/// - [`Accuracy::Normal`] — full machine precision
-/// - [`Accuracy::Reduced`] — more than half of significant digits may be lost (|z| or ν very large)
+/// - [`Accuracy::Normal`] — no significant precision loss
+/// - [`Accuracy::Reduced`] — more than half of significant digits may be lost (|z| or |ν| very large)
 ///
 /// The `scaling` parameter selects [`Scaling::Unscaled`] or [`Scaling::Exponential`];
 /// see [crate-level docs](crate#exponential-scaling) for details.
 ///
-/// Negative orders are supported via DLMF reflection formulas:
-/// - Non-integer ν: J_{−ν}(z) = cos(νπ) J_ν(z) − sin(νπ) Y_ν(z)
-/// - Integer ν: J_{−n}(z) = (−1)^n J_n(z)
-///
-/// See [crate-level docs](crate#consecutive-orders) for more on sequence functions.
+/// Supports negative ν via the same reflection formula as [`besselj`].
 ///
 /// # Example
 ///
@@ -1636,7 +1702,10 @@ fn besseli_seq_neg<T: BesselFloat>(
 ///
 /// # Errors
 ///
-/// Returns [`Error::InvalidInput`] if n < 1.
+/// - [`Error::InvalidInput`] if n < 1, or if z = 0 and ν is a negative non-integer.
+/// - [`Error::Overflow`] if |z| or |ν| is too large for a finite result.
+/// - [`Error::TotalPrecisionLoss`] if |z| or |ν| is too large for any significant digits (roughly > 10⁹ for f64).
+/// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
 pub fn besselj_seq<T: BesselFloat>(
     nu: T,
     z: Complex<T>,
@@ -1653,17 +1722,13 @@ pub fn besselj_seq<T: BesselFloat>(
 /// Compute Y<sub>ν+j</sub>(z) for j = 0, 1, …, n−1 in a single call.
 ///
 /// Returns a [`BesselResult`] containing `n` values and an [`Accuracy`]:
-/// - [`Accuracy::Normal`] — full machine precision
-/// - [`Accuracy::Reduced`] — more than half of significant digits may be lost (|z| or ν very large)
+/// - [`Accuracy::Normal`] — no significant precision loss
+/// - [`Accuracy::Reduced`] — more than half of significant digits may be lost (|z| or |ν| very large)
 ///
 /// The `scaling` parameter selects [`Scaling::Unscaled`] or [`Scaling::Exponential`];
 /// see [crate-level docs](crate#exponential-scaling) for details.
 ///
-/// Negative orders are supported via DLMF reflection formulas:
-/// - Non-integer ν: Y_{−ν}(z) = sin(νπ) J_ν(z) + cos(νπ) Y_ν(z)
-/// - Integer ν: Y_{−n}(z) = (−1)^n Y_n(z)
-///
-/// See [crate-level docs](crate#consecutive-orders) for more on sequence functions.
+/// Supports negative ν via the same reflection formula as [`bessely`].
 ///
 /// # Example
 ///
@@ -1683,7 +1748,10 @@ pub fn besselj_seq<T: BesselFloat>(
 ///
 /// # Errors
 ///
-/// Returns [`Error::InvalidInput`] if n < 1.
+/// - [`Error::InvalidInput`] if n < 1, or if z = 0.
+/// - [`Error::Overflow`] if |z| is too small or too large for a finite result.
+/// - [`Error::TotalPrecisionLoss`] if |z| or |ν| is too large for any significant digits (roughly > 10⁹ for f64).
+/// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
 pub fn bessely_seq<T: BesselFloat>(
     nu: T,
     z: Complex<T>,
@@ -1700,17 +1768,13 @@ pub fn bessely_seq<T: BesselFloat>(
 /// Compute I<sub>ν+j</sub>(z) for j = 0, 1, …, n−1 in a single call.
 ///
 /// Returns a [`BesselResult`] containing `n` values and an [`Accuracy`]:
-/// - [`Accuracy::Normal`] — full machine precision
-/// - [`Accuracy::Reduced`] — more than half of significant digits may be lost (|z| or ν very large)
+/// - [`Accuracy::Normal`] — no significant precision loss
+/// - [`Accuracy::Reduced`] — more than half of significant digits may be lost (|z| or |ν| very large)
 ///
 /// The `scaling` parameter selects [`Scaling::Unscaled`] or [`Scaling::Exponential`];
 /// see [crate-level docs](crate#exponential-scaling) for details.
 ///
-/// Negative orders are supported via DLMF reflection formulas:
-/// - Non-integer ν: I_{−ν}(z) = I_ν(z) + (2/π) sin(νπ) K_ν(z)
-/// - Integer ν: I_{−n}(z) = I_n(z)
-///
-/// See [crate-level docs](crate#consecutive-orders) for more on sequence functions.
+/// Supports negative ν via the same reflection formula as [`besseli`].
 ///
 /// # Example
 ///
@@ -1730,7 +1794,10 @@ pub fn bessely_seq<T: BesselFloat>(
 ///
 /// # Errors
 ///
-/// Returns [`Error::InvalidInput`] if n < 1.
+/// - [`Error::InvalidInput`] if n < 1, or if z = 0 and ν is a negative non-integer.
+/// - [`Error::Overflow`] if |z| or |ν| is too large for a finite result.
+/// - [`Error::TotalPrecisionLoss`] if |z| or |ν| is too large for any significant digits (roughly > 10⁹ for f64).
+/// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
 pub fn besseli_seq<T: BesselFloat>(
     nu: T,
     z: Complex<T>,
@@ -1747,15 +1814,13 @@ pub fn besseli_seq<T: BesselFloat>(
 /// Compute K<sub>ν+j</sub>(z) for j = 0, 1, …, n−1 in a single call.
 ///
 /// Returns a [`BesselResult`] containing `n` values and an [`Accuracy`]:
-/// - [`Accuracy::Normal`] — full machine precision
-/// - [`Accuracy::Reduced`] — more than half of significant digits may be lost (|z| or ν very large)
+/// - [`Accuracy::Normal`] — no significant precision loss
+/// - [`Accuracy::Reduced`] — more than half of significant digits may be lost (|z| or |ν| very large)
 ///
 /// The `scaling` parameter selects [`Scaling::Unscaled`] or [`Scaling::Exponential`];
 /// see [crate-level docs](crate#exponential-scaling) for details.
 ///
-/// Negative orders are supported: K_{−ν}(z) = K_ν(z).
-///
-/// See [crate-level docs](crate#consecutive-orders) for more on sequence functions.
+/// Supports negative ν via the same reflection formula as [`besselk`].
 ///
 /// # Example
 ///
@@ -1775,7 +1840,10 @@ pub fn besseli_seq<T: BesselFloat>(
 ///
 /// # Errors
 ///
-/// Returns [`Error::InvalidInput`] if n < 1.
+/// - [`Error::InvalidInput`] if n < 1, or if z = 0.
+/// - [`Error::Overflow`] if |z| is too small or too large for a finite result.
+/// - [`Error::TotalPrecisionLoss`] if |z| or |ν| is too large for any significant digits (roughly > 10⁹ for f64).
+/// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
 pub fn besselk_seq<T: BesselFloat>(
     nu: T,
     z: Complex<T>,
@@ -1792,15 +1860,13 @@ pub fn besselk_seq<T: BesselFloat>(
 /// Compute H<sub>ν+j</sub><sup>(1)</sup>(z) for j = 0, 1, …, n−1 in a single call.
 ///
 /// Returns a [`BesselResult`] containing `n` values and an [`Accuracy`]:
-/// - [`Accuracy::Normal`] — full machine precision
-/// - [`Accuracy::Reduced`] — more than half of significant digits may be lost (|z| or ν very large)
+/// - [`Accuracy::Normal`] — no significant precision loss
+/// - [`Accuracy::Reduced`] — more than half of significant digits may be lost (|z| or |ν| very large)
 ///
 /// The `scaling` parameter selects [`Scaling::Unscaled`] or [`Scaling::Exponential`];
 /// see [crate-level docs](crate#exponential-scaling) for details.
 ///
-/// Negative orders are supported: H^(1)_{−ν}(z) = exp(νπi) H^(1)_ν(z) (DLMF 10.4.6).
-///
-/// See [crate-level docs](crate#consecutive-orders) for more on sequence functions.
+/// Supports negative ν via the same reflection formula as [`hankel1`].
 ///
 /// # Example
 ///
@@ -1820,7 +1886,10 @@ pub fn besselk_seq<T: BesselFloat>(
 ///
 /// # Errors
 ///
-/// Returns [`Error::InvalidInput`] if n < 1.
+/// - [`Error::InvalidInput`] if n < 1, or if z = 0.
+/// - [`Error::Overflow`] if |z| is too small or too large for a finite result.
+/// - [`Error::TotalPrecisionLoss`] if |z| or |ν| is too large for any significant digits (roughly > 10⁹ for f64).
+/// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
 pub fn hankel1_seq<T: BesselFloat>(
     nu: T,
     z: Complex<T>,
@@ -1837,15 +1906,13 @@ pub fn hankel1_seq<T: BesselFloat>(
 /// Compute H<sub>ν+j</sub><sup>(2)</sup>(z) for j = 0, 1, …, n−1 in a single call.
 ///
 /// Returns a [`BesselResult`] containing `n` values and an [`Accuracy`]:
-/// - [`Accuracy::Normal`] — full machine precision
-/// - [`Accuracy::Reduced`] — more than half of significant digits may be lost (|z| or ν very large)
+/// - [`Accuracy::Normal`] — no significant precision loss
+/// - [`Accuracy::Reduced`] — more than half of significant digits may be lost (|z| or |ν| very large)
 ///
 /// The `scaling` parameter selects [`Scaling::Unscaled`] or [`Scaling::Exponential`];
 /// see [crate-level docs](crate#exponential-scaling) for details.
 ///
-/// Negative orders are supported: H^(2)_{−ν}(z) = exp(−νπi) H^(2)_ν(z) (DLMF 10.4.6).
-///
-/// See [crate-level docs](crate#consecutive-orders) for more on sequence functions.
+/// Supports negative ν via the same reflection formula as [`hankel2`].
 ///
 /// # Example
 ///
@@ -1865,7 +1932,10 @@ pub fn hankel1_seq<T: BesselFloat>(
 ///
 /// # Errors
 ///
-/// Returns [`Error::InvalidInput`] if n < 1.
+/// - [`Error::InvalidInput`] if n < 1, or if z = 0.
+/// - [`Error::Overflow`] if |z| is too small or too large for a finite result.
+/// - [`Error::TotalPrecisionLoss`] if |z| or |ν| is too large for any significant digits (roughly > 10⁹ for f64).
+/// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
 pub fn hankel2_seq<T: BesselFloat>(
     nu: T,
     z: Complex<T>,

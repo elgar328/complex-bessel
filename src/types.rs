@@ -11,12 +11,12 @@ use crate::machine::BesselFloat;
 /// Status of the computation result.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Accuracy {
-    /// Computation within normal precision bounds (full machine precision).
+    /// No significant precision loss detected during computation.
     Normal,
     /// Result computed but may have lost more than half of significant digits.
     ///
     /// Triggered when:
-    /// - Bessel functions: |z| or ν exceeds ~32767 (f64)
+    /// - Bessel functions: |z| or |ν| exceeds ~32767 (f64)
     /// - Airy functions: |z| exceeds ~1024 (f64)
     Reduced,
 }
@@ -24,16 +24,15 @@ pub enum Accuracy {
 /// Result of an Airy function computation, returned by `_raw` functions
 /// (e.g., [`airy_raw`](crate::airy_raw)).
 ///
-/// Single-value convenience functions (`airy`, `biry`, …) do not expose
+/// Simplified convenience functions (`airy`, `biry`, …) do not expose
 /// this type; they return only the computed value and discard the status.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct AiryResult<T: BesselFloat> {
     /// Computed function value.
     pub value: Complex<T>,
-    /// Precision status of the computation.
+    /// Accuracy of the computation result.
     ///
-    /// [`Accuracy::Reduced`] indicates that |z| is large enough
-    /// for more than half of significant digits to be lost.
+    /// See [`Accuracy`] for possible values and their meaning.
     pub status: Accuracy,
 }
 
@@ -49,23 +48,24 @@ pub struct BesselResult<T: BesselFloat> {
     pub values: Vec<Complex<T>>,
     /// Number of leading components set to zero due to underflow.
     pub underflow_count: usize,
-    /// Precision status of the computation.
+    /// Accuracy of the computation result.
     ///
-    /// Single-value convenience functions do not expose this status;
-    /// use a `_seq` function to inspect it when needed.
+    /// See [`Accuracy`] for possible values and their meaning.
     pub status: Accuracy,
 }
 
 /// Scaling option for Bessel function computation.
 ///
-/// The `_scaled` variant returns `factor · f(z)`, where factor is:
-/// - J, Y: `exp(-|Im(z)|)`
-/// - I: `exp(-|Re(z)|)`
-/// - K: `exp(z)`
-/// - H^(1): `exp(-iz)`
-/// - H^(2): `exp(iz)`
-/// - Ai, Ai': `exp(ζ)` where `ζ = (2/3) · z · √z`
-/// - Bi, Bi': `exp(-|Re(ζ)|)` where `ζ = (2/3) · z · √z`
+/// The `_scaled` variant returns factor · f(z), where factor is:
+/// - J, Y: exp(−|Im(z)|)
+/// - I: exp(−|Re(z)|)
+/// - K: exp(z)
+/// - H<sup>(1)</sup>: exp(−iz)
+/// - H<sup>(2)</sup>: exp(iz)
+/// - Ai, Ai′: exp(ζ)
+/// - Bi, Bi′: exp(−|Re(ζ)|)
+///
+/// where ζ = (2/3) · z · √z.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Scaling {
     /// No scaling applied.
@@ -116,14 +116,17 @@ pub(crate) enum AiryDerivative {
     Derivative,
 }
 
-/// Error type for Bessel function computation.
+/// Unrecoverable error during Bessel or Airy function computation.
+///
+/// Returned as the `Err` variant of all public functions. For computations
+/// that succeed but with reduced accuracy, see [`Accuracy`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Error {
     /// Invalid input (e.g., z=0 for K/Y/H, n < 1 in sequence functions).
     InvalidInput,
-    /// Overflow: |z| or ν too large, or |z| too small.
+    /// Overflow: |z| or |ν| too large, or |z| too small.
     Overflow,
-    /// Complete loss of significant digits; |z| or ν too large for meaningful computation.
+    /// |z| or |ν| too large for meaningful computation.
     TotalPrecisionLoss,
     /// Algorithm did not meet termination criteria.
     ConvergenceFailure,
