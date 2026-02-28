@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-02-28
+
 ### Changed
 
 - Use unconditional `#![no_std]` with `core::error::Error` (MSRV 1.85+, edition 2024).
@@ -26,5 +28,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Provide sequence computation (`_seq` variants) for consecutive orders.
 - Support `no_std` with 3-tier feature flags (`no_std` / `alloc` / `std`).
 
-[Unreleased]: https://github.com/elgar328/complex-bessel/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/elgar328/complex-bessel/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/elgar328/complex-bessel/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/elgar328/complex-bessel/releases/tag/v0.1.0
