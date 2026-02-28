@@ -20,7 +20,7 @@ Pure Rust implementation of complex Bessel functions based on **Amos Algorithm 6
 
 ```toml
 [dependencies]
-complex-bessel = "0.1"
+complex-bessel = "0.2"
 ```
 
 ```rust
