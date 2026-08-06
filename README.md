@@ -126,7 +126,10 @@ Since this library is a Rust translation of AMOS/TOMS 644, the two should produc
 
 [![Rust vs Fortran — relative error](https://raw.githubusercontent.com/elgar328/complex-bessel-test/main/images/fidelity.svg)](https://github.com/elgar328/complex-bessel-test/blob/main/images/fidelity.pdf)
 
-Median evaluation time per function call. On average, **19% faster** than AMOS (Fortran) and **8× faster** than SciPy (Python).
+Median evaluation time per function call — consistently faster than both reference implementations:
+
+[![vs Fortran](https://raw.githubusercontent.com/elgar328/complex-bessel-test/main/images/speedup_fortran.svg)](https://github.com/elgar328/complex-bessel-test)
+[![vs SciPy](https://raw.githubusercontent.com/elgar328/complex-bessel-test/main/images/speedup_scipy.svg)](https://github.com/elgar328/complex-bessel-test)
 
 [![Performance — median time per call](https://raw.githubusercontent.com/elgar328/complex-bessel-test/main/images/eval_time.svg)](https://github.com/elgar328/complex-bessel-test/blob/main/images/eval_time.pdf)
 
