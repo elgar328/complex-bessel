@@ -124,7 +124,8 @@ pub(crate) enum AiryDerivative {
 /// that succeed but with reduced accuracy, see [`Accuracy`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Error {
-    /// Invalid input (e.g., z=0 for K/Y/H, n < 1 in sequence functions).
+    /// Invalid input (e.g., non-finite z or ν, z=0 for K/Y/H, n < 1 in
+    /// sequence functions).
     InvalidInput,
     /// Overflow: |z| or |ν| too large, or |z| too small.
     Overflow,

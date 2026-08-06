@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
-    branches: [main]
+    branches: [main, dev]
 
 env:
   CARGO_TERM_COLOR: always
@@ -24,7 +24,7 @@ jobs:
         run: cargo fmt --check
 
       - name: Clippy
-        run: cargo clippy -- -D warnings
+        run: cargo clippy --all-targets -- -D warnings
 
       - name: Test (std, default)
         run: cargo test
@@ -32,8 +32,8 @@ jobs:
       - name: Test (alloc, no std)
         run: cargo test --no-default-features --features alloc
 
-      - name: Build (no_std, no alloc)
-        run: cargo build --no-default-features
+      - name: Test (no_std, no alloc)
+        run: cargo test --no-default-features
 
   msrv:
     name: MSRV (1.85)

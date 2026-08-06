@@ -111,7 +111,7 @@
 //!
 //! | Variant | Cause |
 //! |---------|-------|
-//! | [`InvalidInput`](Error::InvalidInput) | z = 0 for K/Y/H, n < 1 |
+//! | [`InvalidInput`](Error::InvalidInput) | non-finite z or ν, z = 0 for K/Y/H, n < 1 |
 //! | [`Overflow`](Error::Overflow) | \|z\| or \|ν\| too large (or \|z\| too small) for finite result |
 //! | [`TotalPrecisionLoss`](Error::TotalPrecisionLoss) | \|z\| or \|ν\| too large for meaningful computation |
 //! | [`ConvergenceFailure`](Error::ConvergenceFailure) | Internal algorithm did not converge |
@@ -129,10 +129,10 @@
 //!
 //! ```toml
 //! # Bare no_std — no allocator needed:
-//! complex-bessel = { version = "0.1", default-features = false }
+//! complex-bessel = { version = "0.3", default-features = false }
 //!
 //! # no_std + alloc — full API:
-//! complex-bessel = { version = "0.1", default-features = false, features = ["alloc"] }
+//! complex-bessel = { version = "0.3", default-features = false, features = ["alloc"] }
 //! ```
 
 #![warn(missing_docs)]
@@ -392,7 +392,7 @@ fn hankel_internal<T: BesselFloat>(
 ///
 /// # Errors
 ///
-/// - [`Error::InvalidInput`] if z = 0 and ν is a negative non-integer.
+/// - [`Error::InvalidInput`] if z or ν is not finite (NaN or infinite), or if z = 0 and ν is a negative non-integer.
 /// - [`Error::Overflow`] if |z| or |ν| is too large for a finite result.
 /// - [`Error::TotalPrecisionLoss`] if |z| or |ν| is too large for any significant digits (roughly > 10⁹ for f64).
 /// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
@@ -423,7 +423,7 @@ pub fn besselj<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error
 ///
 /// # Errors
 ///
-/// - [`Error::InvalidInput`] if z = 0.
+/// - [`Error::InvalidInput`] if z or ν is not finite (NaN or infinite), or if z = 0.
 /// - [`Error::Overflow`] if |z| is too small or too large for a finite result.
 /// - [`Error::TotalPrecisionLoss`] if |z| or |ν| is too large for any significant digits (roughly > 10⁹ for f64).
 /// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
@@ -454,7 +454,7 @@ pub fn bessely<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error
 ///
 /// # Errors
 ///
-/// - [`Error::InvalidInput`] if z = 0 and ν is a negative non-integer.
+/// - [`Error::InvalidInput`] if z or ν is not finite (NaN or infinite), or if z = 0 and ν is a negative non-integer.
 /// - [`Error::Overflow`] if |z| or |ν| is too large for a finite result.
 /// - [`Error::TotalPrecisionLoss`] if |z| or |ν| is too large for any significant digits (roughly > 10⁹ for f64).
 /// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
@@ -483,7 +483,7 @@ pub fn besseli<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error
 ///
 /// # Errors
 ///
-/// - [`Error::InvalidInput`] if z = 0.
+/// - [`Error::InvalidInput`] if z or ν is not finite (NaN or infinite), or if z = 0.
 /// - [`Error::Overflow`] if |z| is too small or too large for a finite result.
 /// - [`Error::TotalPrecisionLoss`] if |z| or |ν| is too large for any significant digits (roughly > 10⁹ for f64).
 /// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
@@ -515,7 +515,7 @@ pub fn besselk<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error
 ///
 /// # Errors
 ///
-/// - [`Error::InvalidInput`] if z = 0.
+/// - [`Error::InvalidInput`] if z or ν is not finite (NaN or infinite), or if z = 0.
 /// - [`Error::Overflow`] if |z| is too small or too large for a finite result.
 /// - [`Error::TotalPrecisionLoss`] if |z| or |ν| is too large for any significant digits (roughly > 10⁹ for f64).
 /// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
@@ -547,7 +547,7 @@ pub fn hankel1<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error
 ///
 /// # Errors
 ///
-/// - [`Error::InvalidInput`] if z = 0.
+/// - [`Error::InvalidInput`] if z or ν is not finite (NaN or infinite), or if z = 0.
 /// - [`Error::Overflow`] if |z| is too small or too large for a finite result.
 /// - [`Error::TotalPrecisionLoss`] if |z| or |ν| is too large for any significant digits (roughly > 10⁹ for f64).
 /// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
@@ -575,6 +575,7 @@ pub fn hankel2<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error
 ///
 /// # Errors
 ///
+/// - [`Error::InvalidInput`] if z is not finite (NaN or infinite).
 /// - [`Error::Overflow`] if |z| is too large for a finite result.
 /// - [`Error::TotalPrecisionLoss`] if |z| is too large for any significant digits (roughly > 10⁶ for f64).
 /// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
@@ -603,6 +604,7 @@ pub fn airy<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Error> {
 ///
 /// # Errors
 ///
+/// - [`Error::InvalidInput`] if z is not finite (NaN or infinite).
 /// - [`Error::Overflow`] if |z| is too large for a finite result.
 /// - [`Error::TotalPrecisionLoss`] if |z| is too large for any significant digits (roughly > 10⁶ for f64).
 /// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
@@ -631,6 +633,7 @@ pub fn airyprime<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Error> {
 ///
 /// # Errors
 ///
+/// - [`Error::InvalidInput`] if z is not finite (NaN or infinite).
 /// - [`Error::Overflow`] if |z| is too large for a finite result.
 /// - [`Error::TotalPrecisionLoss`] if |z| is too large for any significant digits (roughly > 10⁶ for f64).
 /// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
@@ -659,6 +662,7 @@ pub fn biry<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Error> {
 ///
 /// # Errors
 ///
+/// - [`Error::InvalidInput`] if z is not finite (NaN or infinite).
 /// - [`Error::Overflow`] if |z| is too large for a finite result.
 /// - [`Error::TotalPrecisionLoss`] if |z| is too large for any significant digits (roughly > 10⁶ for f64).
 /// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
@@ -692,7 +696,7 @@ pub fn biryprime<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Error> {
 ///
 /// # Errors
 ///
-/// - [`Error::InvalidInput`] if z = 0 and ν is a negative non-integer.
+/// - [`Error::InvalidInput`] if z or ν is not finite (NaN or infinite), or if z = 0 and ν is a negative non-integer.
 /// - [`Error::Overflow`] if |z| or |ν| is too large for a finite result.
 /// - [`Error::TotalPrecisionLoss`] if |z| or |ν| is too large for any significant digits (roughly > 10⁹ for f64).
 /// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
@@ -723,7 +727,7 @@ pub fn besselj_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>
 ///
 /// # Errors
 ///
-/// - [`Error::InvalidInput`] if z = 0.
+/// - [`Error::InvalidInput`] if z or ν is not finite (NaN or infinite), or if z = 0.
 /// - [`Error::Overflow`] if |z| is too small or too large for a finite result.
 /// - [`Error::TotalPrecisionLoss`] if |z| or |ν| is too large for any significant digits (roughly > 10⁹ for f64).
 /// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
@@ -754,7 +758,7 @@ pub fn bessely_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>
 ///
 /// # Errors
 ///
-/// - [`Error::InvalidInput`] if z = 0 and ν is a negative non-integer.
+/// - [`Error::InvalidInput`] if z or ν is not finite (NaN or infinite), or if z = 0 and ν is a negative non-integer.
 /// - [`Error::Overflow`] if |z| or |ν| is too large for a finite result.
 /// - [`Error::TotalPrecisionLoss`] if |z| or |ν| is too large for any significant digits (roughly > 10⁹ for f64).
 /// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
@@ -787,7 +791,7 @@ pub fn besseli_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>
 ///
 /// # Errors
 ///
-/// - [`Error::InvalidInput`] if z = 0.
+/// - [`Error::InvalidInput`] if z or ν is not finite (NaN or infinite), or if z = 0.
 /// - [`Error::Overflow`] if |z| is too small or too large for a finite result.
 /// - [`Error::TotalPrecisionLoss`] if |z| or |ν| is too large for any significant digits (roughly > 10⁹ for f64).
 /// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
@@ -818,7 +822,7 @@ pub fn besselk_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>
 ///
 /// # Errors
 ///
-/// - [`Error::InvalidInput`] if z = 0.
+/// - [`Error::InvalidInput`] if z or ν is not finite (NaN or infinite), or if z = 0.
 /// - [`Error::Overflow`] if |z| is too small or too large for a finite result.
 /// - [`Error::TotalPrecisionLoss`] if |z| or |ν| is too large for any significant digits (roughly > 10⁹ for f64).
 /// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
@@ -849,7 +853,7 @@ pub fn hankel1_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>
 ///
 /// # Errors
 ///
-/// - [`Error::InvalidInput`] if z = 0.
+/// - [`Error::InvalidInput`] if z or ν is not finite (NaN or infinite), or if z = 0.
 /// - [`Error::Overflow`] if |z| is too small or too large for a finite result.
 /// - [`Error::TotalPrecisionLoss`] if |z| or |ν| is too large for any significant digits (roughly > 10⁹ for f64).
 /// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
@@ -878,6 +882,7 @@ pub fn hankel2_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>
 ///
 /// # Errors
 ///
+/// - [`Error::InvalidInput`] if z is not finite (NaN or infinite).
 /// - [`Error::Overflow`] if |z| is too large for a finite result.
 /// - [`Error::TotalPrecisionLoss`] if |z| is too large for any significant digits (roughly > 10⁶ for f64).
 /// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
@@ -907,6 +912,7 @@ pub fn airy_scaled<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Error> {
 ///
 /// # Errors
 ///
+/// - [`Error::InvalidInput`] if z is not finite (NaN or infinite).
 /// - [`Error::Overflow`] if |z| is too large for a finite result.
 /// - [`Error::TotalPrecisionLoss`] if |z| is too large for any significant digits (roughly > 10⁶ for f64).
 /// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
@@ -936,6 +942,7 @@ pub fn airyprime_scaled<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Err
 ///
 /// # Errors
 ///
+/// - [`Error::InvalidInput`] if z is not finite (NaN or infinite).
 /// - [`Error::Overflow`] if |z| is too large for a finite result.
 /// - [`Error::TotalPrecisionLoss`] if |z| is too large for any significant digits (roughly > 10⁶ for f64).
 /// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
@@ -965,6 +972,7 @@ pub fn biry_scaled<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Error> {
 ///
 /// # Errors
 ///
+/// - [`Error::InvalidInput`] if z is not finite (NaN or infinite).
 /// - [`Error::Overflow`] if |z| is too large for a finite result.
 /// - [`Error::TotalPrecisionLoss`] if |z| is too large for any significant digits (roughly > 10⁶ for f64).
 /// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
@@ -999,6 +1007,7 @@ pub fn biryprime_scaled<T: BesselFloat>(z: Complex<T>) -> Result<Complex<T>, Err
 ///
 /// # Errors
 ///
+/// - [`Error::InvalidInput`] if z is not finite (NaN or infinite).
 /// - [`Error::Overflow`] if |z| is too large for a finite result.
 /// - [`Error::TotalPrecisionLoss`] if |z| is too large for any significant digits (roughly > 10⁶ for f64).
 /// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
@@ -1031,6 +1040,7 @@ pub fn airy_raw<T: BesselFloat>(z: Complex<T>, scaling: Scaling) -> Result<AiryR
 ///
 /// # Errors
 ///
+/// - [`Error::InvalidInput`] if z is not finite (NaN or infinite).
 /// - [`Error::Overflow`] if |z| is too large for a finite result.
 /// - [`Error::TotalPrecisionLoss`] if |z| is too large for any significant digits (roughly > 10⁶ for f64).
 /// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
@@ -1066,6 +1076,7 @@ pub fn airyprime_raw<T: BesselFloat>(
 ///
 /// # Errors
 ///
+/// - [`Error::InvalidInput`] if z is not finite (NaN or infinite).
 /// - [`Error::Overflow`] if |z| is too large for a finite result.
 /// - [`Error::TotalPrecisionLoss`] if |z| is too large for any significant digits (roughly > 10⁶ for f64).
 /// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
@@ -1098,6 +1109,7 @@ pub fn biry_raw<T: BesselFloat>(z: Complex<T>, scaling: Scaling) -> Result<AiryR
 ///
 /// # Errors
 ///
+/// - [`Error::InvalidInput`] if z is not finite (NaN or infinite).
 /// - [`Error::Overflow`] if |z| is too large for a finite result.
 /// - [`Error::TotalPrecisionLoss`] if |z| is too large for any significant digits (roughly > 10⁶ for f64).
 /// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
@@ -1702,7 +1714,7 @@ fn besseli_seq_neg<T: BesselFloat>(
 ///
 /// # Errors
 ///
-/// - [`Error::InvalidInput`] if n < 1, or if z = 0 and ν is a negative non-integer.
+/// - [`Error::InvalidInput`] if n < 1, if z or ν is not finite (NaN or infinite), or if z = 0 and ν is a negative non-integer.
 /// - [`Error::Overflow`] if |z| or |ν| is too large for a finite result.
 /// - [`Error::TotalPrecisionLoss`] if |z| or |ν| is too large for any significant digits (roughly > 10⁹ for f64).
 /// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
@@ -1748,7 +1760,7 @@ pub fn besselj_seq<T: BesselFloat>(
 ///
 /// # Errors
 ///
-/// - [`Error::InvalidInput`] if n < 1, or if z = 0.
+/// - [`Error::InvalidInput`] if n < 1, if z or ν is not finite (NaN or infinite), or if z = 0.
 /// - [`Error::Overflow`] if |z| is too small or too large for a finite result.
 /// - [`Error::TotalPrecisionLoss`] if |z| or |ν| is too large for any significant digits (roughly > 10⁹ for f64).
 /// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
@@ -1794,7 +1806,7 @@ pub fn bessely_seq<T: BesselFloat>(
 ///
 /// # Errors
 ///
-/// - [`Error::InvalidInput`] if n < 1, or if z = 0 and ν is a negative non-integer.
+/// - [`Error::InvalidInput`] if n < 1, if z or ν is not finite (NaN or infinite), or if z = 0 and ν is a negative non-integer.
 /// - [`Error::Overflow`] if |z| or |ν| is too large for a finite result.
 /// - [`Error::TotalPrecisionLoss`] if |z| or |ν| is too large for any significant digits (roughly > 10⁹ for f64).
 /// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
@@ -1840,7 +1852,7 @@ pub fn besseli_seq<T: BesselFloat>(
 ///
 /// # Errors
 ///
-/// - [`Error::InvalidInput`] if n < 1, or if z = 0.
+/// - [`Error::InvalidInput`] if n < 1, if z or ν is not finite (NaN or infinite), or if z = 0.
 /// - [`Error::Overflow`] if |z| is too small or too large for a finite result.
 /// - [`Error::TotalPrecisionLoss`] if |z| or |ν| is too large for any significant digits (roughly > 10⁹ for f64).
 /// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
@@ -1886,7 +1898,7 @@ pub fn besselk_seq<T: BesselFloat>(
 ///
 /// # Errors
 ///
-/// - [`Error::InvalidInput`] if n < 1, or if z = 0.
+/// - [`Error::InvalidInput`] if n < 1, if z or ν is not finite (NaN or infinite), or if z = 0.
 /// - [`Error::Overflow`] if |z| is too small or too large for a finite result.
 /// - [`Error::TotalPrecisionLoss`] if |z| or |ν| is too large for any significant digits (roughly > 10⁹ for f64).
 /// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
@@ -1932,7 +1944,7 @@ pub fn hankel1_seq<T: BesselFloat>(
 ///
 /// # Errors
 ///
-/// - [`Error::InvalidInput`] if n < 1, or if z = 0.
+/// - [`Error::InvalidInput`] if n < 1, if z or ν is not finite (NaN or infinite), or if z = 0.
 /// - [`Error::Overflow`] if |z| is too small or too large for a finite result.
 /// - [`Error::TotalPrecisionLoss`] if |z| or |ν| is too large for any significant digits (roughly > 10⁹ for f64).
 /// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
@@ -1946,6 +1958,111 @@ pub fn hankel2_seq<T: BesselFloat>(
         return hankel_seq_neg(HankelKind::Second, nu, z, n, scaling);
     }
     seq_helper(n, |y| besh::zbesh(z, nu, HankelKind::Second, scaling, y))
+}
+
+// ── Tests for non-finite input rejection at the public API level ──
+// Deliberately gated on test only (not alloc), so they run in every
+// feature configuration.
+
+#[cfg(test)]
+mod non_finite_tests {
+    use super::*;
+    use num_complex::{Complex32, Complex64};
+
+    #[test]
+    fn bessel_non_finite_z_returns_invalid_input() {
+        let nan = f64::NAN;
+        for z in [
+            Complex64::new(nan, 0.0),
+            Complex64::new(0.0, nan),
+            Complex64::new(nan, nan),
+            Complex64::new(f64::INFINITY, 0.0),
+        ] {
+            assert!(matches!(besselj(0.0, z), Err(Error::InvalidInput)));
+            assert!(matches!(besselj_scaled(1.0, z), Err(Error::InvalidInput)));
+            assert!(matches!(bessely(0.0, z), Err(Error::InvalidInput)));
+            assert!(matches!(besseli(0.0, z), Err(Error::InvalidInput)));
+            assert!(matches!(besselk(0.0, z), Err(Error::InvalidInput)));
+            assert!(matches!(hankel1(0.0, z), Err(Error::InvalidInput)));
+            assert!(matches!(hankel2(0.0, z), Err(Error::InvalidInput)));
+            // Negative order exercises the reflection path in the wrappers.
+            assert!(matches!(besselj(-2.5, z), Err(Error::InvalidInput)));
+            assert!(matches!(besselk(-2.5, z), Err(Error::InvalidInput)));
+        }
+    }
+
+    #[test]
+    fn bessel_non_finite_nu_returns_invalid_input() {
+        let z = Complex64::new(1.0, 1.0);
+        for nu in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+            assert!(matches!(besselj(nu, z), Err(Error::InvalidInput)));
+            assert!(matches!(bessely(nu, z), Err(Error::InvalidInput)));
+            assert!(matches!(besseli(nu, z), Err(Error::InvalidInput)));
+            assert!(matches!(besselk(nu, z), Err(Error::InvalidInput)));
+            assert!(matches!(hankel1(nu, z), Err(Error::InvalidInput)));
+            assert!(matches!(hankel2(nu, z), Err(Error::InvalidInput)));
+        }
+    }
+
+    #[test]
+    fn bessel_non_finite_f32_returns_invalid_input() {
+        let z = Complex32::new(1.0, 1.0);
+        assert!(matches!(
+            besselj(0.0f32, Complex32::new(f32::NAN, 0.0)),
+            Err(Error::InvalidInput)
+        ));
+        assert!(matches!(besselj(f32::NAN, z), Err(Error::InvalidInput)));
+    }
+
+    #[test]
+    fn airy_non_finite_z_returns_invalid_input() {
+        let nan = f64::NAN;
+        for z in [
+            Complex64::new(nan, 0.0),
+            Complex64::new(0.0, nan),
+            Complex64::new(f64::INFINITY, 0.0),
+        ] {
+            assert!(matches!(airy(z), Err(Error::InvalidInput)));
+            assert!(matches!(airyprime(z), Err(Error::InvalidInput)));
+            assert!(matches!(biry(z), Err(Error::InvalidInput)));
+            assert!(matches!(biryprime(z), Err(Error::InvalidInput)));
+            assert!(matches!(
+                airy_raw(z, Scaling::Unscaled),
+                Err(Error::InvalidInput)
+            ));
+            assert!(matches!(
+                biry_raw(z, Scaling::Unscaled),
+                Err(Error::InvalidInput)
+            ));
+        }
+    }
+
+    #[test]
+    fn finite_overflowing_modulus_keeps_total_precision_loss() {
+        // |z| overflows to infinity while both components are finite: this
+        // must stay TotalPrecisionLoss (range check), not InvalidInput.
+        let z = Complex64::new(1.7e308, 1.7e308);
+        assert!(matches!(besselj(0.0, z), Err(Error::TotalPrecisionLoss)));
+    }
+
+    #[cfg(feature = "alloc")]
+    #[test]
+    fn seq_non_finite_inputs_return_invalid_input() {
+        let z_nan = Complex64::new(f64::NAN, 0.0);
+        let z = Complex64::new(1.0, 1.0);
+        assert!(matches!(
+            besselj_seq(f64::NAN, z, 2, Scaling::Unscaled),
+            Err(Error::InvalidInput)
+        ));
+        assert!(matches!(
+            besselj_seq(0.0, z_nan, 2, Scaling::Unscaled),
+            Err(Error::InvalidInput)
+        ));
+        assert!(matches!(
+            besselk_seq(-2.5, z_nan, 3, Scaling::Unscaled),
+            Err(Error::InvalidInput)
+        ));
+    }
 }
 
 // ── Tests for negative order _seq functions ──
@@ -1964,6 +2081,7 @@ mod neg_order_seq_tests {
     }
 
     /// Verify _seq(ν, z, n)[j] == single_value(ν+j, z) for all j.
+    #[allow(clippy::too_many_arguments)]
     fn check_seq_vs_single<F, G>(
         seq_fn: F,
         single_fn: G,
@@ -1998,7 +2116,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(1.5, 0.5);
         check_seq_vs_single(
             besselk_seq,
-            |nu, z| besselk(nu, z),
+            besselk,
             -3.7,
             z,
             3,
@@ -2013,7 +2131,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(1.5, 0.5);
         check_seq_vs_single(
             besselk_seq,
-            |nu, z| besselk(nu, z),
+            besselk,
             -1.5,
             z,
             5,
@@ -2028,7 +2146,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(1.5, 0.5);
         check_seq_vs_single(
             besselk_seq,
-            |nu, z| besselk(nu, z),
+            besselk,
             -3.0,
             z,
             4,
@@ -2043,7 +2161,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(1.5, 0.5);
         check_seq_vs_single(
             besselk_seq,
-            |nu, z| besselk(nu, z),
+            besselk,
             -2.0,
             z,
             5,
@@ -2058,7 +2176,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(1.0, 0.0);
         check_seq_vs_single(
             besselk_seq,
-            |nu, z| besselk(nu, z),
+            besselk,
             -0.0,
             z,
             1,
@@ -2075,7 +2193,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(1.5, 0.5);
         check_seq_vs_single(
             hankel1_seq,
-            |nu, z| hankel1(nu, z),
+            hankel1,
             -3.7,
             z,
             3,
@@ -2090,7 +2208,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(1.5, 0.5);
         check_seq_vs_single(
             hankel1_seq,
-            |nu, z| hankel1(nu, z),
+            hankel1,
             -1.5,
             z,
             5,
@@ -2105,7 +2223,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(1.5, 0.5);
         check_seq_vs_single(
             hankel1_seq,
-            |nu, z| hankel1(nu, z),
+            hankel1,
             -2.0,
             z,
             5,
@@ -2122,7 +2240,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(1.5, 0.5);
         check_seq_vs_single(
             hankel2_seq,
-            |nu, z| hankel2(nu, z),
+            hankel2,
             -3.7,
             z,
             3,
@@ -2137,7 +2255,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(1.5, 0.5);
         check_seq_vs_single(
             hankel2_seq,
-            |nu, z| hankel2(nu, z),
+            hankel2,
             -1.5,
             z,
             5,
@@ -2152,7 +2270,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(1.5, 0.5);
         check_seq_vs_single(
             hankel2_seq,
-            |nu, z| hankel2(nu, z),
+            hankel2,
             -2.0,
             z,
             5,
@@ -2169,7 +2287,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(1.5, 0.5);
         check_seq_vs_single(
             besselj_seq,
-            |nu, z| besselj(nu, z),
+            besselj,
             -3.7,
             z,
             3,
@@ -2184,7 +2302,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(1.5, 0.5);
         check_seq_vs_single(
             besselj_seq,
-            |nu, z| besselj(nu, z),
+            besselj,
             -1.5,
             z,
             5,
@@ -2199,7 +2317,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(1.5, 0.5);
         check_seq_vs_single(
             besselj_seq,
-            |nu, z| besselj(nu, z),
+            besselj,
             -3.0,
             z,
             4,
@@ -2214,7 +2332,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(1.5, 0.5);
         check_seq_vs_single(
             besselj_seq,
-            |nu, z| besselj(nu, z),
+            besselj,
             -2.0,
             z,
             5,
@@ -2231,7 +2349,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(1.5, 0.5);
         check_seq_vs_single(
             bessely_seq,
-            |nu, z| bessely(nu, z),
+            bessely,
             -3.7,
             z,
             3,
@@ -2246,7 +2364,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(1.5, 0.5);
         check_seq_vs_single(
             bessely_seq,
-            |nu, z| bessely(nu, z),
+            bessely,
             -1.5,
             z,
             5,
@@ -2261,7 +2379,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(1.5, 0.5);
         check_seq_vs_single(
             bessely_seq,
-            |nu, z| bessely(nu, z),
+            bessely,
             -3.0,
             z,
             4,
@@ -2276,7 +2394,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(1.5, 0.5);
         check_seq_vs_single(
             bessely_seq,
-            |nu, z| bessely(nu, z),
+            bessely,
             -2.0,
             z,
             5,
@@ -2293,7 +2411,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(1.5, 0.5);
         check_seq_vs_single(
             besseli_seq,
-            |nu, z| besseli(nu, z),
+            besseli,
             -3.7,
             z,
             3,
@@ -2308,7 +2426,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(1.5, 0.5);
         check_seq_vs_single(
             besseli_seq,
-            |nu, z| besseli(nu, z),
+            besseli,
             -1.5,
             z,
             5,
@@ -2323,7 +2441,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(1.5, 0.5);
         check_seq_vs_single(
             besseli_seq,
-            |nu, z| besseli(nu, z),
+            besseli,
             -3.0,
             z,
             4,
@@ -2338,7 +2456,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(1.5, 0.5);
         check_seq_vs_single(
             besseli_seq,
-            |nu, z| besseli(nu, z),
+            besseli,
             -2.0,
             z,
             5,
@@ -2355,7 +2473,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(2.0, 1.0);
         check_seq_vs_single(
             besseli_seq,
-            |nu, z| besseli_scaled(nu, z),
+            besseli_scaled,
             -2.3,
             z,
             5,
@@ -2370,7 +2488,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(2.0, 1.0);
         check_seq_vs_single(
             besselj_seq,
-            |nu, z| besselj_scaled(nu, z),
+            besselj_scaled,
             -1.5,
             z,
             4,
@@ -2385,7 +2503,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(2.0, 1.0);
         check_seq_vs_single(
             besselk_seq,
-            |nu, z| besselk_scaled(nu, z),
+            besselk_scaled,
             -2.5,
             z,
             4,
@@ -2400,7 +2518,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(2.0, 1.0);
         check_seq_vs_single(
             hankel1_seq,
-            |nu, z| hankel1_scaled(nu, z),
+            hankel1_scaled,
             -2.5,
             z,
             4,
@@ -2415,7 +2533,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(2.0, 1.0);
         check_seq_vs_single(
             bessely_seq,
-            |nu, z| bessely_scaled(nu, z),
+            bessely_scaled,
             -1.5,
             z,
             4,
@@ -2432,7 +2550,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(1.0, 0.0);
         check_seq_vs_single(
             besselj_seq,
-            |nu, z| besselj(nu, z),
+            besselj,
             -0.0,
             z,
             3,

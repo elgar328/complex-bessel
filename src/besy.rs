@@ -14,7 +14,7 @@ use crate::besi::zbesi;
 use crate::besk::zbesk;
 use crate::machine::BesselFloat;
 use crate::types::{Accuracy, Error, Scaling};
-use crate::utils::{mul_i, mul_neg_i};
+use crate::utils::{mul_i, mul_neg_i, zabs};
 
 /// Compute Y_{fnu+j}(z) for j = 0, 1, ..., n-1.
 ///
@@ -50,13 +50,40 @@ pub(crate) fn zbesy<T: BesselFloat>(
     if z == czero {
         return Err(Error::InvalidInput);
     }
+    // Reject non-finite inputs: NaN passes every ordered comparison below,
+    // then panics at to_i32() deep in the algorithm chain (e.g. zmlri).
+    if !z.re.is_finite() || !z.im.is_finite() || !fnu.is_finite() {
+        return Err(Error::InvalidInput);
+    }
+
+    // Range check, as in the other upper interfaces. The delegates zbesi/zbesk
+    // repeat it, but fnu.to_i32() below must already be protected here.
+    let az = zabs(z);
+    let fn_val = fnu + T::from_f64((n - 1) as f64);
+    let aa_tol = T::from_f64(0.5) / T::tol();
+    let bb = T::from_f64(2147483647.0 * 0.5);
+    let aa = aa_tol.min(bb);
+
+    if az > aa || fn_val > aa {
+        return Err(Error::TotalPrecisionLoss);
+    }
+
+    // Partial precision loss (Fortran IERR=3). The delegates zbesi/zbesk hit
+    // the same condition (|zn| == |z|), but their statuses are not returned,
+    // so compute it here like the other upper interfaces do.
+    let aa_sqrt = aa.sqrt();
+    let status = if az > aa_sqrt || fn_val > aa_sqrt {
+        Accuracy::Reduced
+    } else {
+        Accuracy::Normal
+    };
 
     // Rotate argument: zn = (zz.im, -zz.re) where zz = z with Im >= 0
     // (Fortran lines 1349-1353)
     let zn = Complex::new(z.im.abs(), -z.re);
 
     // Compute coefficients CC and CSPN (Fortran lines 1359-1373)
-    // Safety: fnu is finite and < ~1e15 per upper-interface checks
+    // Safety: fnu is finite (checked above) and <= aa < i32::MAX per range check
     let ifnu = fnu.to_i32().unwrap();
     let ffnu = fnu - T::from_f64(ifnu as f64);
     let arg = hpi_t * ffnu;
@@ -93,7 +120,7 @@ pub(crate) fn zbesy<T: BesselFloat>(
             // Conjugate if original Im(z) < 0 (Fortran lines 1390-1394)
             y[0] = if z.im < zero { cy_val.conj() } else { cy_val };
 
-            return Ok((nz, Accuracy::Normal));
+            return Ok((nz, status));
         }
 
         // KODE=2: scaled version with underflow protection (Fortran lines 1396-1456)
@@ -137,7 +164,7 @@ pub(crate) fn zbesy<T: BesselFloat>(
 
         let nz_out = if cy_val == czero && ey == zero { 1 } else { 0 };
 
-        return Ok((nz_out, Accuracy::Normal));
+        return Ok((nz_out, status));
     }
 
     // For n > 1: requires alloc feature
@@ -172,7 +199,7 @@ pub(crate) fn zbesy<T: BesselFloat>(
                 }
             }
 
-            return Ok((nz, Accuracy::Normal));
+            return Ok((nz, status));
         }
 
         // KODE=2: scaled version with underflow protection (Fortran lines 1396-1456)
@@ -225,7 +252,7 @@ pub(crate) fn zbesy<T: BesselFloat>(
             cspn = mul_neg_i(cspn);
         }
 
-        Ok((nz_out, Accuracy::Normal))
+        Ok((nz_out, status))
     }
 
     #[cfg(not(feature = "alloc"))]
@@ -247,5 +274,56 @@ mod tests {
         let z = Complex64::new(0.0, 0.0);
         let mut y = [Complex64::new(0.0, 0.0)];
         assert!(zbesy(z, 0.0, Scaling::Unscaled, &mut y).is_err());
+    }
+
+    #[test]
+    fn besy_non_finite_inputs_return_invalid_input() {
+        let nan = f64::NAN;
+        let inf = f64::INFINITY;
+        let mut y = [Complex64::new(0.0, 0.0)];
+        for z in [
+            Complex64::new(nan, 0.0),
+            Complex64::new(0.0, nan),
+            Complex64::new(nan, nan),
+            Complex64::new(inf, 0.0),
+        ] {
+            assert!(matches!(
+                zbesy(z, 1.0, Scaling::Unscaled, &mut y),
+                Err(Error::InvalidInput)
+            ));
+        }
+        let z = Complex64::new(1.0, 1.0);
+        for fnu in [nan, inf] {
+            assert!(matches!(
+                zbesy(z, fnu, Scaling::Unscaled, &mut y),
+                Err(Error::InvalidInput)
+            ));
+        }
+    }
+
+    #[test]
+    fn besy_reports_reduced_accuracy_for_large_argument() {
+        // |z| > sqrt(aa) ≈ 32767 (f64) means more than half of the significant
+        // digits may be lost (Fortran IERR=3). zbesy used to discard the
+        // delegate statuses and always report Normal.
+        let mut y = [Complex64::new(0.0, 0.0)];
+        let (_, status) =
+            zbesy(Complex64::new(40000.0, 0.0), 0.0, Scaling::Unscaled, &mut y).unwrap();
+        assert_eq!(status, Accuracy::Reduced);
+
+        let (_, status) = zbesy(Complex64::new(1.0, 1.0), 0.0, Scaling::Unscaled, &mut y).unwrap();
+        assert_eq!(status, Accuracy::Normal);
+    }
+
+    #[test]
+    fn besy_large_finite_order_returns_total_precision_loss() {
+        // fnu >= 2^31 used to panic at fnu.to_i32().unwrap() because zbesy
+        // had no range check of its own before delegating to zbesi/zbesk.
+        let z = Complex64::new(1.0, 1.0);
+        let mut y = [Complex64::new(0.0, 0.0)];
+        assert!(matches!(
+            zbesy(z, 3.0e9, Scaling::Unscaled, &mut y),
+            Err(Error::TotalPrecisionLoss)
+        ));
     }
 }

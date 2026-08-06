@@ -30,7 +30,7 @@ use crate::utils::zabs;
 /// indicates precision quality.
 ///
 /// # Errors
-/// - `InvalidInput`: z = 0, ν < 0, or n < 1
+/// - `InvalidInput`: non-finite z or ν, z = 0, ν < 0, or n < 1
 /// - `Overflow`: |z| too small or result magnitude overflow
 /// - `TotalPrecisionLoss`: complete loss of significance
 /// - `ConvergenceFailure`: algorithm did not converge
@@ -53,6 +53,11 @@ pub(crate) fn zbesk<T: BesselFloat>(
         return Err(Error::InvalidInput);
     }
     if z == czero {
+        return Err(Error::InvalidInput);
+    }
+    // Reject non-finite inputs: NaN passes every ordered comparison below,
+    // then panics at to_i32() deep in the algorithm chain (e.g. zbknu).
+    if !z.re.is_finite() || !z.im.is_finite() || !fnu.is_finite() {
         return Err(Error::InvalidInput);
     }
 
@@ -206,5 +211,30 @@ mod tests {
             zbesk(z, 0.0, Scaling::Unscaled, &mut buf),
             Err(Error::InvalidInput)
         ));
+    }
+
+    #[test]
+    fn besk_non_finite_inputs_return_invalid_input() {
+        let nan = f64::NAN;
+        let inf = f64::INFINITY;
+        let mut buf = [Complex64::new(0.0, 0.0)];
+        for z in [
+            Complex64::new(nan, 0.0),
+            Complex64::new(0.0, nan),
+            Complex64::new(nan, nan),
+            Complex64::new(inf, 0.0),
+        ] {
+            assert!(matches!(
+                zbesk(z, 1.0, Scaling::Unscaled, &mut buf),
+                Err(Error::InvalidInput)
+            ));
+        }
+        let z = Complex64::new(1.0, 1.0);
+        for fnu in [nan, inf] {
+            assert!(matches!(
+                zbesk(z, fnu, Scaling::Unscaled, &mut buf),
+                Err(Error::InvalidInput)
+            ));
+        }
     }
 }

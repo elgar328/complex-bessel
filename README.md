@@ -20,7 +20,7 @@ Pure Rust implementation of complex Bessel functions based on **Amos Algorithm 6
 
 ```toml
 [dependencies]
-complex-bessel = "0.2"
+complex-bessel = "0.3"
 ```
 
 ```rust
@@ -93,7 +93,7 @@ All functions return `Result<_, Error>`. The four error variants are:
 
 | Variant | Cause |
 |---------|-------|
-| `InvalidInput` | z = 0 for K/Y/H, n < 1 |
+| `InvalidInput` | non-finite z or ν, z = 0 for K/Y/H, n < 1 |
 | `Overflow` | \|z\| or \|ν\| too large (or \|z\| too small) for finite result |
 | `TotalPrecisionLoss` | \|z\| or \|ν\| too large for meaningful computation |
 | `ConvergenceFailure` | Internal algorithm did not converge |
@@ -110,10 +110,10 @@ The 24 single-value functions include 12 Bessel (J/Y/I/K/H<sup>(1)</sup>/H<sup>(
 
 ```toml
 # Bare no_std — no allocator needed:
-complex-bessel = { version = "0.1", default-features = false }
+complex-bessel = { version = "0.3", default-features = false }
 
 # no_std + alloc — full API:
-complex-bessel = { version = "0.1", default-features = false, features = ["alloc"] }
+complex-bessel = { version = "0.3", default-features = false, features = ["alloc"] }
 ```
 
 ## Accuracy & performance
