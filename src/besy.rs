@@ -68,6 +68,16 @@ pub(crate) fn zbesy<T: BesselFloat>(
         return Err(Error::TotalPrecisionLoss);
     }
 
+    // Partial precision loss (Fortran IERR=3). The delegates zbesi/zbesk hit
+    // the same condition (|zn| == |z|), but their statuses are not returned,
+    // so compute it here like the other upper interfaces do.
+    let aa_sqrt = aa.sqrt();
+    let status = if az > aa_sqrt || fn_val > aa_sqrt {
+        Accuracy::Reduced
+    } else {
+        Accuracy::Normal
+    };
+
     // Rotate argument: zn = (zz.im, -zz.re) where zz = z with Im >= 0
     // (Fortran lines 1349-1353)
     let zn = Complex::new(z.im.abs(), -z.re);
@@ -110,7 +120,7 @@ pub(crate) fn zbesy<T: BesselFloat>(
             // Conjugate if original Im(z) < 0 (Fortran lines 1390-1394)
             y[0] = if z.im < zero { cy_val.conj() } else { cy_val };
 
-            return Ok((nz, Accuracy::Normal));
+            return Ok((nz, status));
         }
 
         // KODE=2: scaled version with underflow protection (Fortran lines 1396-1456)
@@ -154,7 +164,7 @@ pub(crate) fn zbesy<T: BesselFloat>(
 
         let nz_out = if cy_val == czero && ey == zero { 1 } else { 0 };
 
-        return Ok((nz_out, Accuracy::Normal));
+        return Ok((nz_out, status));
     }
 
     // For n > 1: requires alloc feature
@@ -189,7 +199,7 @@ pub(crate) fn zbesy<T: BesselFloat>(
                 }
             }
 
-            return Ok((nz, Accuracy::Normal));
+            return Ok((nz, status));
         }
 
         // KODE=2: scaled version with underflow protection (Fortran lines 1396-1456)
@@ -242,7 +252,7 @@ pub(crate) fn zbesy<T: BesselFloat>(
             cspn = mul_neg_i(cspn);
         }
 
-        Ok((nz_out, Accuracy::Normal))
+        Ok((nz_out, status))
     }
 
     #[cfg(not(feature = "alloc"))]
@@ -289,6 +299,20 @@ mod tests {
                 Err(Error::InvalidInput)
             ));
         }
+    }
+
+    #[test]
+    fn besy_reports_reduced_accuracy_for_large_argument() {
+        // |z| > sqrt(aa) ≈ 32767 (f64) means more than half of the significant
+        // digits may be lost (Fortran IERR=3). zbesy used to discard the
+        // delegate statuses and always report Normal.
+        let mut y = [Complex64::new(0.0, 0.0)];
+        let (_, status) =
+            zbesy(Complex64::new(40000.0, 0.0), 0.0, Scaling::Unscaled, &mut y).unwrap();
+        assert_eq!(status, Accuracy::Reduced);
+
+        let (_, status) = zbesy(Complex64::new(1.0, 1.0), 0.0, Scaling::Unscaled, &mut y).unwrap();
+        assert_eq!(status, Accuracy::Normal);
     }
 
     #[test]

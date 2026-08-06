@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Return `Error::TotalPrecisionLoss` from Y functions for finite orders
   ν ≥ 2³¹ instead of panicking (`zbesy` lacked the range check the other
   upper interfaces have).
+- Report `Accuracy::Reduced` from Y functions when |z| or ν exceeds the
+  half-precision threshold (~32767 for f64), matching the other functions
+  and Fortran ZBESY's IERR=3; previously the status was always `Normal`.
 
 ### Changed
 
