@@ -126,7 +126,7 @@ Since this library is a Rust translation of AMOS/TOMS 644, the two should produc
 
 [![Rust vs Fortran — relative error](https://raw.githubusercontent.com/elgar328/complex-bessel-test/main/images/fidelity.svg)](https://github.com/elgar328/complex-bessel-test/blob/main/images/fidelity.pdf)
 
-Median evaluation time per function call — the average speedup is shown in the chart title, regenerated from each benchmark run:
+Median evaluation time per function call.
 
 [![Performance — median time per call](https://raw.githubusercontent.com/elgar328/complex-bessel-test/main/images/eval_time.svg)](https://github.com/elgar328/complex-bessel-test/blob/main/images/eval_time.pdf)
 
