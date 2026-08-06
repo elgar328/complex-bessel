@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Reject non-finite inputs (NaN or infinite z/ν) with `Error::InvalidInput`
+  instead of panicking at internal `to_i32().unwrap()` calls (all Bessel
+  functions).
+- Return `Error::TotalPrecisionLoss` from Y functions for finite orders
+  ν ≥ 2³¹ instead of panicking (`zbesy` lacked the range check the other
+  upper interfaces have).
+
+### Changed
+
+- Infinite z or ν now classifies as `Error::InvalidInput` instead of
+  `Error::TotalPrecisionLoss` (Bessel and Airy functions).
+- Airy functions now return `Error::InvalidInput` for NaN z instead of
+  silently returning `Ok(NaN)`.
+
 ## [0.2.0] - 2026-02-28
 
 ### Changed

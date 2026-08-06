@@ -58,6 +58,11 @@ pub(crate) fn zbesh<T: BesselFloat>(
     if z == czero {
         return Err(Error::InvalidInput);
     }
+    // Reject non-finite inputs: NaN passes every ordered comparison below,
+    // then panics at to_i32() deep in the algorithm chain (e.g. zbknu).
+    if !z.re.is_finite() || !z.im.is_finite() || !fnu.is_finite() {
+        return Err(Error::InvalidInput);
+    }
 
     let nn = n;
 
@@ -204,7 +209,7 @@ pub(crate) fn zbesh<T: BesselFloat>(
     let sgn = hpi_t.copysign(-fmm); // sign(HPI, -FMM)
 
     // Decompose FNU for precision: inu, inuh, ir (Fortran lines 296-299)
-    // Safety: fnu is finite and < ~1e15 per upper-interface checks
+    // Safety: fnu is finite (checked above) and <= aa < i32::MAX per range check
     let inu = fnu.to_i32().unwrap();
     let inuh = inu / 2;
     let ir = inu - 2 * inuh; // 0 or 1
@@ -288,6 +293,33 @@ mod tests {
             zbesh(z, 0.0, HankelKind::First, Scaling::Unscaled, &mut y),
             Err(Error::InvalidInput)
         ));
+    }
+
+    #[test]
+    fn besh_non_finite_inputs_return_invalid_input() {
+        let nan = f64::NAN;
+        let inf = f64::INFINITY;
+        let mut y = [Complex64::new(0.0, 0.0)];
+        for kind in [HankelKind::First, HankelKind::Second] {
+            for z in [
+                Complex64::new(nan, 0.0),
+                Complex64::new(0.0, nan),
+                Complex64::new(nan, nan),
+                Complex64::new(inf, 0.0),
+            ] {
+                assert!(matches!(
+                    zbesh(z, 1.0, kind, Scaling::Unscaled, &mut y),
+                    Err(Error::InvalidInput)
+                ));
+            }
+            let z = Complex64::new(1.0, 1.0);
+            for fnu in [nan, inf] {
+                assert!(matches!(
+                    zbesh(z, fnu, kind, Scaling::Unscaled, &mut y),
+                    Err(Error::InvalidInput)
+                ));
+            }
+        }
     }
 
     // ── Basic correctness ──

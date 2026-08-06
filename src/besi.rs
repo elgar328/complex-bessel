@@ -33,6 +33,11 @@ pub(crate) fn zbesi<T: BesselFloat>(
     if fnu < zero {
         return Err(Error::InvalidInput);
     }
+    // Reject non-finite inputs: NaN passes every ordered comparison below,
+    // then panics at to_i32() deep in the algorithm chain (e.g. zmlri).
+    if !z.re.is_finite() || !z.im.is_finite() || !fnu.is_finite() {
+        return Err(Error::InvalidInput);
+    }
 
     // Machine constants (Fortran lines 535-547)
     let tol = T::tol();
@@ -60,7 +65,7 @@ pub(crate) fn zbesi<T: BesselFloat>(
     let (zn, mut csgn) = if z.re < zero {
         // Left half-plane: use I(fnu, -z) * exp(fnu*pi*i)
         // CSGN = exp(fnu*pi*i) with precision preservation (Fortran lines 572-579)
-        // Safety: fnu is finite and < ~1e15 per upper-interface checks
+        // Safety: fnu is finite (checked above) and <= aa < i32::MAX per range check
         let inu = fnu.to_i32().unwrap();
         let mut arg = (fnu - T::from_f64(inu as f64)) * pi_t;
         if z.im < zero {
@@ -122,5 +127,30 @@ mod tests {
         let z = Complex64::new(1.0, 0.0);
         assert!(zbesi(z, -1.0, Scaling::Unscaled, &mut [Complex64::new(0.0, 0.0)]).is_err());
         assert!(zbesi(z, 0.0, Scaling::Unscaled, &mut []).is_err());
+    }
+
+    #[test]
+    fn besi_non_finite_inputs_return_invalid_input() {
+        let nan = f64::NAN;
+        let inf = f64::INFINITY;
+        let mut y = [Complex64::new(0.0, 0.0)];
+        for z in [
+            Complex64::new(nan, 0.0),
+            Complex64::new(0.0, nan),
+            Complex64::new(nan, nan),
+            Complex64::new(inf, 0.0),
+        ] {
+            assert!(matches!(
+                zbesi(z, 1.0, Scaling::Unscaled, &mut y),
+                Err(Error::InvalidInput)
+            ));
+        }
+        let z = Complex64::new(1.0, 1.0);
+        for fnu in [nan, inf] {
+            assert!(matches!(
+                zbesi(z, fnu, Scaling::Unscaled, &mut y),
+                Err(Error::InvalidInput)
+            ));
+        }
     }
 }

@@ -93,7 +93,7 @@ All functions return `Result<_, Error>`. The four error variants are:
 
 | Variant | Cause |
 |---------|-------|
-| `InvalidInput` | z = 0 for K/Y/H, n < 1 |
+| `InvalidInput` | non-finite z or ν, z = 0 for K/Y/H, n < 1 |
 | `Overflow` | \|z\| or \|ν\| too large (or \|z\| too small) for finite result |
 | `TotalPrecisionLoss` | \|z\| or \|ν\| too large for meaningful computation |
 | `ConvergenceFailure` | Internal algorithm did not converge |

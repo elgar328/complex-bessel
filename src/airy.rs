@@ -122,6 +122,12 @@ pub(crate) fn zairy<T: BesselFloat>(
     let coef = T::from_f64(AI_COEF);
     let czero = Complex::new(zero, zero);
 
+    // Reject non-finite inputs: NaN passes every ordered comparison below
+    // and would silently propagate through the power-series path.
+    if !z.re.is_finite() || !z.im.is_finite() {
+        return Err(Error::InvalidInput);
+    }
+
     let az = zabs(z);
     let tol = T::tol();
     let fid = if id == AiryDerivative::Derivative {
@@ -383,6 +389,12 @@ pub(crate) fn zbiry<T: BesselFloat>(
     let coef = T::from_f64(BI_COEF);
     let pi_t = T::from_f64(PI);
 
+    // Reject non-finite inputs: NaN passes every ordered comparison below
+    // and would silently propagate through the power-series path.
+    if !z.re.is_finite() || !z.im.is_finite() {
+        return Err(Error::InvalidInput);
+    }
+
     let az = zabs(z);
     let tol = T::tol();
     let fid = if id == AiryDerivative::Derivative {
@@ -552,6 +564,30 @@ fn zbiry_large_z<T: BesselFloat>(
 mod tests {
     use super::*;
     use num_complex::Complex64;
+
+    // ── Input validation ──
+
+    #[test]
+    fn airy_non_finite_inputs_return_invalid_input() {
+        let nan = f64::NAN;
+        let inf = f64::INFINITY;
+        for z in [
+            Complex64::new(nan, 0.0),
+            Complex64::new(0.0, nan),
+            Complex64::new(nan, nan),
+            Complex64::new(inf, 0.0),
+            Complex64::new(0.0, -inf),
+        ] {
+            assert!(matches!(
+                zairy(z, AiryDerivative::Value, Scaling::Unscaled),
+                Err(Error::InvalidInput)
+            ));
+            assert!(matches!(
+                zbiry(z, AiryDerivative::Value, Scaling::Unscaled),
+                Err(Error::InvalidInput)
+            ));
+        }
+    }
 
     // ── ZAIRY tests ──
 
