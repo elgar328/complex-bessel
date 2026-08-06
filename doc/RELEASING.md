@@ -15,13 +15,20 @@
 
 2. **Finalize version**
    - Remove the `-dev` suffix from `version` in `Cargo.toml` (e.g., `X.Y.Z-dev` → `X.Y.Z`).
+   - Update the version strings in the install snippets (they use `"X.Y"`, so
+     this is only needed when the minor version changes):
+     - `README.md` — Quick start (`complex-bessel = "X.Y"`) and the two
+       `default-features = false` lines in the no_std section
+     - `src/lib.rs` — the same two no_std snippet lines in the crate-level docs
 
 3. **Run checks**
    ```bash
    cargo check
    cargo fmt --check
-   cargo clippy -- -D warnings
+   cargo clippy --all-targets -- -D warnings
    cargo test
+   cargo test --no-default-features
+   cargo test --no-default-features --features alloc
    ```
 
 4. **Commit on `dev`**

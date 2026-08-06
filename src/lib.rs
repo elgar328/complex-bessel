@@ -129,10 +129,10 @@
 //!
 //! ```toml
 //! # Bare no_std — no allocator needed:
-//! complex-bessel = { version = "0.1", default-features = false }
+//! complex-bessel = { version = "0.2", default-features = false }
 //!
 //! # no_std + alloc — full API:
-//! complex-bessel = { version = "0.1", default-features = false, features = ["alloc"] }
+//! complex-bessel = { version = "0.2", default-features = false, features = ["alloc"] }
 //! ```
 
 #![warn(missing_docs)]
@@ -2081,6 +2081,7 @@ mod neg_order_seq_tests {
     }
 
     /// Verify _seq(ν, z, n)[j] == single_value(ν+j, z) for all j.
+    #[allow(clippy::too_many_arguments)]
     fn check_seq_vs_single<F, G>(
         seq_fn: F,
         single_fn: G,
@@ -2115,7 +2116,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(1.5, 0.5);
         check_seq_vs_single(
             besselk_seq,
-            |nu, z| besselk(nu, z),
+            besselk,
             -3.7,
             z,
             3,
@@ -2130,7 +2131,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(1.5, 0.5);
         check_seq_vs_single(
             besselk_seq,
-            |nu, z| besselk(nu, z),
+            besselk,
             -1.5,
             z,
             5,
@@ -2145,7 +2146,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(1.5, 0.5);
         check_seq_vs_single(
             besselk_seq,
-            |nu, z| besselk(nu, z),
+            besselk,
             -3.0,
             z,
             4,
@@ -2160,7 +2161,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(1.5, 0.5);
         check_seq_vs_single(
             besselk_seq,
-            |nu, z| besselk(nu, z),
+            besselk,
             -2.0,
             z,
             5,
@@ -2175,7 +2176,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(1.0, 0.0);
         check_seq_vs_single(
             besselk_seq,
-            |nu, z| besselk(nu, z),
+            besselk,
             -0.0,
             z,
             1,
@@ -2192,7 +2193,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(1.5, 0.5);
         check_seq_vs_single(
             hankel1_seq,
-            |nu, z| hankel1(nu, z),
+            hankel1,
             -3.7,
             z,
             3,
@@ -2207,7 +2208,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(1.5, 0.5);
         check_seq_vs_single(
             hankel1_seq,
-            |nu, z| hankel1(nu, z),
+            hankel1,
             -1.5,
             z,
             5,
@@ -2222,7 +2223,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(1.5, 0.5);
         check_seq_vs_single(
             hankel1_seq,
-            |nu, z| hankel1(nu, z),
+            hankel1,
             -2.0,
             z,
             5,
@@ -2239,7 +2240,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(1.5, 0.5);
         check_seq_vs_single(
             hankel2_seq,
-            |nu, z| hankel2(nu, z),
+            hankel2,
             -3.7,
             z,
             3,
@@ -2254,7 +2255,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(1.5, 0.5);
         check_seq_vs_single(
             hankel2_seq,
-            |nu, z| hankel2(nu, z),
+            hankel2,
             -1.5,
             z,
             5,
@@ -2269,7 +2270,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(1.5, 0.5);
         check_seq_vs_single(
             hankel2_seq,
-            |nu, z| hankel2(nu, z),
+            hankel2,
             -2.0,
             z,
             5,
@@ -2286,7 +2287,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(1.5, 0.5);
         check_seq_vs_single(
             besselj_seq,
-            |nu, z| besselj(nu, z),
+            besselj,
             -3.7,
             z,
             3,
@@ -2301,7 +2302,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(1.5, 0.5);
         check_seq_vs_single(
             besselj_seq,
-            |nu, z| besselj(nu, z),
+            besselj,
             -1.5,
             z,
             5,
@@ -2316,7 +2317,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(1.5, 0.5);
         check_seq_vs_single(
             besselj_seq,
-            |nu, z| besselj(nu, z),
+            besselj,
             -3.0,
             z,
             4,
@@ -2331,7 +2332,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(1.5, 0.5);
         check_seq_vs_single(
             besselj_seq,
-            |nu, z| besselj(nu, z),
+            besselj,
             -2.0,
             z,
             5,
@@ -2348,7 +2349,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(1.5, 0.5);
         check_seq_vs_single(
             bessely_seq,
-            |nu, z| bessely(nu, z),
+            bessely,
             -3.7,
             z,
             3,
@@ -2363,7 +2364,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(1.5, 0.5);
         check_seq_vs_single(
             bessely_seq,
-            |nu, z| bessely(nu, z),
+            bessely,
             -1.5,
             z,
             5,
@@ -2378,7 +2379,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(1.5, 0.5);
         check_seq_vs_single(
             bessely_seq,
-            |nu, z| bessely(nu, z),
+            bessely,
             -3.0,
             z,
             4,
@@ -2393,7 +2394,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(1.5, 0.5);
         check_seq_vs_single(
             bessely_seq,
-            |nu, z| bessely(nu, z),
+            bessely,
             -2.0,
             z,
             5,
@@ -2410,7 +2411,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(1.5, 0.5);
         check_seq_vs_single(
             besseli_seq,
-            |nu, z| besseli(nu, z),
+            besseli,
             -3.7,
             z,
             3,
@@ -2425,7 +2426,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(1.5, 0.5);
         check_seq_vs_single(
             besseli_seq,
-            |nu, z| besseli(nu, z),
+            besseli,
             -1.5,
             z,
             5,
@@ -2440,7 +2441,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(1.5, 0.5);
         check_seq_vs_single(
             besseli_seq,
-            |nu, z| besseli(nu, z),
+            besseli,
             -3.0,
             z,
             4,
@@ -2455,7 +2456,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(1.5, 0.5);
         check_seq_vs_single(
             besseli_seq,
-            |nu, z| besseli(nu, z),
+            besseli,
             -2.0,
             z,
             5,
@@ -2472,7 +2473,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(2.0, 1.0);
         check_seq_vs_single(
             besseli_seq,
-            |nu, z| besseli_scaled(nu, z),
+            besseli_scaled,
             -2.3,
             z,
             5,
@@ -2487,7 +2488,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(2.0, 1.0);
         check_seq_vs_single(
             besselj_seq,
-            |nu, z| besselj_scaled(nu, z),
+            besselj_scaled,
             -1.5,
             z,
             4,
@@ -2502,7 +2503,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(2.0, 1.0);
         check_seq_vs_single(
             besselk_seq,
-            |nu, z| besselk_scaled(nu, z),
+            besselk_scaled,
             -2.5,
             z,
             4,
@@ -2517,7 +2518,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(2.0, 1.0);
         check_seq_vs_single(
             hankel1_seq,
-            |nu, z| hankel1_scaled(nu, z),
+            hankel1_scaled,
             -2.5,
             z,
             4,
@@ -2532,7 +2533,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(2.0, 1.0);
         check_seq_vs_single(
             bessely_seq,
-            |nu, z| bessely_scaled(nu, z),
+            bessely_scaled,
             -1.5,
             z,
             4,
@@ -2549,7 +2550,7 @@ mod neg_order_seq_tests {
         let z = Complex64::new(1.0, 0.0);
         check_seq_vs_single(
             besselj_seq,
-            |nu, z| besselj(nu, z),
+            besselj,
             -0.0,
             z,
             3,
