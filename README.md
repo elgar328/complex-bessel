@@ -20,7 +20,7 @@ Pure Rust implementation of complex Bessel functions based on **Amos Algorithm 6
 
 ```toml
 [dependencies]
-complex-bessel = "0.2"
+complex-bessel = "0.3"
 ```
 
 ```rust
@@ -110,10 +110,10 @@ The 24 single-value functions include 12 Bessel (J/Y/I/K/H<sup>(1)</sup>/H<sup>(
 
 ```toml
 # Bare no_std — no allocator needed:
-complex-bessel = { version = "0.2", default-features = false }
+complex-bessel = { version = "0.3", default-features = false }
 
 # no_std + alloc — full API:
-complex-bessel = { version = "0.2", default-features = false, features = ["alloc"] }
+complex-bessel = { version = "0.3", default-features = false, features = ["alloc"] }
 ```
 
 ## Accuracy & performance

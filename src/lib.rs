@@ -129,10 +129,10 @@
 //!
 //! ```toml
 //! # Bare no_std — no allocator needed:
-//! complex-bessel = { version = "0.2", default-features = false }
+//! complex-bessel = { version = "0.3", default-features = false }
 //!
 //! # no_std + alloc — full API:
-//! complex-bessel = { version = "0.2", default-features = false, features = ["alloc"] }
+//! complex-bessel = { version = "0.3", default-features = false, features = ["alloc"] }
 //! ```
 
 #![warn(missing_docs)]
