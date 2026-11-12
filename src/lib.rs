@@ -2123,14 +2123,13 @@ mod seq_tests {
     {
         let result = seq_fn(nu, z, n, scaling).unwrap();
         assert_eq!(result.values.len(), n, "{label}: wrong length");
-        for j in 0..n {
+        for (j, &got) in result.values.iter().enumerate() {
             let order = nu + j as f64;
             let expected = single_fn(order, z).unwrap();
-            let err = rel_err(result.values[j], expected);
+            let err = rel_err(got, expected);
             assert!(
                 err < tol,
-                "{label}: order={order}, seq={:?}, single={expected:?}, rel_err={err}",
-                result.values[j]
+                "{label}: order={order}, seq={got:?}, single={expected:?}, rel_err={err}"
             );
         }
     }
