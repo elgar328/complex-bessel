@@ -95,7 +95,9 @@ pub(crate) fn zbesk<T: BesselFloat>(
     let mut nn = n;
     let mut nz: usize = 0;
 
-    if fn_val > fnul {
+    // Fortran tests FNU (the lowest order), not FN: ZBUNK starts its
+    // uniform expansion at FNU, which is only accurate for FNU > FNUL.
+    if fnu > fnul {
         // ── Large order path: uniform asymptotics (ZBUNK) ──
         // Fortran ZBESK label 80-90 (zbsubs.f lines 1149-1159)
         let mr = if z.re >= zero {
@@ -137,6 +139,12 @@ pub(crate) fn zbesk<T: BesselFloat>(
             nz += nuf as usize;
             nn -= nuf as usize;
             if nn == 0 {
+                // Fortran label 100: ZUOIK tests K at -z for Re(z) < 0; K(-z)
+                // underflowing means I(-z), and so the continuation, overflows
+                // (IERR=2)
+                if z.re < zero {
+                    return Err(Error::Overflow);
+                }
                 // All members underflowed; y is already zeroed by zuoik.
                 let status = if precision_warning {
                     Accuracy::Reduced
@@ -145,10 +153,8 @@ pub(crate) fn zbesk<T: BesselFloat>(
                 };
                 return Ok((nz, status));
             }
-        }
-
-        // Check for overflow: -FN * ln(0.5 * |z|) > ELIM
-        if az <= tol {
+        } else if az <= tol {
+            // 1 < FN <= 2: check for overflow, -FN * ln(0.5 * |z|) > ELIM
             let half = T::from_f64(0.5);
             let aln = -(fn_val * (half * az).ln());
             if aln > elim {
@@ -163,7 +169,11 @@ pub(crate) fn zbesk<T: BesselFloat>(
         let nw = zbknu(z, fnu, scaling, &mut y[..nn], tol, elim, alim)?;
         nz += nw;
     } else {
-        // Left half-plane: analytic continuation (ZACON)
+        // Left half-plane: analytic continuation (ZACON).
+        // Fortran label 70: any underflow reported by ZUOIK means overflow here.
+        if nz != 0 {
+            return Err(Error::Overflow);
+        }
         let mr = if z.im < T::zero() { -1i32 } else { 1i32 };
         let nw = zacon(z, fnu, scaling, mr, &mut y[..nn], rl, fnul, tol, elim, alim)?;
         nz += nw;

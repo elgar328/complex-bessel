@@ -30,6 +30,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   values from the third element on (relative error around 1e-3, sometimes zeros)
   when the K argument has a real part above about 665 for f64 (64 for f32), where
   results approach the underflow limit. Single-value functions were not affected.
+- `besselk_seq` returned wrong values when ν is below about 86 (f64; 34 for f32)
+  but ν + n − 1 is above it, e.g. `besselk_seq(0.5, 2+i, 100)`, because it
+  applied the large-order expansion from the first order.
+- `besselk` and `besselk_seq` returned zeros instead of `Error::Overflow` for
+  Re z < 0 when the result overflows.
 - `besselj_seq`, `bessely_seq`, and `besseli_seq` no longer return
   `Error::Overflow` for negative integer orders when only orders below the
   requested range would overflow.
