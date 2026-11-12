@@ -160,20 +160,17 @@ pub(crate) fn zuoik<T: BesselFloat>(
     loop {
         gnu = fnu + T::from_f64((nn - 1) as f64);
 
-        let (phi2, aarg2);
-        if iform == 1 {
+        let (phi2, aarg2) = if iform == 1 {
             // ZUNIK call (Fortran lines 4122-4126)
             let result2 = zunik(zr, gnu, ikflg, SumOption::SkipSum, tol, None);
             cz = result2.zeta2 - result2.zeta1;
-            phi2 = result2.phi;
-            aarg2 = zero;
+            (result2.phi, zero)
         } else {
             // ZUNHJ call (Fortran lines 4129-4133)
             let result2 = zunhj(zn, gnu, SumOption::SkipSum, tol);
             cz = result2.zeta2 - result2.zeta1;
-            phi2 = result2.phi;
-            aarg2 = zabs(result2.arg);
-        }
+            (result2.phi, zabs(result2.arg))
+        };
 
         // Apply KODE adjustment (Fortran lines 4135-4137)
         if kode == Scaling::Exponential {

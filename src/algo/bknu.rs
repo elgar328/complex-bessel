@@ -107,21 +107,19 @@ pub(crate) fn zbknu<T: BesselFloat>(
         // ══════════════════════════════════════════════════════════════
         // SERIES FOR |Z| ≤ R1  (Fortran lines 82-216)
         // ══════════════════════════════════════════════════════════════
-        let mut fc = one;
         let rz_log = rz.ln();
         let fmu = rz_log * dnu;
         let (csh, cch) = zshch(fmu);
 
-        let smu;
-        if dnu != zero {
-            fc = dnu * T::from_f64(PI);
-            fc = fc / fc.sin();
-            smu = csh / dnu;
+        // FC = DNU·π / sin(DNU·π), SMU = sinh(FMU)/DNU
+        let (fc, smu) = if dnu != zero {
+            let dnu_pi = dnu * T::from_f64(PI);
+            (dnu_pi / dnu_pi.sin(), csh / dnu)
         } else {
-            // DNU=0: sinh(x·DNU)/DNU → x as DNU→0 by L'Hôpital.
+            // DNU=0: FC → 1, and sinh(x·DNU)/DNU → x as DNU→0 by L'Hôpital.
             // Fortran reuses SMUR/SMUI from ZLOG(RZ) here (variable reuse).
-            smu = rz_log;
-        }
+            (one, rz_log)
+        };
 
         let a2 = one + dnu;
         // T2 = 1/Γ(1+DNU), T1 = 1/Γ(1-DNU)
@@ -161,9 +159,8 @@ pub(crate) fn zbknu<T: BesselFloat>(
         let mut ck = Complex::from(one);
         let mut bk = one - dnu2;
 
-        let mut kflag: usize; // 0-based index into cssr/csrr arrays
-
-        if inu > 0 || n > 1 {
+        // KFLAG: 0-based index into cssr/csrr arrays
+        let kflag: usize = if inu > 0 || n > 1 {
             // ── Generate K(DNU,Z) and K(DNU+1,Z) for forward recurrence ──
             // (Fortran label 80-100)
             if caz >= tol {
@@ -187,11 +184,12 @@ pub(crate) fn zbknu<T: BesselFloat>(
             }
 
             // Scale and prepare for forward recurrence
-            kflag = 1; // KFLAG=2 in Fortran (0-based: 1)
             let a1_check = (fnu + one) * smu.re.abs();
-            if a1_check > alim {
-                kflag = 2; // KFLAG=3
-            }
+            let kflag = if a1_check > alim {
+                2 // KFLAG=3 in Fortran
+            } else {
+                1 // KFLAG=2 in Fortran
+            };
             let scale = cssr[kflag];
             let p2 = s2 * scale;
             s2 = p2 * rz;
@@ -202,6 +200,7 @@ pub(crate) fn zbknu<T: BesselFloat>(
                 s1 = s1 * ez;
                 s2 = s2 * ez;
             }
+            kflag
         } else {
             // ── Generate K(FNU,Z), 0 ≤ FNU < 0.5 and N=1 ──
             // (Fortran label 60-70)
@@ -230,7 +229,7 @@ pub(crate) fn zbknu<T: BesselFloat>(
                 y[0] = s1 * ez;
             }
             return Ok(nz);
-        }
+        };
 
         // ── Forward recurrence: label 210 ──
         return forward_recurrence(
@@ -250,21 +249,20 @@ pub(crate) fn zbknu<T: BesselFloat>(
 
     let mut kflag: usize = 1; // KFLAG=2 in Fortran
 
-    let coef;
-    if koded == Scaling::Unscaled {
+    let coef = if koded == Scaling::Unscaled {
         if z.re > alim {
             // Label 290: scale by exp(z), iflag=1
             koded = Scaling::Exponential;
             iflag = 1;
             kflag = 1; // stays KFLAG=2
-            coef = coef_base; // will apply exp later
+            coef_base // will apply exp later
         } else {
             // Multiply coef by exp(-z) * cssr[kflag]
-            coef = coef_base * (-z).exp() * cssr[kflag];
+            coef_base * (-z).exp() * cssr[kflag]
         }
     } else {
-        coef = coef_base;
-    }
+        coef_base
+    };
 
     // Check for DNU = ±0.5 special case (label 300)
     if dnu.abs() == half {
