@@ -47,7 +47,7 @@ pub(crate) fn zuoik<T: BesselFloat>(
     let mut nuf: i32 = 0;
     let mut nn = n;
 
-    // AIC = ln(sqrt(pi/2)) = 0.5*ln(pi/2) (Fortran line 4017)
+    // AIC = ln(2*sqrt(pi)) (Fortran line 4017)
     let aic = T::from_f64(AIC);
 
     // Reflect to right half plane (Fortran lines 4020-4026)

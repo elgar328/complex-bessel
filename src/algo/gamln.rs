@@ -147,9 +147,9 @@ pub(crate) fn gamln<T: BesselFloat>(z: T) -> Result<T, Error> {
     let zmin = T::from_f64(mz as f64);
 
     // If z < ZMIN, push z upward using the recursion Γ(z+n) = z(z+1)...(z+n-1)·Γ(z)
-    // Safety: z is checked > 0 at function entry and is finite
-    let nz_trunc = z.floor().to_i32().unwrap(); // integer part of original z
     let (zdmy, zinc) = if z < zmin {
+        // Safety: 0 < z < zmin (small), so its integer part fits in i32
+        let nz_trunc = z.floor().to_i32().unwrap(); // integer part of original z
         let zinc_val = T::from_f64((mz - nz_trunc) as f64);
         (z + zinc_val, zinc_val)
     } else {
@@ -250,6 +250,15 @@ mod tests {
         for k in 1..150 {
             expected += (k as f64).ln();
         }
+        assert!((val - expected).abs() / expected < 1e-14);
+    }
+
+    #[test]
+    fn gamln_huge_argument() {
+        // z >= 2^31: the integer part no longer fits in i32.
+        // Reference: Python math.lgamma(3e9)
+        let val = gamln(3.0e9_f64).unwrap();
+        let expected = 62465634366.85156_f64;
         assert!((val - expected).abs() / expected < 1e-14);
     }
 
