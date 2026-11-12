@@ -40,6 +40,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   applied the large-order expansion from the first order.
 - `besselk` and `besselk_seq` returned zeros instead of `Error::Overflow` for
   Re z < 0 when the result overflows.
+- An internal threshold test for results near the underflow and overflow limits
+  used a wrong phase, so some results were zero (or `Error::Overflow`) where
+  Amos's algorithm computes them, or the reverse:
+  - J, Y, I, K, and Hankel functions (single values and `_seq`, including
+    `underflow_count`) for magnitudes of about 1e-305 to 1e-289 for f64
+    (1e-35 to 1e-28 for f32).
+  - `besselk` and the Hankel functions without scaling, for magnitudes of about
+    1e289 to 1e304 for f64 (1e28 to 1e35 for f32) when Re z < 0 for K,
+    Im z < 0 for H(1), or Im z > 0 for H(2). Here the double-precision Fortran
+    evaluates the test in the wrong half plane and reports `Error::Overflow`
+    for many representable results; the crate follows Amos's single-precision
+    routines instead.
 - `besselj_seq`, `bessely_seq`, and `besseli_seq` no longer return
   `Error::Overflow` for negative integer orders when only orders below the
   requested range would overflow.
