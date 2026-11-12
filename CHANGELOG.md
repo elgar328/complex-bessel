@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `besselj_seq`, `bessely_seq`, `besseli_seq`, `hankel1_seq`, and `hankel2_seq`
+  returned wrong values for all but the last element when `n ≥ 3` and the
+  uniform asymptotic expansion was used (roughly when ν + n − 1 exceeds 86 for
+  f64, 34 for f32, and |z| is not small), while reporting `Accuracy::Normal`.
+  Single-value functions were not affected.
 - `besselj_seq`, `bessely_seq`, and `besseli_seq` no longer return
   `Error::Overflow` for negative integer orders when only orders below the
   requested range would overflow.

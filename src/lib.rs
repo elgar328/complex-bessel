@@ -2091,10 +2091,10 @@ mod non_finite_tests {
     }
 }
 
-// ── Tests for negative order _seq functions ──
+// ── Tests for _seq functions (negative orders, recurrence paths) ──
 
 #[cfg(all(test, feature = "alloc"))]
-mod neg_order_seq_tests {
+mod seq_tests {
     use super::*;
     use num_complex::Complex64;
 
