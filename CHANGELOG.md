@@ -16,8 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Complex division now uses Smith's algorithm instead of Amos's ZDIV. For f32,
   large-order results near the turning point (ν ≈ |z|) were up to several times
   less accurate than Amos's own single-precision routines; they now match them.
-  f64 results shift slightly (relative changes up to ~5e-13 in ill-conditioned
-  regions) and are on average marginally closer to high-precision references.
+  f64 results shift slightly and are on average marginally closer to
+  high-precision references. Relative changes reach ~3e-12 only in
+  ill-conditioned regions, where Amos's own routines err by a similar amount.
 
 ### Fixed
 
