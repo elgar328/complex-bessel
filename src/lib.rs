@@ -1193,6 +1193,10 @@ fn besselk_seq_neg<T: BesselFloat>(
     n: usize,
     scaling: Scaling,
 ) -> Result<BesselResult<T>, Error> {
+    // n = 0 would underflow the `n - 1` order arithmetic below
+    if n == 0 {
+        return Err(Error::InvalidInput);
+    }
     let zero = T::zero();
     let czero = Complex::new(zero, zero);
     let abs_nu = nu.abs();
@@ -1298,6 +1302,10 @@ fn hankel_seq_neg<T: BesselFloat>(
     n: usize,
     scaling: Scaling,
 ) -> Result<BesselResult<T>, Error> {
+    // n = 0 would underflow the `n - 1` order arithmetic below
+    if n == 0 {
+        return Err(Error::InvalidInput);
+    }
     let zero = T::zero();
     let czero = Complex::new(zero, zero);
     let abs_nu = nu.abs();
@@ -1392,6 +1400,10 @@ fn besselj_seq_neg<T: BesselFloat>(
     n: usize,
     scaling: Scaling,
 ) -> Result<BesselResult<T>, Error> {
+    // n = 0 would underflow the `n - 1` order arithmetic below
+    if n == 0 {
+        return Err(Error::InvalidInput);
+    }
     let zero = T::zero();
     let czero = Complex::new(zero, zero);
     let abs_nu = nu.abs();
@@ -1495,6 +1507,10 @@ fn bessely_seq_neg<T: BesselFloat>(
     n: usize,
     scaling: Scaling,
 ) -> Result<BesselResult<T>, Error> {
+    // n = 0 would underflow the `n - 1` order arithmetic below
+    if n == 0 {
+        return Err(Error::InvalidInput);
+    }
     let zero = T::zero();
     let czero = Complex::new(zero, zero);
     let abs_nu = nu.abs();
@@ -1595,6 +1611,10 @@ fn besseli_seq_neg<T: BesselFloat>(
     n: usize,
     scaling: Scaling,
 ) -> Result<BesselResult<T>, Error> {
+    // n = 0 would underflow the `n - 1` order arithmetic below
+    if n == 0 {
+        return Err(Error::InvalidInput);
+    }
     let zero = T::zero();
     let czero = Complex::new(zero, zero);
     let abs_nu = nu.abs();
@@ -2689,5 +2709,22 @@ mod neg_order_seq_tests {
             TOL,
             "J int all neg, large z",
         );
+    }
+
+    // ── Edge: n = 0 with negative ν ──
+
+    #[test]
+    fn seq_neg_n_zero_is_invalid_input() {
+        let z = Complex64::new(1.5, 0.5);
+        let s = Scaling::Unscaled;
+        // Non-integer and integer ν take different code paths
+        for nu in [-1.5, -2.0] {
+            assert_eq!(besselj_seq(nu, z, 0, s).unwrap_err(), Error::InvalidInput);
+            assert_eq!(bessely_seq(nu, z, 0, s).unwrap_err(), Error::InvalidInput);
+            assert_eq!(besseli_seq(nu, z, 0, s).unwrap_err(), Error::InvalidInput);
+            assert_eq!(besselk_seq(nu, z, 0, s).unwrap_err(), Error::InvalidInput);
+            assert_eq!(hankel1_seq(nu, z, 0, s).unwrap_err(), Error::InvalidInput);
+            assert_eq!(hankel2_seq(nu, z, 0, s).unwrap_err(), Error::InvalidInput);
+        }
     }
 }

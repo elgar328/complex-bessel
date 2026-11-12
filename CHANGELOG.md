@@ -19,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `besselj_seq`, `bessely_seq`, and `besseli_seq` no longer return
   `Error::Overflow` for negative integer orders when only orders below the
   requested range would overflow.
+- All `_seq` functions now return `Error::InvalidInput` for `n = 0` with negative
+  ν, as documented. Previously they panicked in debug builds; in release builds,
+  `besselj_seq`, `bessely_seq`, and `besseli_seq` returned an empty result for
+  integer ν.
 
 ## [0.3.0] - 2026-08-06
 
