@@ -225,8 +225,12 @@ pub(crate) fn zunk1<T: BesselFloat>(
 
         let mut rs1 = s1_last.re;
         if rs1.abs() > elim {
-            // label 95
-            if rs1.abs() > zero && rs1 > zero {
+            // label 95. Fortran line 5911 tests DABS(RS1).GT.0, which is always
+            // true here and makes the underflow branch below dead code; we test
+            // the sign as ZUNK2 (line 6396) does. Unreachable in practice: the
+            // loop above exits only after two consecutive lower orders are on
+            // scale, and |K| grows with order, so the last member cannot underflow.
+            if rs1 > zero {
                 return -1;
             }
             if z.re < zero {
