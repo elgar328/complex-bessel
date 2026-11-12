@@ -21,6 +21,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   uniform asymptotic expansion was used (roughly when ν + n − 1 exceeds 86 for
   f64, 34 for f32, and |z| is not small), while reporting `Accuracy::Normal`.
   Single-value functions were not affected.
+- `besselj_seq`, `bessely_seq`, `besseli_seq`, `hankel1_seq`, and `hankel2_seq`
+  could return elements off by a large factor (about 1/ε) for `n ≥ 3` when |z|
+  exceeds about 86 (f64; 34 for f32) and the values are large enough to trigger
+  internal rescaling (roughly above 1e289 for f64 and 1e28 for f32, so f32 was
+  affected far more often). Single-value functions were not affected.
 - `besselj_seq`, `bessely_seq`, and `besseli_seq` no longer return
   `Error::Overflow` for negative integer orders when only orders below the
   requested range would overflow.
