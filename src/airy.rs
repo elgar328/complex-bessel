@@ -254,10 +254,8 @@ fn zairy_large_z<T: BesselFloat>(
 
     // Range test (Fortran lines 1724-1728)
     let half = T::from_f64(0.5);
-    // Fortran: 0.5D0/TOL is capped at R1M5*(K1-1) where K1=I1MACH(15)
-    // For IEEE 754 f64: R1M5*(1023) = 307.95..., AA = 10^307.95 ≈ 8.9e307
-    // The literal 1073741823.5 = 2^30 - 0.5, used as a machine-safe upper bound
-    // (Fortran ZAIRY line 1724 / ZBIRY line 2116)
+    // AA = min(0.5/TOL, I1MACH(9)*0.5) with I1MACH(9) = 2^31 - 1, so the cap
+    // is 2^30 - 0.5 (Fortran ZAIRY lines 1724-1726 / ZBIRY lines 2116-2118)
     let mut aa = (half / tol).min(T::from_f64(1073741823.5));
     aa = aa.powf(tth);
     if az > aa {
@@ -303,8 +301,8 @@ fn zairy_large_z<T: BesselFloat>(
 
     // Re(zta) < 0 or Re(z) <= 0: analytic continuation via ZACAI
     if kode != Scaling::Exponential {
-        // Overflow test (Fortran lines 1757-1761)
-        if -aa_zta > alim {
+        // Overflow test (Fortran lines 1757-1761: skipped only if AA > -ALIM)
+        if aa_zta <= -alim {
             let test_val = -aa_zta + T::from_f64(0.25) * alaz;
             iflag = 1;
             sfac = tol;
@@ -479,10 +477,8 @@ fn zbiry_large_z<T: BesselFloat>(
     let fnul = T::fnul();
 
     // Range test (Fortran lines 2116-2122)
-    // Fortran: 0.5D0/TOL is capped at R1M5*(K1-1) where K1=I1MACH(15)
-    // For IEEE 754 f64: R1M5*(1023) = 307.95..., AA = 10^307.95 ≈ 8.9e307
-    // The literal 1073741823.5 = 2^30 - 0.5, used as a machine-safe upper bound
-    // (Fortran ZAIRY line 1724 / ZBIRY line 2116)
+    // AA = min(0.5/TOL, I1MACH(9)*0.5) with I1MACH(9) = 2^31 - 1, so the cap
+    // is 2^30 - 0.5 (Fortran ZAIRY lines 1724-1726 / ZBIRY lines 2116-2118)
     let mut aa = (half / tol).min(T::from_f64(1073741823.5));
     aa = aa.powf(tth);
     if az > aa {
