@@ -2842,10 +2842,11 @@ mod seq_tests {
     }
 
     /// f32 hits the scaling thresholds at |values| ≈ 1e28, so moderate |z|
-    /// exercises the rescaling branches. Near FNUL (≈ 34 for f32) both seq and
-    /// single values can be off by up to ~6e-2 against f64, so the tolerance only
-    /// separates that from misplaced or mis-scaled elements (O(1) or worse).
-    const TOL_GRID_F32: f64 = 0.2;
+    /// exercises the rescaling branches. Observed up to ~1.4e-4 on this grid;
+    /// misplaced or mis-scaled elements give O(1) error or worse. (Off this grid,
+    /// near the turning point ν ≈ |z| ≈ FNUL, Amos's single-precision algorithm
+    /// itself loses up to ~2e-2, so random points would need a looser bound.)
+    const TOL_GRID_F32: f64 = 1e-3;
 
     #[test]
     fn seq_matches_single_grid_f32() {
