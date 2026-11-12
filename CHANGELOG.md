@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `besselj_seq`, `bessely_seq`, and `besseli_seq` compute only the requested
+  orders when all of them are negative integers, so cost and memory scale with
+  `n` instead of |ν|. Very large |ν| now returns `Error::TotalPrecisionLoss`
+  immediately instead of first allocating a buffer of |ν| elements.
+
+### Fixed
+
+- `besselj_seq`, `bessely_seq`, and `besseli_seq` no longer return
+  `Error::Overflow` for negative integer orders when only orders below the
+  requested range would overflow.
+
 ## [0.3.0] - 2026-08-06
 
 ### Fixed

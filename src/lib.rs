@@ -1400,20 +1400,22 @@ fn besselj_seq_neg<T: BesselFloat>(
 
     if is_int {
         // Integer: J_{-n}(z) = (-1)^n J_n(z). Same lattice.
-        let last_order = nu + T::from_f64((n - 1) as f64);
-        let max_abs = if abs_nu > last_order {
-            abs_nu
+        let (min_abs, max_abs) = if nc == n {
+            // All orders negative: |orders| span [|ν|-(n-1), |ν|] (O(n) work)
+            (abs_nu - T::from_f64((n - 1) as f64), abs_nu)
         } else {
-            last_order
+            // Crossing zero: |orders| span [0, max(|ν|, ν+n-1)], all needed anyway
+            let last_order = nu + T::from_f64((n - 1) as f64);
+            (zero, abs_nu.max(last_order))
         };
-        let buf_n = max_abs.to_usize().unwrap_or(0) + 1;
+        let buf_n = (max_abs - min_abs).to_usize().unwrap_or(0) + 1;
         let mut buf = alloc_crate::vec![czero; buf_n];
-        let (_, status) = besj::zbesj(z, zero, scaling, &mut buf)?;
+        let (_, status) = besj::zbesj(z, min_abs, scaling, &mut buf)?;
 
         let mut values = alloc_crate::vec![czero; n];
         for j in 0..n {
             let order = nu + T::from_f64(j as f64);
-            let idx = order.abs().to_usize().unwrap_or(0);
+            let idx = (order.abs() - min_abs).to_usize().unwrap_or(0);
             values[j] = buf[idx];
             if order < zero {
                 let int_order = order.abs().to_i64().unwrap_or(0);
@@ -1500,20 +1502,22 @@ fn bessely_seq_neg<T: BesselFloat>(
     let is_int = as_integer(abs_nu).is_some();
 
     if is_int {
-        let last_order = nu + T::from_f64((n - 1) as f64);
-        let max_abs = if abs_nu > last_order {
-            abs_nu
+        let (min_abs, max_abs) = if nc == n {
+            // All orders negative: |orders| span [|ν|-(n-1), |ν|] (O(n) work)
+            (abs_nu - T::from_f64((n - 1) as f64), abs_nu)
         } else {
-            last_order
+            // Crossing zero: |orders| span [0, max(|ν|, ν+n-1)], all needed anyway
+            let last_order = nu + T::from_f64((n - 1) as f64);
+            (zero, abs_nu.max(last_order))
         };
-        let buf_n = max_abs.to_usize().unwrap_or(0) + 1;
+        let buf_n = (max_abs - min_abs).to_usize().unwrap_or(0) + 1;
         let mut buf = alloc_crate::vec![czero; buf_n];
-        let (_, status) = besy::zbesy(z, zero, scaling, &mut buf)?;
+        let (_, status) = besy::zbesy(z, min_abs, scaling, &mut buf)?;
 
         let mut values = alloc_crate::vec![czero; n];
         for j in 0..n {
             let order = nu + T::from_f64(j as f64);
-            let idx = order.abs().to_usize().unwrap_or(0);
+            let idx = (order.abs() - min_abs).to_usize().unwrap_or(0);
             values[j] = buf[idx];
             if order < zero {
                 let int_order = order.abs().to_i64().unwrap_or(0);
@@ -1599,20 +1603,22 @@ fn besseli_seq_neg<T: BesselFloat>(
 
     if is_int {
         // I_{-n} = I_n. Same lattice, no correction needed.
-        let last_order = nu + T::from_f64((n - 1) as f64);
-        let max_abs = if abs_nu > last_order {
-            abs_nu
+        let (min_abs, max_abs) = if nc == n {
+            // All orders negative: |orders| span [|ν|-(n-1), |ν|] (O(n) work)
+            (abs_nu - T::from_f64((n - 1) as f64), abs_nu)
         } else {
-            last_order
+            // Crossing zero: |orders| span [0, max(|ν|, ν+n-1)], all needed anyway
+            let last_order = nu + T::from_f64((n - 1) as f64);
+            (zero, abs_nu.max(last_order))
         };
-        let buf_n = max_abs.to_usize().unwrap_or(0) + 1;
+        let buf_n = (max_abs - min_abs).to_usize().unwrap_or(0) + 1;
         let mut buf = alloc_crate::vec![czero; buf_n];
-        let (_, status) = besi::zbesi(z, zero, scaling, &mut buf)?;
+        let (_, status) = besi::zbesi(z, min_abs, scaling, &mut buf)?;
 
         let mut values = alloc_crate::vec![czero; n];
         for j in 0..n {
             let order = nu + T::from_f64(j as f64);
-            let idx = order.abs().to_usize().unwrap_or(0);
+            let idx = (order.abs() - min_abs).to_usize().unwrap_or(0);
             values[j] = buf[idx];
         }
         let uc = recount_underflow(&values);
@@ -2557,6 +2563,131 @@ mod neg_order_seq_tests {
             Scaling::Unscaled,
             TOL,
             "J neg zero",
+        );
+    }
+
+    // ── Integer, all orders negative (start lattice at |ν|-(n-1), not 0) ──
+
+    #[test]
+    fn besselj_seq_int_all_negative() {
+        // Orders -3, -2, -1: highest order is -1, so the lattice starts at |order| = 1
+        let z = Complex64::new(1.5, 0.5);
+        check_seq_vs_single(
+            besselj_seq,
+            besselj,
+            -3.0,
+            z,
+            3,
+            Scaling::Unscaled,
+            TOL,
+            "J int all neg",
+        );
+    }
+
+    #[test]
+    fn besselj_seq_int_all_negative_single() {
+        let z = Complex64::new(1.5, 0.5);
+        check_seq_vs_single(
+            besselj_seq,
+            besselj,
+            -4.0,
+            z,
+            1,
+            Scaling::Unscaled,
+            TOL,
+            "J int all neg n=1",
+        );
+    }
+
+    #[test]
+    fn bessely_seq_int_all_negative() {
+        let z = Complex64::new(1.5, 0.5);
+        check_seq_vs_single(
+            bessely_seq,
+            bessely,
+            -3.0,
+            z,
+            3,
+            Scaling::Unscaled,
+            TOL,
+            "Y int all neg",
+        );
+    }
+
+    #[test]
+    fn besseli_seq_int_all_negative() {
+        let z = Complex64::new(1.5, 0.5);
+        check_seq_vs_single(
+            besseli_seq,
+            besseli,
+            -3.0,
+            z,
+            3,
+            Scaling::Unscaled,
+            TOL,
+            "I int all neg",
+        );
+    }
+
+    #[test]
+    fn bessely_seq_scaled_int_all_negative() {
+        let z = Complex64::new(1.5, 0.5);
+        check_seq_vs_single(
+            bessely_seq,
+            bessely_scaled,
+            -3.0,
+            z,
+            3,
+            Scaling::Exponential,
+            TOL,
+            "Y scaled int all neg",
+        );
+    }
+
+    #[test]
+    fn besseli_seq_scaled_int_all_negative() {
+        let z = Complex64::new(1.5, 0.5);
+        check_seq_vs_single(
+            besseli_seq,
+            besseli_scaled,
+            -3.0,
+            z,
+            3,
+            Scaling::Exponential,
+            TOL,
+            "I scaled int all neg",
+        );
+    }
+
+    // Orders below the requested range must not cause a spurious overflow:
+    // I_0(710) and I_1(710) overflow, but I_199(710) and I_200(710) are finite.
+    #[test]
+    fn besseli_seq_int_all_negative_no_spurious_overflow() {
+        let z = Complex64::new(710.0, 0.0);
+        check_seq_vs_single(
+            besseli_seq,
+            besseli,
+            -200.0,
+            z,
+            2,
+            Scaling::Unscaled,
+            TOL,
+            "I int all neg, large z",
+        );
+    }
+
+    #[test]
+    fn besselj_seq_int_all_negative_no_spurious_overflow() {
+        let z = Complex64::new(0.0, 710.0);
+        check_seq_vs_single(
+            besselj_seq,
+            besselj,
+            -200.0,
+            z,
+            2,
+            Scaling::Unscaled,
+            TOL,
+            "J int all neg, large z",
         );
     }
 }
