@@ -26,6 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   exceeds about 86 (f64; 34 for f32) and the values are large enough to trigger
   internal rescaling (roughly above 1e289 for f64 and 1e28 for f32, so f32 was
   affected far more often). Single-value functions were not affected.
+- `besselk_seq`, `hankel1_seq`, and `hankel2_seq` without scaling returned wrong
+  values from the third element on (relative error around 1e-3, sometimes zeros)
+  when the K argument has a real part above about 665 for f64 (64 for f32), where
+  results approach the underflow limit. Single-value functions were not affected.
 - `besselj_seq`, `bessely_seq`, and `besseli_seq` no longer return
   `Error::Overflow` for negative integer orders when only orders below the
   requested range would overflow.
