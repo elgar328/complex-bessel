@@ -129,10 +129,9 @@ pub(crate) fn zbknu<T: BesselFloat>(
         let t1 = one / (t2 * fc);
 
         // Compute G1 and G2
-        let g1;
-        if dnu.abs() > T::from_f64(0.1) {
+        let g1 = if dnu.abs() > T::from_f64(0.1) {
             // Large |DNU|: direct formula
-            g1 = (t1 - t2) / (dnu + dnu);
+            (t1 - t2) / (dnu + dnu)
         } else {
             // Small |DNU|: Chebyshev series for f_0
             let mut ak = one;
@@ -145,8 +144,8 @@ pub(crate) fn zbknu<T: BesselFloat>(
                     break;
                 }
             }
-            g1 = -s;
-        }
+            -s
+        };
         let g2 = (t1 + t2) * half;
 
         // F = FC * (CCH*G1 + SMU*G2)
@@ -305,10 +304,9 @@ pub(crate) fn zbknu<T: BesselFloat>(
         T::from_f64(HPI)
     };
 
-    let fk: T;
     let mut fhs_miller = fhs;
 
-    if t2_miller <= caz {
+    let fk = if t2_miller <= caz {
         // ── Forward recurrence to find backward index K (label 150) ──
         let etest = ak_val / (T::from_f64(PI) * caz * tol);
         let mut fk_val = one;
@@ -343,7 +341,7 @@ pub(crate) fn zbknu<T: BesselFloat>(
             fk_val = fk_val + T::from_f64(SPI) * t1_angle * (t2_miller / caz).sqrt();
             fhs_miller = (T::from_f64(0.25) - dnu2).abs();
         }
-        fk = fk_val;
+        fk_val
     } else {
         // ── Compute backward index K for |z| < R2 (label 170) ──
         let a2 = caz.sqrt();
@@ -352,8 +350,8 @@ pub(crate) fn zbknu<T: BesselFloat>(
         let aa = three * t1_angle / (one + caz);
         let bb = T::from_f64(14.7) * t1_angle / (T::from_f64(28.0) + caz);
         let ak_log = (ak_inner.ln() + caz * aa.cos() / (one + T::from_f64(0.008) * caz)) / bb.cos();
-        fk = T::from_f64(0.12125) * ak_log * ak_log / caz + T::from_f64(1.5);
-    }
+        T::from_f64(0.12125) * ak_log * ak_log / caz + T::from_f64(1.5)
+    };
 
     // ── Backward recurrence loop (Miller algorithm, label 180-190) ──
     // Safety: fk is a small positive integer derived from log-based formula
