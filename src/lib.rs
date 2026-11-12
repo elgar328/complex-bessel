@@ -2727,4 +2727,134 @@ mod seq_tests {
             assert_eq!(hankel2_seq(nu, z, 0, s).unwrap_err(), Error::InvalidInput);
         }
     }
+
+    // ── Seq/single consistency over a grid of regions ──
+    //
+    // Every element of a `_seq` result must match the single-value function at
+    // the same order. The grid spans negative and positive orders, small to
+    // near-overflow |z|, all four quadrants, and long sequences, so it reaches
+    // the recurrence, rescaling, and analytic-continuation paths that only run
+    // for n > 1.
+
+    type SeqFn<T> = fn(T, Complex<T>, usize, Scaling) -> Result<BesselResult<T>, Error>;
+    type SingleFn<T> = fn(T, Complex<T>) -> Result<Complex<T>, Error>;
+    /// (name, seq, single unscaled, single scaled)
+    type SeqCase<T> = (&'static str, SeqFn<T>, SingleFn<T>, SingleFn<T>);
+
+    fn seq_fns<T: BesselFloat>() -> [SeqCase<T>; 6] {
+        [
+            ("J", besselj_seq, besselj, besselj_scaled),
+            ("Y", bessely_seq, bessely, bessely_scaled),
+            ("I", besseli_seq, besseli, besseli_scaled),
+            ("K", besselk_seq, besselk, besselk_scaled),
+            ("H1", hankel1_seq, hankel1, hankel1_scaled),
+            ("H2", hankel2_seq, hankel2, hankel2_scaled),
+        ]
+    }
+
+    /// Compare seq[j] with single(ν+j) for every (ν, |z|, arg z) on the grid.
+    /// Elements whose single value is an error, non-finite, or below 1e3 times
+    /// the smallest normal number are skipped, as are sequences that fail as a
+    /// whole.
+    fn check_seq_grid<T: BesselFloat>(
+        nus: &[f64],
+        radii: &[f64],
+        args: &[f64],
+        n: usize,
+        tol: f64,
+    ) {
+        let floor = T::MACH_TINY * T::from_f64(1e3);
+        for (name, seq, single, single_scaled) in seq_fns::<T>() {
+            for scaling in [Scaling::Unscaled, Scaling::Exponential] {
+                let single = if scaling == Scaling::Unscaled {
+                    single
+                } else {
+                    single_scaled
+                };
+                for &nu in nus {
+                    for &r in radii {
+                        for &th in args {
+                            let nu_t = T::from_f64(nu);
+                            let z = Complex::from_polar(T::from_f64(r), T::from_f64(th));
+                            let Ok(res) = seq(nu_t, z, n, scaling) else {
+                                continue;
+                            };
+                            assert_eq!(res.values.len(), n);
+                            for (j, &w) in res.values.iter().enumerate() {
+                                let order = nu_t + T::from_f64(j as f64);
+                                let Ok(v) = single(order, z) else {
+                                    continue;
+                                };
+                                if !(v.norm() > floor && v.norm().is_finite()) {
+                                    continue;
+                                }
+                                let err = ((w - v).norm() / v.norm()).to_f64().unwrap();
+                                assert!(
+                                    err < tol,
+                                    "{name} {scaling:?}: nu={nu}, z={z:?}, n={n}, j={j}: \
+                                     seq={w:?}, single={v:?}, rel_err={err:e}"
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Angles covering all four quadrants, the real and imaginary axes, and
+    /// both sides of the |Im z| = √3·|Re z| region boundary.
+    const ARGS: [f64; 8] = [
+        0.0,
+        0.5,
+        1.2,
+        core::f64::consts::FRAC_PI_2,
+        2.2,
+        3.0,
+        -1.0,
+        -2.6,
+    ];
+
+    /// Recurrence paths in f64. The seq values come from recurrence while the
+    /// single values come from direct expansions, so their ~1e-14 errors do not
+    /// cancel (observed up to ~6e-12 for n = 100); a misplaced or mis-scaled
+    /// element gives O(1e-3) error or worse.
+    const TOL_GRID_F64: f64 = 1e-10;
+
+    #[test]
+    fn seq_matches_single_grid_f64() {
+        // Orders: all-negative / crossing (integer and not), small, and beyond
+        // FNUL (≈ 86) so the uniform expansions recur. Radii include values near
+        // the ELIM/ALIM scaling thresholds (≈ 665–700).
+        check_seq_grid::<f64>(
+            &[-20.0, -12.3, -3.0, -2.5, 0.0, 0.4, 13.5, 46.2, 81.7, 121.3],
+            &[0.3, 3.0, 17.0, 45.0, 120.0, 330.0, 666.0, 698.0],
+            &ARGS,
+            9,
+            TOL_GRID_F64,
+        );
+    }
+
+    #[test]
+    fn seq_matches_single_grid_f64_long() {
+        // n = 100 with small ν: ν + n − 1 exceeds FNUL while ν itself does not
+        check_seq_grid::<f64>(&[0.5, 3.3], &[2.2, 25.0, 90.0], &ARGS, 100, TOL_GRID_F64);
+    }
+
+    /// f32 hits the scaling thresholds at |values| ≈ 1e28, so moderate |z|
+    /// exercises the rescaling branches. Near FNUL (≈ 34 for f32) both seq and
+    /// single values can be off by up to ~6e-2 against f64, so the tolerance only
+    /// separates that from misplaced or mis-scaled elements (O(1) or worse).
+    const TOL_GRID_F32: f64 = 0.2;
+
+    #[test]
+    fn seq_matches_single_grid_f32() {
+        check_seq_grid::<f32>(
+            &[-9.0, -4.6, 0.0, 0.4, 7.5, 21.2, 29.9, 46.3],
+            &[0.3, 3.0, 17.0, 45.0, 70.0, 90.0],
+            &ARGS,
+            9,
+            TOL_GRID_F32,
+        );
+    }
 }
