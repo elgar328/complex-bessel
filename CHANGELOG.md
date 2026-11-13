@@ -25,6 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the start of the sequence, so underflow at the high orders (e.g. J from
   ν = −0.5 at z = 6.5 with n = 230, whose last 11 values are zero) was
   reported as 0. They now count all underflowed values.
+- `airy`, `airyprime`, `biry`, and `biryprime` (and their `_scaled` and `_raw`
+  variants) returned wrong values on the negative real axis when the imaginary
+  part of z was −0.0, e.g. −0.114 + 0.206i for Ai(−2 − 0i) instead of 0.227.
+  As in Amos, −0 is now treated like +0.
 
 ### Removed
 

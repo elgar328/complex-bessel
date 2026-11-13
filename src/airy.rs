@@ -99,6 +99,17 @@ fn airy_power_series<T: BesselFloat>(
     (s1, s2)
 }
 
+/// Replace an imaginary part of −0 by +0.
+///
+/// Amos's ZSQRT treats Im z = −0 like +0, but `Complex::sqrt` does not: for z
+/// on the negative real axis it would put √z on the other side of the branch
+/// cut, and Ai and Bi (entire functions) would come out wrong.
+#[inline]
+fn positive_zero_imag<T: BesselFloat>(z: Complex<T>) -> Complex<T> {
+    // −0 + 0 = +0; every other value is unchanged
+    Complex::new(z.re, z.im + T::zero())
+}
+
 // ─── ZAIRY ──────────────────────────────────────────────────────────────────
 
 /// Compute Airy function Ai(z) or its derivative Ai'(z).
@@ -114,6 +125,7 @@ pub(crate) fn zairy<T: BesselFloat>(
     id: AiryDerivative,
     kode: Scaling,
 ) -> Result<(Complex<T>, i32, Accuracy), Error> {
+    let z = positive_zero_imag(z);
     let zero = T::zero();
     let one = T::one();
     let tth = T::from_f64(TTH);
@@ -379,6 +391,7 @@ pub(crate) fn zbiry<T: BesselFloat>(
     id: AiryDerivative,
     kode: Scaling,
 ) -> Result<(Complex<T>, Accuracy), Error> {
+    let z = positive_zero_imag(z);
     let zero = T::zero();
     let one = T::one();
     let tth = T::from_f64(TTH);

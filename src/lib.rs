@@ -47,6 +47,11 @@
 //!
 //! where ζ = (2/3) z√z.
 //!
+//! Functions with a branch cut along the negative real axis (J and I of
+//! non-integer order, Y, K, H, and the factor exp(ζ) of the scaled Ai and Ai′)
+//! take their values there from above the cut (arg z = π), as in Amos: an
+//! imaginary part of −0 is treated like +0.
+//!
 //! ## Exponential scaling
 //!
 //! Each `_scaled` variant multiplies the result by an exponential factor that
@@ -2266,9 +2271,9 @@ mod scaling_tests {
     use super::*;
     use num_complex::Complex64;
 
-    type F<T> = fn(T, Complex<T>) -> Result<Complex<T>, Error>;
+    pub(super) type F<T> = fn(T, Complex<T>) -> Result<Complex<T>, Error>;
 
-    fn fns<T: BesselFloat>() -> [(&'static str, F<T>, F<T>); 6] {
+    pub(super) fn fns<T: BesselFloat>() -> [(&'static str, F<T>, F<T>); 6] {
         [
             ("J", besselj, besselj_scaled),
             ("Y", bessely, bessely_scaled),
@@ -2350,6 +2355,83 @@ mod scaling_tests {
             1e-30,
             1e-3,
         );
+    }
+}
+
+#[cfg(test)]
+mod special_value_tests {
+    use super::scaling_tests::fns;
+    use super::*;
+
+    type AiryFn<T> = fn(Complex<T>) -> Result<Complex<T>, Error>;
+    type AiryRawFn<T> = fn(Complex<T>, Scaling) -> Result<AiryResult<T>, Error>;
+
+    /// As in Amos, a real or imaginary part of −0 must give the same result
+    /// as +0: on the negative real axis the functions with a branch cut take
+    /// their values from above it, and the Airy functions are entire.
+    fn check_signed_zero<T: BesselFloat>() {
+        let airy_fns: [(&str, AiryFn<T>); 8] = [
+            ("Ai", airy),
+            ("Ai'", airyprime),
+            ("Bi", biry),
+            ("Bi'", biryprime),
+            ("Ai scaled", airy_scaled),
+            ("Ai' scaled", airyprime_scaled),
+            ("Bi scaled", biry_scaled),
+            ("Bi' scaled", biryprime_scaled),
+        ];
+        let raw_fns: [(&str, AiryRawFn<T>); 4] = [
+            ("Ai raw", airy_raw),
+            ("Ai' raw", airyprime_raw),
+            ("Bi raw", biry_raw),
+            ("Bi' raw", biryprime_raw),
+        ];
+        let zero = T::zero();
+        // Power series (|z| <= 1) and the K/I paths, up to the overflow limits
+        for x in [0.5, 2.0, 5.0, 50.0, 105.0] {
+            let x = T::from_f64(x);
+            for (plus, minus) in [
+                (Complex::new(-x, zero), Complex::new(-x, -zero)),
+                (Complex::new(x, zero), Complex::new(x, -zero)),
+                (Complex::new(zero, x), Complex::new(-zero, x)),
+                (Complex::new(zero, -x), Complex::new(-zero, -x)),
+            ] {
+                for (name, f) in airy_fns {
+                    assert_eq!(f(plus), f(minus), "{name}: {plus:?} vs {minus:?}");
+                }
+                for (name, f) in raw_fns {
+                    for scaling in [Scaling::Unscaled, Scaling::Exponential] {
+                        assert_eq!(
+                            f(plus, scaling),
+                            f(minus, scaling),
+                            "{name} {scaling:?}: {plus:?} vs {minus:?}"
+                        );
+                    }
+                }
+                for (name, unscaled, scaled) in fns::<T>() {
+                    for nu in [0.0, 0.3, 1.0, 2.5, -0.3, -2.5, 90.5] {
+                        let nu = T::from_f64(nu);
+                        for f in [unscaled, scaled] {
+                            assert_eq!(
+                                f(nu, plus),
+                                f(nu, minus),
+                                "{name}: nu={nu:?}, {plus:?} vs {minus:?}"
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn signed_zero_matches_positive_zero_f64() {
+        check_signed_zero::<f64>();
+    }
+
+    #[test]
+    fn signed_zero_matches_positive_zero_f32() {
+        check_signed_zero::<f32>();
     }
 }
 
