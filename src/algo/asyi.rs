@@ -12,7 +12,7 @@ use num_complex::Complex;
 use crate::algo::constants::PI;
 use crate::machine::BesselFloat;
 use crate::types::Scaling;
-use crate::utils::{mul_add, mul_add_scalar, reciprocal_z, zabs, zdiv};
+use crate::utils::{mul_add, mul_add_scalar, reciprocal_z, zabs, zdiv_by_norm};
 
 /// Asymptotic expansion of I Bessel function for large |z|.
 ///
@@ -117,7 +117,9 @@ pub(crate) fn zasyi<T: BesselFloat>(
 
         let mut converged = false;
         for _j in 1..=jl {
-            ck = zdiv(ck, dk) * sqk;
+            // ZDIV as in Fortran: only DK is divided, so the CK recurrence
+            // stays free of divisions (see `zdiv_by_norm`)
+            ck = zdiv_by_norm(ck, dk) * sqk;
             cs2 = cs2 + ck;
             sgn = -sgn;
             cs1 = cs1 + ck * sgn;

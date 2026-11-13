@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- J, I, Bi, and scaled Ai functions were up to about 25% slower in 0.4.0 than
+  in 0.3.0 because of the new complex division. Their 0.3.0 speed is restored,
+  with unchanged accuracy.
+
 ## [0.4.0] - 2026-11-13
 
 ### Changed
