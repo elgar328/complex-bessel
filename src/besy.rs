@@ -4,9 +4,6 @@
 //! Y(fnu, z) = i*CC*I(fnu, arg) - (2/pi)*conj(CC)*K(fnu, arg)
 //! where CC = exp(-i*pi*fnu/2), arg = z*exp(-i*pi/2).
 
-#[cfg(feature = "alloc")]
-use alloc::vec;
-
 use num_complex::Complex;
 
 use crate::algo::constants::HPI;
@@ -14,7 +11,7 @@ use crate::besi::zbesi;
 use crate::besk::zbesk;
 use crate::machine::BesselFloat;
 use crate::types::{Accuracy, Error, Scaling};
-use crate::utils::{mul_i, mul_neg_i, zabs};
+use crate::utils::{Workspace, mul_i, mul_neg_i, with_workspace, zabs};
 
 /// The K term of scaled Y when 2|Im z| >= ELIM: `zv * exp(-tay)`.
 ///
@@ -50,6 +47,18 @@ pub(crate) fn zbesy<T: BesselFloat>(
     fnu: T,
     scaling: Scaling,
     y: &mut [Complex<T>],
+) -> Result<(usize, Accuracy), Error> {
+    zbesy_with(z, fnu, scaling, y, Workspace::Stack)
+}
+
+/// [`zbesy`] with the workspace for the K values of a sequence (n > 1).
+#[inline]
+pub(crate) fn zbesy_with<T: BesselFloat>(
+    z: Complex<T>,
+    fnu: T,
+    scaling: Scaling,
+    y: &mut [Complex<T>],
+    ws: Workspace<'_, T>,
 ) -> Result<(usize, Accuracy), Error> {
     let n = y.len();
     let zero = T::zero();
@@ -122,7 +131,7 @@ pub(crate) fn zbesy<T: BesselFloat>(
     // CSGN *= i (Fortran lines 1371-1373)
     csgn = mul_i(csgn);
 
-    // For n == 1: use stack arrays (no alloc needed)
+    // For n == 1 (single values): one-element arrays, no workspace
     if n == 1 {
         let mut i_buf = [czero];
         let mut k_buf = [czero];
@@ -190,104 +199,132 @@ pub(crate) fn zbesy<T: BesselFloat>(
         return Ok((nz_out, status));
     }
 
-    // For n > 1: requires alloc feature
-    #[cfg(feature = "alloc")]
-    {
-        let mut i_buf = vec![czero; n];
-        let mut k_buf = vec![czero; n];
+    zbesy_seq(z, zn, fnu, scaling, y, csgn, cspn, status, ws)
+}
 
-        // Compute I(fnu, zn) via ZBESI (Fortran line 1354)
-        let (nz1, _) = zbesi(zn, fnu, scaling, &mut i_buf)?;
-        // Compute K(fnu, zn) via ZBESK (Fortran line 1356)
-        let (nz2, _) = zbesk(zn, fnu, scaling, &mut k_buf)?;
-        let nz = nz1.min(nz2);
+/// The n > 1 part of [`zbesy`], kept out of line so that a stack workspace
+/// stays out of the frame of the single-value path.
+#[inline(never)]
+#[allow(clippy::too_many_arguments)]
+fn zbesy_seq<T: BesselFloat>(
+    z: Complex<T>,
+    zn: Complex<T>,
+    fnu: T,
+    scaling: Scaling,
+    y: &mut [Complex<T>],
+    csgn: Complex<T>,
+    cspn: Complex<T>,
+    status: Accuracy,
+    ws: Workspace<'_, T>,
+) -> Result<(usize, Accuracy), Error> {
+    let n = y.len();
+    with_workspace(ws, n, |k_buf| {
+        zbesy_combine(z, zn, fnu, scaling, y, csgn, cspn, status, k_buf)
+    })
+}
 
-        if scaling == Scaling::Unscaled {
-            // KODE=1: simple combination (Fortran DO 50, lines 1375-1394)
-            for i in 0..n {
-                // CY(I) = CSGN*I(I) - CSPN*K(I)
-                let cy_val = csgn * i_buf[i] - cspn * k_buf[i];
-                y[i] = cy_val;
+/// I into `y` in one call, K into the workspace `k_buf` (Fortran ZBESY's
+/// CWRK), in chunks of `k_buf.len()` orders if it is shorter than `y`, and
+/// the two combined into Y.
+#[inline]
+#[allow(clippy::too_many_arguments)]
+fn zbesy_combine<T: BesselFloat>(
+    z: Complex<T>,
+    zn: Complex<T>,
+    fnu: T,
+    scaling: Scaling,
+    y: &mut [Complex<T>],
+    mut csgn: Complex<T>,
+    mut cspn: Complex<T>,
+    status: Accuracy,
+    k_buf: &mut [Complex<T>],
+) -> Result<(usize, Accuracy), Error> {
+    let chunk = k_buf.len();
+    assert!(chunk > 0, "empty K workspace");
+    let zero = T::zero();
+    let one = T::one();
+    let czero = Complex::new(zero, zero);
 
-                // Advance CSGN *= i (rotate by pi/2) (Fortran lines 1383-1385)
-                csgn = mul_i(csgn);
-                // Advance CSPN *= -i (rotate by -pi/2) (Fortran lines 1386-1388)
-                cspn = mul_neg_i(cspn);
-            }
+    // Compute I(fnu, zn) via ZBESI (Fortran line 1354)
+    let (nz1, _) = zbesi(zn, fnu, scaling, y)?;
 
-            // Conjugate if original Im(z) < 0 (Fortran lines 1390-1394)
-            if z.im < zero {
-                for yi in y.iter_mut().take(n) {
-                    *yi = yi.conj();
+    // KODE=2 setup (Fortran lines 1396-1413)
+    let tol = T::tol();
+    let rtol = one / tol;
+    let ascle = T::MACH_TINY * rtol * T::from_f64(1.0e3);
+    let tay = (z.im + z.im).abs();
+    // Fortran sets EY = 0 when TAY >= ELIM, dropping the K term. Here CSPN
+    // is left unscaled and `far_k_term` applies exp(-TAY) instead.
+    let k_term_far = tay >= T::elim();
+    if scaling == Scaling::Exponential {
+        let ey = if k_term_far { one } else { (-tay).exp() };
+        cspn = Complex::new(z.re.cos(), z.re.sin()) * cspn * ey;
+    }
+
+    let mut nz2: usize = 0;
+    let mut nz_out: usize = 0;
+    for (c, y_chunk) in y.chunks_mut(chunk).enumerate() {
+        let k_chunk = &mut k_buf[..y_chunk.len()];
+        // Compute K(fnu + c*chunk, zn) via ZBESK (Fortran line 1356)
+        let start = if c == 0 {
+            fnu
+        } else {
+            fnu + T::from_f64((c * chunk) as f64)
+        };
+        let (nz_k, _) = zbesk(zn, start, scaling, k_chunk)?;
+        nz2 += nz_k;
+
+        for (yi, &k) in y_chunk.iter_mut().zip(k_chunk.iter()) {
+            let i = *yi;
+            if scaling == Scaling::Unscaled {
+                // KODE=1: CY(I) = CSGN*I(I) - CSPN*K(I) (Fortran DO 50, lines 1375-1394)
+                *yi = csgn * i - cspn * k;
+            } else {
+                // KODE=2: scaled version with underflow protection
+                // Scale K values if near underflow (Fortran lines 1423-1433)
+                let (zv_s, zv_atol) = if k.re.abs().max(k.im.abs()) <= ascle {
+                    (k * rtol, tol)
+                } else {
+                    (k, one)
+                };
+                let mut zv = zv_s * cspn * zv_atol;
+                if k_term_far {
+                    zv = far_k_term(zv, tay);
+                }
+
+                // Scale I values if near underflow (Fortran lines 1434-1444)
+                let (zu_s, zu_atol) = if i.re.abs().max(i.im.abs()) <= ascle {
+                    (i * rtol, tol)
+                } else {
+                    (i, one)
+                };
+                let zu = zu_s * csgn * zu_atol;
+
+                // CY(I) = ZU - ZV (Fortran lines 1445-1449)
+                let cy_val = zu - zv;
+                *yi = if z.im < zero { cy_val.conj() } else { cy_val };
+                if cy_val == czero && k_term_far {
+                    nz_out += 1;
                 }
             }
 
-            return Ok((nz, status));
-        }
-
-        // KODE=2: scaled version with underflow protection (Fortran lines 1396-1456)
-        let tol = T::tol();
-        let elim = T::elim();
-
-        let exr = z.re.cos();
-        let exi = z.re.sin();
-        let tay = (z.im + z.im).abs();
-        // Fortran sets EY = 0 when TAY >= ELIM, dropping the K term. Here CSPN
-        // is left unscaled and `far_k_term` applies exp(-TAY) instead.
-        let k_term_far = tay >= elim;
-        let ey = if k_term_far { one } else { (-tay).exp() };
-
-        // Apply exponential scaling to CSPN (Fortran lines 1411-1413)
-        cspn = Complex::new(exr, exi) * cspn * ey;
-
-        let mut nz_out: usize = 0;
-        let rtol = one / tol;
-        let ascle = T::MACH_TINY * rtol * T::from_f64(1.0e3);
-
-        for i in 0..n {
-            // Scale K values if near underflow (Fortran lines 1423-1433)
-            let (zv_s, zv_atol) = if k_buf[i].re.abs().max(k_buf[i].im.abs()) <= ascle {
-                (k_buf[i] * rtol, tol)
-            } else {
-                (k_buf[i], one)
-            };
-            let mut zv = zv_s * cspn * zv_atol;
-            if k_term_far {
-                zv = far_k_term(zv, tay);
-            }
-
-            // Scale I values if near underflow (Fortran lines 1434-1444)
-            let (zu_s, zu_atol) = if i_buf[i].re.abs().max(i_buf[i].im.abs()) <= ascle {
-                (i_buf[i] * rtol, tol)
-            } else {
-                (i_buf[i], one)
-            };
-            let zu = zu_s * csgn * zu_atol;
-
-            // CY(I) = ZU - ZV (Fortran lines 1445-1449)
-            let cy_val = zu - zv;
-
-            y[i] = if z.im < zero { cy_val.conj() } else { cy_val };
-
-            if cy_val == czero && k_term_far {
-                nz_out += 1;
-            }
-
-            // Advance CSGN *= i, CSPN *= -i (Fortran lines 1450-1455)
+            // Advance CSGN *= i, CSPN *= -i (Fortran lines 1383-1388, 1450-1455)
             csgn = mul_i(csgn);
             cspn = mul_neg_i(cspn);
         }
-
-        Ok((nz_out, status))
     }
 
-    #[cfg(not(feature = "alloc"))]
-    {
-        // This path should never be reached in practice:
-        // - Public single-value functions always use n==1
-        // - _seq functions are #[cfg(feature = "alloc")]
-        Err(Error::InvalidInput)
+    if scaling == Scaling::Exponential {
+        return Ok((nz_out, status));
     }
+
+    // Conjugate if original Im(z) < 0 (Fortran lines 1390-1394)
+    if z.im < zero {
+        for yi in y.iter_mut() {
+            *yi = yi.conj();
+        }
+    }
+    Ok((nz1.min(nz2), status))
 }
 
 #[cfg(test)]

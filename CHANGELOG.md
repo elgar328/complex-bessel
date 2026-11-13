@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `besselj_seq_into`, `bessely_seq_into`, `besseli_seq_into`, `besselk_seq_into`,
+  `hankel1_seq_into`, and `hankel2_seq_into` compute the same sequences as the
+  `_seq` functions into a caller-provided slice and return the new `SeqInfo`
+  (underflow count and accuracy). They never allocate, for any n and ν. Where Y
+  and the negative-order reflection formulas need workspace, they use a 1 KB
+  stack buffer (f64) in chunks, so long sequences are somewhat slower than with
+  `_seq` and can differ in the last digits, or close to the overflow limit in
+  whether an error is returned.
+
+### Fixed
+
+- `besselj_seq`, `bessely_seq`, `besseli_seq`, `besselk_seq`, `hankel1_seq`,
+  and `hankel2_seq` with ν < 0 reported in `underflow_count` only the zeros at
+  the start of the sequence, so underflow at the high orders (e.g. J from
+  ν = −0.5 at z = 6.5 with n = 230, whose last 11 values are zero) was
+  reported as 0. They now count all underflowed values.
+
 ## [0.4.1] - 2026-11-13
 
 ### Fixed

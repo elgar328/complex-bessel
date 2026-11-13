@@ -36,6 +36,18 @@ pub struct AiryResult<T: BesselFloat> {
     pub status: Accuracy,
 }
 
+/// Result of a sequence computation into a caller-provided slice, returned by
+/// `_seq_into` functions (e.g., [`besselk_seq_into`](crate::besselk_seq_into)).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct SeqInfo {
+    /// Number of components set to zero due to underflow.
+    pub underflow_count: usize,
+    /// Accuracy of the computation result.
+    ///
+    /// See [`Accuracy`] for possible values and their meaning.
+    pub status: Accuracy,
+}
+
 /// Result of a sequence computation, returned by `_seq` functions
 /// (e.g., [`besselk_seq`](crate::besselk_seq)).
 ///
@@ -46,7 +58,7 @@ pub struct AiryResult<T: BesselFloat> {
 pub struct BesselResult<T: BesselFloat> {
     /// Computed function values for orders ν, ν+1, ..., ν+n-1.
     pub values: Vec<Complex<T>>,
-    /// Number of leading components set to zero due to underflow.
+    /// Number of components set to zero due to underflow.
     pub underflow_count: usize,
     /// Accuracy of the computation result.
     ///

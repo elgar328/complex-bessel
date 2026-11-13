@@ -6,6 +6,53 @@ use num_complex::Complex;
 
 use crate::machine::BesselFloat;
 
+/// Length of the stack workspace of the `_seq_into` functions (1 KB for f64).
+///
+/// Y needs its K values next to the I values in the output, and the
+/// non-integer reflection formulas need a second function next to the first.
+/// `_seq_into` puts those in this buffer, in chunks of its length (Y, and I
+/// with non-integer ν < 0) or of half of it (J and Y with non-integer ν < 0,
+/// whose reflection formulas also need Y's own K values).
+pub(crate) const SEQ_WORKSPACE: usize = 64;
+
+/// Source of the workspace for a sequence computation.
+pub(crate) enum Workspace<'a, T: BesselFloat> {
+    /// A `SEQ_WORKSPACE` array on the stack; long sequences go in chunks.
+    Stack,
+    /// A heap buffer of the full length; every function is one Amos call.
+    #[cfg(feature = "alloc")]
+    Heap,
+    /// A given buffer (part of an outer workspace, or a length chosen by
+    /// tests); its length sets the chunk size.
+    Slice(&'a mut [Complex<T>]),
+}
+
+/// Run `f` with the workspace described by `ws`; `len` is the length a heap
+/// buffer needs to cover the whole sequence.
+#[inline]
+#[cfg_attr(not(feature = "alloc"), allow(unused_variables))]
+pub(crate) fn with_workspace<T: BesselFloat, R>(
+    ws: Workspace<'_, T>,
+    len: usize,
+    f: impl FnOnce(&mut [Complex<T>]) -> R,
+) -> R {
+    match ws {
+        Workspace::Stack => with_stack_workspace(f),
+        #[cfg(feature = "alloc")]
+        Workspace::Heap => f(&mut alloc::vec![Complex::new(T::zero(), T::zero()); len]),
+        Workspace::Slice(buf) => f(buf),
+    }
+}
+
+/// Run `f` with a `SEQ_WORKSPACE` array. Out of line, so that the array takes
+/// stack space only while `Workspace::Stack` is in use, not in every frame
+/// that inlines [`with_workspace`].
+#[inline(never)]
+fn with_stack_workspace<T: BesselFloat, R>(f: impl FnOnce(&mut [Complex<T>]) -> R) -> R {
+    let czero = Complex::new(T::zero(), T::zero());
+    f(&mut [czero; SEQ_WORKSPACE])
+}
+
 /// Fused multiply-add for Complex: `s * a + b`.
 ///
 /// Uses hardware FMA (std) or plain arithmetic (no_std) via
