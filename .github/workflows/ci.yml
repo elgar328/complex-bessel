@@ -26,13 +26,13 @@ jobs:
       - name: Clippy
         run: cargo clippy --all-targets -- -D warnings
 
+      - name: Clippy (no_std)
+        run: cargo clippy --all-targets --no-default-features -- -D warnings
+
       - name: Test (std, default)
         run: cargo test
 
-      - name: Test (alloc, no std)
-        run: cargo test --no-default-features --features alloc
-
-      - name: Test (no_std, no alloc)
+      - name: Test (no_std)
         run: cargo test --no-default-features
 
   msrv:

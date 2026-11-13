@@ -20,7 +20,7 @@ pub(crate) enum Workspace<'a, T: BesselFloat> {
     /// A `SEQ_WORKSPACE` array on the stack; long sequences go in chunks.
     Stack,
     /// A heap buffer of the full length; every function is one Amos call.
-    #[cfg(feature = "alloc")]
+    #[cfg(feature = "std")]
     Heap,
     /// A given buffer (part of an outer workspace, or a length chosen by
     /// tests); its length sets the chunk size.
@@ -30,7 +30,7 @@ pub(crate) enum Workspace<'a, T: BesselFloat> {
 /// Run `f` with the workspace described by `ws`; `len` is the length a heap
 /// buffer needs to cover the whole sequence.
 #[inline]
-#[cfg_attr(not(feature = "alloc"), allow(unused_variables))]
+#[cfg_attr(not(feature = "std"), allow(unused_variables))]
 pub(crate) fn with_workspace<T: BesselFloat, R>(
     ws: Workspace<'_, T>,
     len: usize,
@@ -38,7 +38,7 @@ pub(crate) fn with_workspace<T: BesselFloat, R>(
 ) -> R {
     match ws {
         Workspace::Stack => with_stack_workspace(f),
-        #[cfg(feature = "alloc")]
+        #[cfg(feature = "std")]
         Workspace::Heap => f(&mut alloc::vec![Complex::new(T::zero(), T::zero()); len]),
         Workspace::Slice(buf) => f(buf),
     }

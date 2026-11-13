@@ -26,6 +26,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ν = −0.5 at z = 6.5 with n = 230, whose last 11 values are zero) was
   reported as 0. They now count all underflowed values.
 
+### Removed
+
+- The `alloc` feature. Without `std`, the whole API except the `Vec`-returning
+  `_seq` functions is available and needs no allocator; use the `_seq_into`
+  functions instead (with a `Vec` if an allocator is available). The `_seq`
+  functions and `BesselResult` now require `std`.
+
 ## [0.4.1] - 2026-11-13
 
 ### Fixed

@@ -8,7 +8,7 @@
 //!   `_seq_into` variants write them into a caller-provided slice
 //! - **Exponential scaling** — `_scaled` variants prevent overflow/underflow
 //! - **Negative orders** — supports ν < 0 via DLMF reflection formulas (not in Amos)
-//! - **`no_std` support** — 3-tier: bare `no_std`, `alloc`, `std` (default)
+//! - **`no_std` support** — everything but the `Vec`-returning `_seq` variants (which need `std`) works without an allocator
 //!
 //! # Quick start
 //!
@@ -125,24 +125,22 @@
 //! | Cargo features | Available API |
 //! |---------------|---------------|
 //! | `default-features = false` | 24 single-value functions + 6 `_seq_into` variants |
-//! | `features = ["alloc"]` | full API (+ 6 `_seq` variants) |
-//! | `features = ["std"]` (default) | full API, with platform-native math |
+//! | `features = ["std"]` (default) | full API (+ 6 `_seq` variants), with platform-native math |
 //!
 //! The 24 single-value functions include 12 Bessel (J/Y/I/K/H<sup>(1)</sup>/H<sup>(2)</sup> × unscaled/scaled)
-//! and 12 Airy (Ai/Ai'/Bi/Bi' × unscaled/scaled/raw).
+//! and 12 Airy (Ai/Ai'/Bi/Bi' × unscaled/scaled/raw). No allocator is needed;
+//! without `std`, math functions come from `libm`.
 //!
 //! ```toml
-//! # Bare no_std — no allocator needed:
 //! complex-bessel = { version = "0.4", default-features = false }
-//!
-//! # no_std + alloc — full API:
-//! complex-bessel = { version = "0.4", default-features = false, features = ["alloc"] }
 //! ```
 
 #![warn(missing_docs)]
+// Without `std`, the docs still link to the `std`-only `_seq` functions.
+#![cfg_attr(not(feature = "std"), allow(rustdoc::broken_intra_doc_links))]
 #![no_std]
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "std")]
 extern crate alloc;
 #[cfg(feature = "std")]
 extern crate std;
@@ -159,7 +157,7 @@ pub mod types;
 pub(crate) mod utils;
 
 pub use machine::BesselFloat;
-#[cfg(feature = "alloc")]
+#[cfg(feature = "std")]
 pub use types::BesselResult;
 pub use types::{Accuracy, AiryResult, Error, Scaling, SeqInfo};
 
@@ -1859,16 +1857,13 @@ pub fn hankel2_seq_into<T: BesselFloat>(
 
 // ── Allocating sequence functions ──
 
-#[cfg(feature = "alloc")]
-extern crate alloc as alloc_crate;
-
-#[cfg(feature = "alloc")]
+#[cfg(feature = "std")]
 fn seq_helper<T: BesselFloat>(
     n: usize,
     f: impl FnOnce(&mut [Complex<T>]) -> Result<SeqInfo, Error>,
 ) -> Result<BesselResult<T>, Error> {
     let zero = T::zero();
-    let mut values = alloc_crate::vec![Complex::new(zero, zero); n];
+    let mut values = alloc::vec![Complex::new(zero, zero); n];
     let info = f(&mut values)?;
     Ok(BesselResult {
         values,
@@ -1877,7 +1872,7 @@ fn seq_helper<T: BesselFloat>(
     })
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "std")]
 /// Compute J<sub>ν+j</sub>(z) for j = 0, 1, …, n−1 in a single call.
 ///
 /// Allocating version of [`besselj_seq_into`].
@@ -1894,7 +1889,7 @@ fn seq_helper<T: BesselFloat>(
 /// # Example
 ///
 /// ```
-/// # #[cfg(feature = "alloc")] {
+/// # #[cfg(feature = "std")] {
 /// use complex_bessel::*;
 /// use num_complex::Complex;
 ///
@@ -1924,7 +1919,7 @@ pub fn besselj_seq<T: BesselFloat>(
     })
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "std")]
 /// Compute Y<sub>ν+j</sub>(z) for j = 0, 1, …, n−1 in a single call.
 ///
 /// Allocating version of [`bessely_seq_into`].
@@ -1941,7 +1936,7 @@ pub fn besselj_seq<T: BesselFloat>(
 /// # Example
 ///
 /// ```
-/// # #[cfg(feature = "alloc")] {
+/// # #[cfg(feature = "std")] {
 /// use complex_bessel::*;
 /// use num_complex::Complex;
 ///
@@ -1971,7 +1966,7 @@ pub fn bessely_seq<T: BesselFloat>(
     })
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "std")]
 /// Compute I<sub>ν+j</sub>(z) for j = 0, 1, …, n−1 in a single call.
 ///
 /// Allocating version of [`besseli_seq_into`].
@@ -1988,7 +1983,7 @@ pub fn bessely_seq<T: BesselFloat>(
 /// # Example
 ///
 /// ```
-/// # #[cfg(feature = "alloc")] {
+/// # #[cfg(feature = "std")] {
 /// use complex_bessel::*;
 /// use num_complex::Complex;
 ///
@@ -2018,7 +2013,7 @@ pub fn besseli_seq<T: BesselFloat>(
     })
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "std")]
 /// Compute K<sub>ν+j</sub>(z) for j = 0, 1, …, n−1 in a single call.
 ///
 /// Allocating version of [`besselk_seq_into`].
@@ -2035,7 +2030,7 @@ pub fn besseli_seq<T: BesselFloat>(
 /// # Example
 ///
 /// ```
-/// # #[cfg(feature = "alloc")] {
+/// # #[cfg(feature = "std")] {
 /// use complex_bessel::*;
 /// use num_complex::Complex;
 ///
@@ -2063,7 +2058,7 @@ pub fn besselk_seq<T: BesselFloat>(
     seq_helper(n, |out| besselk_seq_into(nu, z, scaling, out))
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "std")]
 /// Compute H<sub>ν+j</sub><sup>(1)</sup>(z) for j = 0, 1, …, n−1 in a single call.
 ///
 /// Allocating version of [`hankel1_seq_into`].
@@ -2080,7 +2075,7 @@ pub fn besselk_seq<T: BesselFloat>(
 /// # Example
 ///
 /// ```
-/// # #[cfg(feature = "alloc")] {
+/// # #[cfg(feature = "std")] {
 /// use complex_bessel::*;
 /// use num_complex::Complex;
 ///
@@ -2108,7 +2103,7 @@ pub fn hankel1_seq<T: BesselFloat>(
     seq_helper(n, |out| hankel1_seq_into(nu, z, scaling, out))
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "std")]
 /// Compute H<sub>ν+j</sub><sup>(2)</sup>(z) for j = 0, 1, …, n−1 in a single call.
 ///
 /// Allocating version of [`hankel2_seq_into`].
@@ -2125,7 +2120,7 @@ pub fn hankel1_seq<T: BesselFloat>(
 /// # Example
 ///
 /// ```
-/// # #[cfg(feature = "alloc")] {
+/// # #[cfg(feature = "std")] {
 /// use complex_bessel::*;
 /// use num_complex::Complex;
 ///
@@ -2154,7 +2149,7 @@ pub fn hankel2_seq<T: BesselFloat>(
 }
 
 // ── Tests for non-finite input rejection at the public API level ──
-// Deliberately gated on test only (not alloc), so they run in every
+// Deliberately gated on test only (not std), so they run in every
 // feature configuration.
 
 #[cfg(test)]
@@ -2998,7 +2993,7 @@ mod seq_tests {
 
 // ── Allocating `_seq` wrappers ──
 
-#[cfg(all(test, feature = "alloc"))]
+#[cfg(all(test, feature = "std"))]
 mod seq_vec_tests {
     use super::*;
     use num_complex::Complex64;

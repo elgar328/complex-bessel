@@ -15,7 +15,7 @@ Pure Rust implementation of complex Bessel functions based on **Amos Algorithm 6
   `_seq_into` variants write them into a caller-provided slice
 - **Exponential scaling** — `_scaled` variants prevent overflow/underflow
 - **Negative orders** — supports ν < 0 via DLMF reflection formulas (not in Amos)
-- **`no_std` support** — 3-tier: bare `no_std`, `alloc`, `std` (default)
+- **`no_std` support** — everything but the `Vec`-returning `_seq` variants (which need `std`) works without an allocator
 
 ## Quick start
 
@@ -106,17 +106,12 @@ All functions return `Result<_, Error>`. The four error variants are:
 | Cargo features | Available API |
 |---------------|---------------|
 | `default-features = false` | 24 single-value functions + 6 `_seq_into` variants |
-| `features = ["alloc"]` | full API (+ 6 `_seq` variants) |
-| `features = ["std"]` (default) | full API, with platform-native math |
+| `features = ["std"]` (default) | full API (+ 6 `_seq` variants), with platform-native math |
 
-The 24 single-value functions include 12 Bessel (J/Y/I/K/H<sup>(1)</sup>/H<sup>(2)</sup> × unscaled/scaled) and 12 Airy (Ai/Ai'/Bi/Bi' × unscaled/scaled/raw).
+The 24 single-value functions include 12 Bessel (J/Y/I/K/H<sup>(1)</sup>/H<sup>(2)</sup> × unscaled/scaled) and 12 Airy (Ai/Ai'/Bi/Bi' × unscaled/scaled/raw). No allocator is needed; without `std`, math functions come from `libm`.
 
 ```toml
-# Bare no_std — no allocator needed:
 complex-bessel = { version = "0.4", default-features = false }
-
-# no_std + alloc — full API:
-complex-bessel = { version = "0.4", default-features = false, features = ["alloc"] }
 ```
 
 ## Differences from TOMS 644

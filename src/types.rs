@@ -1,6 +1,6 @@
 //! Core types for Bessel and Airy function computation.
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "std")]
 use alloc::vec::Vec;
 use core::fmt;
 
@@ -53,7 +53,7 @@ pub struct SeqInfo {
 ///
 /// Single-value convenience functions (`besselj`, `besselk`, …) do not expose
 /// this type; they return only the computed value and discard the status.
-#[cfg(feature = "alloc")]
+#[cfg(feature = "std")]
 #[derive(Debug, Clone, PartialEq)]
 pub struct BesselResult<T: BesselFloat> {
     /// Computed function values for orders ν, ν+1, ..., ν+n-1.
