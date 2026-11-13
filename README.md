@@ -116,6 +116,12 @@ complex-bessel = { version = "0.3", default-features = false }
 complex-bessel = { version = "0.3", default-features = false, features = ["alloc"] }
 ```
 
+## Differences from TOMS 644
+
+- **Scaled Y** — keeps a term that ZBESY wrongly drops as an underflow (large ν, |Im z| > ~350).
+- **K/H overflow test** — follows single-precision CUOIK; double ZUOIK reports spurious `Overflow` near 1e300.
+- **Complex division** — Smith's algorithm instead of ZDIV, for better f32 accuracy.
+
 ## Accuracy & performance
 
 Precision of complex-bessel (Rust), AMOS/TOMS 644 (Fortran), and SciPy (Python) across all functions.
