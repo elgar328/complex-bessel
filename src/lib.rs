@@ -2998,6 +2998,71 @@ mod seq_vec_tests {
     use super::*;
     use num_complex::Complex64;
 
+    /// `_seq` gives every function a heap workspace of the full length, so each
+    /// is one Amos call (as in 0.4), unlike the stack chunks of `_seq_into`.
+    /// These long sequences span several stack chunks.
+    #[test]
+    fn seq_computes_each_function_in_one_call() {
+        type Seq = fn(f64, Complex64, usize, Scaling) -> Result<BesselResult<f64>, Error>;
+        type Impl = for<'a> fn(
+            f64,
+            Complex64,
+            Scaling,
+            &mut [Complex64],
+            Workspace<'a, f64>,
+        ) -> Result<SeqInfo, Error>;
+        let cases: [(Seq, Impl, f64, Complex64); 4] = [
+            (
+                bessely_seq,
+                bessely_seq_impl,
+                0.4,
+                Complex64::from_polar(25.0, 0.5),
+            ),
+            (
+                bessely_seq,
+                bessely_seq_impl,
+                -40.3,
+                Complex64::from_polar(17.0, -1.0),
+            ),
+            (
+                besselj_seq,
+                besselj_seq_impl,
+                -80.3,
+                Complex64::from_polar(45.0, 3.0),
+            ),
+            (
+                besseli_seq,
+                besseli_seq_impl,
+                -40.3,
+                Complex64::from_polar(17.0, 2.2),
+            ),
+        ];
+        const N: usize = 100;
+        for (seq, imp, nu, z) in cases {
+            let r = seq(nu, z, N, Scaling::Unscaled).unwrap();
+            let mut out = [Complex64::new(0.0, 0.0); N];
+            let mut ws = [Complex64::new(0.0, 0.0); 2 * N];
+            let info = imp(
+                nu,
+                z,
+                Scaling::Unscaled,
+                &mut out,
+                Workspace::Slice(&mut ws),
+            )
+            .unwrap();
+            assert_eq!(
+                (r.underflow_count, r.status),
+                (info.underflow_count, info.status)
+            );
+            for (j, (x, y)) in r.values.iter().zip(out.iter()).enumerate() {
+                assert!(
+                    x.re.to_bits() == y.re.to_bits() && x.im.to_bits() == y.im.to_bits(),
+                    "nu={nu}, z={z:?}, j={j}: {x:?} vs {y:?}"
+                );
+            }
+        }
+    }
+
     #[test]
     fn seq_matches_seq_into() {
         type Pair = (
