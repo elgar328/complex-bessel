@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-13
+
 ### Changed
 
 - `besselj_seq`, `bessely_seq`, and `besseli_seq` compute only the requested
@@ -115,7 +117,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Provide sequence computation (`_seq` variants) for consecutive orders.
 - Support `no_std` with 3-tier feature flags (`no_std` / `alloc` / `std`).
 
-[Unreleased]: https://github.com/elgar328/complex-bessel/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/elgar328/complex-bessel/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/elgar328/complex-bessel/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/elgar328/complex-bessel/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/elgar328/complex-bessel/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/elgar328/complex-bessel/releases/tag/v0.1.0
