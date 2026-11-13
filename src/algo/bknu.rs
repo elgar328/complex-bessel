@@ -107,21 +107,19 @@ pub(crate) fn zbknu<T: BesselFloat>(
         // ══════════════════════════════════════════════════════════════
         // SERIES FOR |Z| ≤ R1  (Fortran lines 82-216)
         // ══════════════════════════════════════════════════════════════
-        let mut fc = one;
         let rz_log = rz.ln();
         let fmu = rz_log * dnu;
         let (csh, cch) = zshch(fmu);
 
-        let smu;
-        if dnu != zero {
-            fc = dnu * T::from_f64(PI);
-            fc = fc / fc.sin();
-            smu = csh / dnu;
+        // FC = DNU·π / sin(DNU·π), SMU = sinh(FMU)/DNU
+        let (fc, smu) = if dnu != zero {
+            let dnu_pi = dnu * T::from_f64(PI);
+            (dnu_pi / dnu_pi.sin(), csh / dnu)
         } else {
-            // DNU=0: sinh(x·DNU)/DNU → x as DNU→0 by L'Hôpital.
+            // DNU=0: FC → 1, and sinh(x·DNU)/DNU → x as DNU→0 by L'Hôpital.
             // Fortran reuses SMUR/SMUI from ZLOG(RZ) here (variable reuse).
-            smu = rz_log;
-        }
+            (one, rz_log)
+        };
 
         let a2 = one + dnu;
         // T2 = 1/Γ(1+DNU), T1 = 1/Γ(1-DNU)
@@ -129,10 +127,9 @@ pub(crate) fn zbknu<T: BesselFloat>(
         let t1 = one / (t2 * fc);
 
         // Compute G1 and G2
-        let g1;
-        if dnu.abs() > T::from_f64(0.1) {
+        let g1 = if dnu.abs() > T::from_f64(0.1) {
             // Large |DNU|: direct formula
-            g1 = (t1 - t2) / (dnu + dnu);
+            (t1 - t2) / (dnu + dnu)
         } else {
             // Small |DNU|: Chebyshev series for f_0
             let mut ak = one;
@@ -145,8 +142,8 @@ pub(crate) fn zbknu<T: BesselFloat>(
                     break;
                 }
             }
-            g1 = -s;
-        }
+            -s
+        };
         let g2 = (t1 + t2) * half;
 
         // F = FC * (CCH*G1 + SMU*G2)
@@ -162,9 +159,8 @@ pub(crate) fn zbknu<T: BesselFloat>(
         let mut ck = Complex::from(one);
         let mut bk = one - dnu2;
 
-        let mut kflag: usize; // 0-based index into cssr/csrr arrays
-
-        if inu > 0 || n > 1 {
+        // KFLAG: 0-based index into cssr/csrr arrays
+        let kflag: usize = if inu > 0 || n > 1 {
             // ── Generate K(DNU,Z) and K(DNU+1,Z) for forward recurrence ──
             // (Fortran label 80-100)
             if caz >= tol {
@@ -188,11 +184,12 @@ pub(crate) fn zbknu<T: BesselFloat>(
             }
 
             // Scale and prepare for forward recurrence
-            kflag = 1; // KFLAG=2 in Fortran (0-based: 1)
             let a1_check = (fnu + one) * smu.re.abs();
-            if a1_check > alim {
-                kflag = 2; // KFLAG=3
-            }
+            let kflag = if a1_check > alim {
+                2 // KFLAG=3 in Fortran
+            } else {
+                1 // KFLAG=2 in Fortran
+            };
             let scale = cssr[kflag];
             let p2 = s2 * scale;
             s2 = p2 * rz;
@@ -203,6 +200,7 @@ pub(crate) fn zbknu<T: BesselFloat>(
                 s1 = s1 * ez;
                 s2 = s2 * ez;
             }
+            kflag
         } else {
             // ── Generate K(FNU,Z), 0 ≤ FNU < 0.5 and N=1 ──
             // (Fortran label 60-70)
@@ -231,7 +229,7 @@ pub(crate) fn zbknu<T: BesselFloat>(
                 y[0] = s1 * ez;
             }
             return Ok(nz);
-        }
+        };
 
         // ── Forward recurrence: label 210 ──
         return forward_recurrence(
@@ -251,21 +249,20 @@ pub(crate) fn zbknu<T: BesselFloat>(
 
     let mut kflag: usize = 1; // KFLAG=2 in Fortran
 
-    let coef;
-    if koded == Scaling::Unscaled {
+    let coef = if koded == Scaling::Unscaled {
         if z.re > alim {
             // Label 290: scale by exp(z), iflag=1
             koded = Scaling::Exponential;
             iflag = 1;
             kflag = 1; // stays KFLAG=2
-            coef = coef_base; // will apply exp later
+            coef_base // will apply exp later
         } else {
             // Multiply coef by exp(-z) * cssr[kflag]
-            coef = coef_base * (-z).exp() * cssr[kflag];
+            coef_base * (-z).exp() * cssr[kflag]
         }
     } else {
-        coef = coef_base;
-    }
+        coef_base
+    };
 
     // Check for DNU = ±0.5 special case (label 300)
     if dnu.abs() == half {
@@ -305,10 +302,9 @@ pub(crate) fn zbknu<T: BesselFloat>(
         T::from_f64(HPI)
     };
 
-    let fk: T;
     let mut fhs_miller = fhs;
 
-    if t2_miller <= caz {
+    let fk = if t2_miller <= caz {
         // ── Forward recurrence to find backward index K (label 150) ──
         let etest = ak_val / (T::from_f64(PI) * caz * tol);
         let mut fk_val = one;
@@ -343,7 +339,7 @@ pub(crate) fn zbknu<T: BesselFloat>(
             fk_val = fk_val + T::from_f64(SPI) * t1_angle * (t2_miller / caz).sqrt();
             fhs_miller = (T::from_f64(0.25) - dnu2).abs();
         }
-        fk = fk_val;
+        fk_val
     } else {
         // ── Compute backward index K for |z| < R2 (label 170) ──
         let a2 = caz.sqrt();
@@ -352,8 +348,8 @@ pub(crate) fn zbknu<T: BesselFloat>(
         let aa = three * t1_angle / (one + caz);
         let bb = T::from_f64(14.7) * t1_angle / (T::from_f64(28.0) + caz);
         let ak_log = (ak_inner.ln() + caz * aa.cos() / (one + T::from_f64(0.008) * caz)) / bb.cos();
-        fk = T::from_f64(0.12125) * ak_log * ak_log / caz + T::from_f64(1.5);
-    }
+        T::from_f64(0.12125) * ak_log * ak_log / caz + T::from_f64(1.5)
+    };
 
     // ── Backward recurrence loop (Miller algorithm, label 180-190) ──
     // Safety: fk is a small positive integer derived from log-based formula
@@ -442,10 +438,10 @@ fn forward_recurrence<T: BesselFloat>(
     alim: T,
     iflag: i32,
     mut s1: Complex<T>,
-    mut s2: Complex<T>,
+    s2: Complex<T>,
     rz: Complex<T>,
     inu: i32,
-    mut kflag: usize,
+    kflag: usize,
     cssr: &[T; 3],
     csrr: &[T; 3],
     bry: &[T; 3],
@@ -454,7 +450,7 @@ fn forward_recurrence<T: BesselFloat>(
 
     // CK = (DNU + 1) * RZ
     let str_init = fnu - T::from_f64(inu as f64) + one;
-    let mut ck = rz * str_init;
+    let ck = rz * str_init;
 
     let mut inu_adj = inu;
     if n == 1 {
@@ -468,101 +464,121 @@ fn forward_recurrence<T: BesselFloat>(
                 z, fnu, n, y, nz, tol, elim, alim, s1, s2, rz, ck, inu_adj, cssr, csrr, bry,
             );
         }
-
-        // ── Normal forward recurrence (labels 225-230) ──
-        let inub = 0_i32; // 0-based start
-        let mut p1r = csrr[kflag];
-        let mut ascle = bry[kflag];
-
-        for _i in inub..inu_adj {
-            let st = s2;
-            s2 = mul_add(ck, st, s1);
-            s1 = st;
-            ck = ck + rz;
-
-            if kflag < 2 {
-                let p2_test = s2 * p1r;
-                let p2m = p2_test.re.abs().max(p2_test.im.abs());
-                if p2m > ascle {
-                    kflag += 1;
-                    ascle = bry[kflag];
-                    s1 = s1 * p1r;
-                    s2 = p2_test;
-                    let str_scale = cssr[kflag];
-                    s1 = s1 * str_scale;
-                    s2 = s2 * str_scale;
-                    p1r = csrr[kflag];
-                }
-            }
-        }
-
-        if n == 1 {
-            s1 = s2;
-        }
-    } else {
-        // inu_adj <= 0
-        if n == 1 {
-            s1 = s2;
-        }
-        // Fortran label 215: IF(IFLAG.EQ.1) GO TO 270 (ZKSCL path)
-        if iflag == 1 {
-            return handle_iflag1_final(
-                z, fnu, n, y, nz, tol, elim, alim, s1, s2, rz, cssr, csrr, bry,
-            );
-        }
+        // Labels 225-260 with INUB = 1
+        return recur_225_to_260(
+            n, y, *nz, 0, inu_adj, s1, s2, rz, ck, kflag, cssr, csrr, bry,
+        );
     }
 
-    // ── Label 240: store results and continue recurrence ──
+    // Label 215
+    if n == 1 {
+        s1 = s2;
+    }
+    if iflag == 1 {
+        // IF(IFLAG.EQ.1) GO TO 270 (ZKSCL path)
+        return handle_iflag1_final(
+            z, fnu, n, y, nz, tol, elim, alim, s1, s2, rz, cssr, csrr, bry,
+        );
+    }
+    // GO TO 240 (no INU steps left)
+    recur_225_to_260(n, y, *nz, 0, 0, s1, s2, rz, ck, kflag, cssr, csrr, bry)
+}
+
+/// Fortran labels 225-260: run the remaining forward-recurrence steps
+/// `inub..inu` (label 225-230), store Y(1), Y(2) (label 240), then fill the
+/// rest of the sequence (labels 250-260). CK advances throughout, so it
+/// arrives at label 250 as (FNU+1)·RZ. KFLAG selects the current scaling.
+#[allow(clippy::too_many_arguments)]
+fn recur_225_to_260<T: BesselFloat>(
+    n: usize,
+    y: &mut [Complex<T>],
+    nz: usize,
+    inub: i32,
+    inu: i32,
+    mut s1: Complex<T>,
+    mut s2: Complex<T>,
+    rz: Complex<T>,
+    mut ck: Complex<T>,
+    mut kflag: usize,
+    cssr: &[T; 3],
+    csrr: &[T; 3],
+    bry: &[T; 3],
+) -> Result<usize, Error> {
+    // Labels 225-230
+    let mut p1r = csrr[kflag];
+    let mut ascle = bry[kflag];
+    for _i in inub..inu {
+        let st = s2;
+        s2 = mul_add(ck, st, s1);
+        s1 = st;
+        ck = ck + rz;
+
+        if kflag < 2 {
+            let p2 = s2 * p1r;
+            let p2m = p2.re.abs().max(p2.im.abs());
+            if p2m > ascle {
+                kflag += 1;
+                ascle = bry[kflag];
+                s1 = s1 * p1r;
+                s2 = p2;
+                s1 = s1 * cssr[kflag];
+                s2 = s2 * cssr[kflag];
+                p1r = csrr[kflag];
+            }
+        }
+    }
+    if n == 1 {
+        s1 = s2;
+    }
+
+    // Label 240
     let str_scale = csrr[kflag];
     y[0] = s1 * str_scale;
     if n == 1 {
-        return Ok(*nz);
+        return Ok(nz);
     }
     y[1] = s2 * str_scale;
-    if n == 2 {
-        return Ok(*nz);
-    }
 
-    // ── Label 250-260: additional values via recurrence ──
-    let mut kk = 2_usize; // next index to fill (0-based)
-    loop {
-        if kk >= n {
-            return Ok(*nz);
-        }
+    recur_250(&mut y[..n], 2, s1, s2, rz, ck, kflag, cssr, csrr, bry);
+    Ok(nz)
+}
 
-        let p1r = csrr[kflag];
-        let ascle = bry[kflag];
+/// Fortran labels 250-260: fill `y[kk..]` by forward recurrence from the
+/// scaled pair (S1, S2), moving to the next KFLAG scale when values grow.
+#[allow(clippy::too_many_arguments)]
+fn recur_250<T: BesselFloat>(
+    y: &mut [Complex<T>],
+    kk: usize,
+    mut s1: Complex<T>,
+    mut s2: Complex<T>,
+    rz: Complex<T>,
+    mut ck: Complex<T>,
+    mut kflag: usize,
+    cssr: &[T; 3],
+    csrr: &[T; 3],
+    bry: &[T; 3],
+) {
+    let mut p1r = csrr[kflag];
+    let mut ascle = bry[kflag];
+    for yi in y.iter_mut().skip(kk) {
+        let st = s2;
+        s2 = mul_add(ck, st, s1);
+        s1 = st;
+        ck = ck + rz;
+        let p2 = s2 * p1r;
+        *yi = p2;
 
-        for i in kk..n {
-            let p2_val = s2;
-            s2 = mul_add(ck, p2_val, s1);
-            s1 = p2_val;
-            ck = ck + rz;
-            let p2_scaled = s2 * p1r;
-            y[i] = p2_scaled;
-
-            if kflag < 2 {
-                let p2m = p2_scaled.re.abs().max(p2_scaled.im.abs());
-                if p2m > ascle {
-                    kflag += 1;
-                    s1 = s1 * p1r;
-                    s2 = p2_scaled;
-                    let str_s = cssr[kflag];
-                    s1 = s1 * str_s;
-                    s2 = s2 * str_s;
-                    kk = i + 1;
-                    // Fortran: GO TO 250 (restart outer loop)
-                    break;
-                }
+        if kflag < 2 {
+            let p2m = p2.re.abs().max(p2.im.abs());
+            if p2m > ascle {
+                kflag += 1;
+                ascle = bry[kflag];
+                s1 = s1 * p1r;
+                s2 = p2;
+                s1 = s1 * cssr[kflag];
+                s2 = s2 * cssr[kflag];
+                p1r = csrr[kflag];
             }
-
-            if i == n - 1 {
-                return Ok(*nz);
-            }
-        }
-        // If we didn't break early, we've filled all values
-        if kk >= n {
-            return Ok(*nz);
         }
     }
 }
@@ -642,114 +658,26 @@ fn iflag1_recurrence<T: BesselFloat>(
     }
 
     if found_two {
-        // Label 264: resume normal recurrence
-        let kflag: usize = 0; // KFLAG=1 in Fortran
+        // Label 264: resume the normal recurrence (GO TO 225) from the two
+        // on-scale values, with KFLAG=1 and INUB = I+1
         s2 = cy[j];
         j = 1 - j;
         s1 = cy[j];
-        let inub = inub_resume;
-
-        if inub < inu {
-            // Resume normal forward recurrence at label 225
-            let mut p1r = csrr[kflag];
-            let mut ascle_inner = bry[kflag];
-            let mut kflag_inner = kflag;
-
-            for _i in inub..inu {
-                let st = s2;
-                s2 = mul_add(ck, st, s1);
-                s1 = st;
-                ck = ck + rz;
-
-                if kflag_inner < 2 {
-                    let p2_test = s2 * p1r;
-                    let p2m = p2_test.re.abs().max(p2_test.im.abs());
-                    if p2m > ascle_inner {
-                        kflag_inner += 1;
-                        ascle_inner = bry[kflag_inner];
-                        s1 = s1 * p1r;
-                        s2 = p2_test;
-                        let str_s = cssr[kflag_inner];
-                        s1 = s1 * str_s;
-                        s2 = s2 * str_s;
-                        p1r = csrr[kflag_inner];
-                    }
-                }
-            }
-
-            if n == 1 {
-                s1 = s2;
-            }
-
-            // Label 240
-            let str_scale = csrr[kflag_inner];
-            y[0] = s1 * str_scale;
-            if n == 1 {
-                return Ok(*nz);
-            }
-            y[1] = s2 * str_scale;
-            if n == 2 {
-                return Ok(*nz);
-            }
-
-            // Continue with label 250-260 recurrence (with KFLAG tracking)
-            let t2_val = fnu + T::from_f64(2.0); // FNU + (KK-1) where KK=3
-            ck = rz * t2_val;
-            let mut kk_idx = 2_usize;
-            loop {
-                if kk_idx >= n {
-                    return Ok(*nz);
-                }
-                let p1r = csrr[kflag_inner];
-                let ascle_loop = bry[kflag_inner];
-
-                for i in kk_idx..n {
-                    let p2_val = s2;
-                    s2 = mul_add(ck, p2_val, s1);
-                    s1 = p2_val;
-                    ck = ck + rz;
-                    let p2_scaled = s2 * p1r;
-                    y[i] = p2_scaled;
-
-                    if kflag_inner < 2 {
-                        let p2m = p2_scaled.re.abs().max(p2_scaled.im.abs());
-                        if p2m > ascle_loop {
-                            kflag_inner += 1;
-                            s1 = s1 * p1r;
-                            s2 = p2_scaled;
-                            let str_s = cssr[kflag_inner];
-                            s1 = s1 * str_s;
-                            s2 = s2 * str_s;
-                            kk_idx = i + 1;
-                            break;
-                        }
-                    }
-
-                    if i == n - 1 {
-                        return Ok(*nz);
-                    }
-                }
-                if kk_idx >= n {
-                    return Ok(*nz);
-                }
-            }
-        }
-
-        if n == 1 {
-            s1 = s2;
-        }
-
-        // Label 240
-        let str_scale = csrr[kflag];
-        y[0] = s1 * str_scale;
-        if n == 1 {
-            return Ok(*nz);
-        }
-        y[1] = s2 * str_scale;
-        if n == 2 {
-            return Ok(*nz);
-        }
-        return Ok(*nz);
+        return recur_225_to_260(
+            n,
+            y,
+            *nz,
+            inub_resume,
+            inu,
+            s1,
+            s2,
+            rz,
+            ck,
+            0,
+            cssr,
+            csrr,
+            bry,
+        );
     }
 
     // Loop completed without finding two consecutive (label 270)
@@ -794,60 +722,32 @@ fn handle_iflag1_final<T: BesselFloat>(
     }
 
     let kk = *nz; // 0-based index of first non-zero value
-    let mut s1_local = y[kk];
+    let s1_local = y[kk];
     y[kk] = s1_local * csrr[0];
     if inu_remaining == 1 {
         return Ok(*nz);
     }
 
     let kk2 = *nz + 1;
-    let mut s2_local = y[kk2];
+    let s2_local = y[kk2];
     y[kk2] = s2_local * csrr[0];
     if inu_remaining == 2 {
         return Ok(*nz);
     }
 
-    // Continue recurrence for remaining values (label 250-260 with KFLAG tracking)
-    let t2_val = fnu + T::from_f64(kk2 as f64);
-    let mut ck = rz * t2_val;
-    let mut kflag: usize = 0; // KFLAG=1 in Fortran
-
-    let mut kk_idx = kk2 + 1; // 0-based next index to fill
-    loop {
-        if kk_idx >= n {
-            return Ok(*nz);
-        }
-        let p1r = csrr[kflag];
-        let ascle = bry[kflag];
-
-        for i in kk_idx..n {
-            let p2_val = s2_local;
-            s2_local = mul_add(ck, p2_val, s1_local);
-            s1_local = p2_val;
-            ck = ck + rz;
-            let p2_scaled = s2_local * p1r;
-            y[i] = p2_scaled;
-
-            if kflag < 2 {
-                let p2m = p2_scaled.re.abs().max(p2_scaled.im.abs());
-                if p2m > ascle {
-                    kflag += 1;
-                    s1_local = s1_local * p1r;
-                    s2_local = p2_scaled;
-                    let str_s = cssr[kflag];
-                    s1_local = s1_local * str_s;
-                    s2_local = s2_local * str_s;
-                    kk_idx = i + 1;
-                    break;
-                }
-            }
-
-            if i == n - 1 {
-                return Ok(*nz);
-            }
-        }
-        if kk_idx >= n {
-            return Ok(*nz);
-        }
-    }
+    // Label 250 with KFLAG=1 and CK = (FNU + KK - 1)·RZ (Fortran KK = NZ+2)
+    let ck = rz * (fnu + T::from_f64(kk2 as f64));
+    recur_250(
+        &mut y[..n],
+        kk2 + 1,
+        s1_local,
+        s2_local,
+        rz,
+        ck,
+        0,
+        cssr,
+        csrr,
+        bry,
+    );
+    Ok(*nz)
 }

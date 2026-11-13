@@ -125,8 +125,8 @@ fn compute_sum<T: BesselFloat>(ikflg: IkFlag, cache: &UnikCache<T>) -> UnikOutpu
         IkFlag::I => {
             // I function: straight sum (Fortran lines 4988-4993)
             let mut sr = czero;
-            for i in 0..cache.init {
-                sr = sr + cache.cwrk[i];
+            for &c in &cache.cwrk[..cache.init] {
+                sr = sr + c;
             }
             (sr, 0usize)
         }
@@ -134,8 +134,8 @@ fn compute_sum<T: BesselFloat>(ikflg: IkFlag, cache: &UnikCache<T>) -> UnikOutpu
             // K function: alternating sum (Fortran lines 5003-5010)
             let mut sr = czero;
             let mut tr = one;
-            for i in 0..cache.init {
-                sr = sr + cache.cwrk[i] * tr;
+            for &c in &cache.cwrk[..cache.init] {
+                sr = sr + c * tr;
                 tr = -tr;
             }
             (sr, 1usize)

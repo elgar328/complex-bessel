@@ -7,6 +7,74 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-13
+
+### Changed
+
+- `besselj_seq`, `bessely_seq`, and `besseli_seq` compute only the requested
+  orders when all of them are negative integers, so cost and memory scale with
+  `n` instead of |ν|. Very large |ν| now returns `Error::TotalPrecisionLoss`
+  immediately instead of first allocating a buffer of |ν| elements.
+- Complex division now uses Smith's algorithm instead of Amos's ZDIV. For f32,
+  large-order results near the turning point (ν ≈ |z|) were up to several times
+  less accurate than Amos's own single-precision routines; they now match them.
+  f64 results shift slightly and are on average marginally closer to
+  high-precision references. Relative changes reach ~3e-12 only in
+  ill-conditioned regions, where Amos's own routines err by a similar amount.
+
+### Fixed
+
+- `besselj_seq`, `bessely_seq`, `besseli_seq`, `hankel1_seq`, and `hankel2_seq`
+  returned wrong values for all but the last element when `n ≥ 3` and the
+  uniform asymptotic expansion was used (roughly when ν + n − 1 exceeds 86 for
+  f64, 34 for f32, and |z| is not small), while reporting `Accuracy::Normal`.
+  Single-value functions were not affected.
+- `besselj_seq`, `bessely_seq`, `besseli_seq`, `hankel1_seq`, and `hankel2_seq`
+  could return elements off by a large factor (about 1/ε) for `n ≥ 3` when |z|
+  exceeds about 86 (f64; 34 for f32) and the values are large enough to trigger
+  internal rescaling (roughly above 1e289 for f64 and 1e28 for f32, so f32 was
+  affected far more often). Single-value functions were not affected.
+- `besselk_seq`, `hankel1_seq`, and `hankel2_seq` without scaling returned wrong
+  values from the third element on (relative error around 1e-3, sometimes zeros)
+  when the K argument has a real part above about 665 for f64 (64 for f32), where
+  results approach the underflow limit. Single-value functions were not affected.
+- `besselk_seq` returned wrong values when ν is below about 86 (f64; 34 for f32)
+  but ν + n − 1 is above it, e.g. `besselk_seq(0.5, 2+i, 100)`, because it
+  applied the large-order expansion from the first order.
+- `besselk` and `besselk_seq` returned zeros instead of `Error::Overflow` for
+  Re z < 0 when the result overflows.
+- `bessely_scaled` and `bessely_seq` with `Scaling::Exponential` (and
+  `besselj_scaled` / `besselj_seq` for negative non-integer ν, which use them)
+  returned wrong values, reported as `Accuracy::Normal`, when |Im z| exceeds
+  about 350 for f64 (40 for f32) and ν is larger than about 1.5|Im z|, e.g.
+  `bessely_scaled(575.0, 360i)`. Amos's routine drops a term there as an
+  underflow that in fact dominates; the crate keeps it, so it deliberately
+  differs from the Fortran in this region.
+- `besselj_seq` and `besseli_seq` could return every nonzero element too small
+  by a factor of about 5e15 (1e7 for f32) for small |z| (power series range),
+  when the highest requested orders underflow to zero and the highest nonzero
+  one is just above about 1e-289 (1e-28 for f32). Lower orders were affected
+  however large they are.
+- An internal threshold test for results near the underflow and overflow limits
+  used a wrong phase, so some results were zero (or `Error::Overflow`) where
+  Amos's algorithm computes them, or the reverse:
+  - J, Y, I, K, and Hankel functions (single values and `_seq`, including
+    `underflow_count`) for magnitudes of about 1e-305 to 1e-289 for f64
+    (1e-35 to 1e-28 for f32).
+  - `besselk` and the Hankel functions without scaling, for magnitudes of about
+    1e289 to 1e304 for f64 (1e28 to 1e35 for f32) when Re z < 0 for K,
+    Im z < 0 for H(1), or Im z > 0 for H(2). Here the double-precision Fortran
+    evaluates the test in the wrong half plane and reports `Error::Overflow`
+    for many representable results; the crate follows Amos's single-precision
+    routines instead.
+- `besselj_seq`, `bessely_seq`, and `besseli_seq` no longer return
+  `Error::Overflow` for negative integer orders when only orders below the
+  requested range would overflow.
+- All `_seq` functions now return `Error::InvalidInput` for `n = 0` with negative
+  ν, as documented. Previously they panicked in debug builds; in release builds,
+  `besselj_seq`, `bessely_seq`, and `besseli_seq` returned an empty result for
+  integer ν.
+
 ## [0.3.0] - 2026-08-06
 
 ### Fixed
@@ -49,7 +117,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Provide sequence computation (`_seq` variants) for consecutive orders.
 - Support `no_std` with 3-tier feature flags (`no_std` / `alloc` / `std`).
 
-[Unreleased]: https://github.com/elgar328/complex-bessel/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/elgar328/complex-bessel/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/elgar328/complex-bessel/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/elgar328/complex-bessel/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/elgar328/complex-bessel/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/elgar328/complex-bessel/releases/tag/v0.1.0

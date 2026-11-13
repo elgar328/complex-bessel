@@ -182,10 +182,11 @@ pub(crate) fn zbuni<T: BesselFloat>(
         iflag += 1;
         ascle = bry1; // BRY(2)=BRY(3) in Fortran
         s1 = s1 * cscrr;
-        s2 = c2_scaled * csclr;
+        s2 = c2_scaled;
         csclr = csclr * tol;
         cscrr = one / csclr;
         s1 = s1 * csclr;
+        s2 = s2 * csclr;
     }
 
     BuniOutput { nz, nlast: 0 }

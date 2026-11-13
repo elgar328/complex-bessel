@@ -129,10 +129,10 @@
 //!
 //! ```toml
 //! # Bare no_std — no allocator needed:
-//! complex-bessel = { version = "0.3", default-features = false }
+//! complex-bessel = { version = "0.4", default-features = false }
 //!
 //! # no_std + alloc — full API:
-//! complex-bessel = { version = "0.3", default-features = false, features = ["alloc"] }
+//! complex-bessel = { version = "0.4", default-features = false, features = ["alloc"] }
 //! ```
 
 #![warn(missing_docs)]
@@ -1193,6 +1193,10 @@ fn besselk_seq_neg<T: BesselFloat>(
     n: usize,
     scaling: Scaling,
 ) -> Result<BesselResult<T>, Error> {
+    // n = 0 would underflow the `n - 1` order arithmetic below
+    if n == 0 {
+        return Err(Error::InvalidInput);
+    }
     let zero = T::zero();
     let czero = Complex::new(zero, zero);
     let abs_nu = nu.abs();
@@ -1298,6 +1302,10 @@ fn hankel_seq_neg<T: BesselFloat>(
     n: usize,
     scaling: Scaling,
 ) -> Result<BesselResult<T>, Error> {
+    // n = 0 would underflow the `n - 1` order arithmetic below
+    if n == 0 {
+        return Err(Error::InvalidInput);
+    }
     let zero = T::zero();
     let czero = Complex::new(zero, zero);
     let abs_nu = nu.abs();
@@ -1392,6 +1400,10 @@ fn besselj_seq_neg<T: BesselFloat>(
     n: usize,
     scaling: Scaling,
 ) -> Result<BesselResult<T>, Error> {
+    // n = 0 would underflow the `n - 1` order arithmetic below
+    if n == 0 {
+        return Err(Error::InvalidInput);
+    }
     let zero = T::zero();
     let czero = Complex::new(zero, zero);
     let abs_nu = nu.abs();
@@ -1400,20 +1412,22 @@ fn besselj_seq_neg<T: BesselFloat>(
 
     if is_int {
         // Integer: J_{-n}(z) = (-1)^n J_n(z). Same lattice.
-        let last_order = nu + T::from_f64((n - 1) as f64);
-        let max_abs = if abs_nu > last_order {
-            abs_nu
+        let (min_abs, max_abs) = if nc == n {
+            // All orders negative: |orders| span [|ν|-(n-1), |ν|] (O(n) work)
+            (abs_nu - T::from_f64((n - 1) as f64), abs_nu)
         } else {
-            last_order
+            // Crossing zero: |orders| span [0, max(|ν|, ν+n-1)], all needed anyway
+            let last_order = nu + T::from_f64((n - 1) as f64);
+            (zero, abs_nu.max(last_order))
         };
-        let buf_n = max_abs.to_usize().unwrap_or(0) + 1;
+        let buf_n = (max_abs - min_abs).to_usize().unwrap_or(0) + 1;
         let mut buf = alloc_crate::vec![czero; buf_n];
-        let (_, status) = besj::zbesj(z, zero, scaling, &mut buf)?;
+        let (_, status) = besj::zbesj(z, min_abs, scaling, &mut buf)?;
 
         let mut values = alloc_crate::vec![czero; n];
         for j in 0..n {
             let order = nu + T::from_f64(j as f64);
-            let idx = order.abs().to_usize().unwrap_or(0);
+            let idx = (order.abs() - min_abs).to_usize().unwrap_or(0);
             values[j] = buf[idx];
             if order < zero {
                 let int_order = order.abs().to_i64().unwrap_or(0);
@@ -1493,6 +1507,10 @@ fn bessely_seq_neg<T: BesselFloat>(
     n: usize,
     scaling: Scaling,
 ) -> Result<BesselResult<T>, Error> {
+    // n = 0 would underflow the `n - 1` order arithmetic below
+    if n == 0 {
+        return Err(Error::InvalidInput);
+    }
     let zero = T::zero();
     let czero = Complex::new(zero, zero);
     let abs_nu = nu.abs();
@@ -1500,20 +1518,22 @@ fn bessely_seq_neg<T: BesselFloat>(
     let is_int = as_integer(abs_nu).is_some();
 
     if is_int {
-        let last_order = nu + T::from_f64((n - 1) as f64);
-        let max_abs = if abs_nu > last_order {
-            abs_nu
+        let (min_abs, max_abs) = if nc == n {
+            // All orders negative: |orders| span [|ν|-(n-1), |ν|] (O(n) work)
+            (abs_nu - T::from_f64((n - 1) as f64), abs_nu)
         } else {
-            last_order
+            // Crossing zero: |orders| span [0, max(|ν|, ν+n-1)], all needed anyway
+            let last_order = nu + T::from_f64((n - 1) as f64);
+            (zero, abs_nu.max(last_order))
         };
-        let buf_n = max_abs.to_usize().unwrap_or(0) + 1;
+        let buf_n = (max_abs - min_abs).to_usize().unwrap_or(0) + 1;
         let mut buf = alloc_crate::vec![czero; buf_n];
-        let (_, status) = besy::zbesy(z, zero, scaling, &mut buf)?;
+        let (_, status) = besy::zbesy(z, min_abs, scaling, &mut buf)?;
 
         let mut values = alloc_crate::vec![czero; n];
         for j in 0..n {
             let order = nu + T::from_f64(j as f64);
-            let idx = order.abs().to_usize().unwrap_or(0);
+            let idx = (order.abs() - min_abs).to_usize().unwrap_or(0);
             values[j] = buf[idx];
             if order < zero {
                 let int_order = order.abs().to_i64().unwrap_or(0);
@@ -1591,6 +1611,10 @@ fn besseli_seq_neg<T: BesselFloat>(
     n: usize,
     scaling: Scaling,
 ) -> Result<BesselResult<T>, Error> {
+    // n = 0 would underflow the `n - 1` order arithmetic below
+    if n == 0 {
+        return Err(Error::InvalidInput);
+    }
     let zero = T::zero();
     let czero = Complex::new(zero, zero);
     let abs_nu = nu.abs();
@@ -1599,20 +1623,22 @@ fn besseli_seq_neg<T: BesselFloat>(
 
     if is_int {
         // I_{-n} = I_n. Same lattice, no correction needed.
-        let last_order = nu + T::from_f64((n - 1) as f64);
-        let max_abs = if abs_nu > last_order {
-            abs_nu
+        let (min_abs, max_abs) = if nc == n {
+            // All orders negative: |orders| span [|ν|-(n-1), |ν|] (O(n) work)
+            (abs_nu - T::from_f64((n - 1) as f64), abs_nu)
         } else {
-            last_order
+            // Crossing zero: |orders| span [0, max(|ν|, ν+n-1)], all needed anyway
+            let last_order = nu + T::from_f64((n - 1) as f64);
+            (zero, abs_nu.max(last_order))
         };
-        let buf_n = max_abs.to_usize().unwrap_or(0) + 1;
+        let buf_n = (max_abs - min_abs).to_usize().unwrap_or(0) + 1;
         let mut buf = alloc_crate::vec![czero; buf_n];
-        let (_, status) = besi::zbesi(z, zero, scaling, &mut buf)?;
+        let (_, status) = besi::zbesi(z, min_abs, scaling, &mut buf)?;
 
         let mut values = alloc_crate::vec![czero; n];
         for j in 0..n {
             let order = nu + T::from_f64(j as f64);
-            let idx = order.abs().to_usize().unwrap_or(0);
+            let idx = (order.abs() - min_abs).to_usize().unwrap_or(0);
             values[j] = buf[idx];
         }
         let uc = recount_underflow(&values);
@@ -2065,498 +2091,418 @@ mod non_finite_tests {
     }
 }
 
-// ── Tests for negative order _seq functions ──
+// ── Scaled vs unscaled consistency ──
+//
+// Every `_scaled` function is the unscaled one times an elementary factor, so
+// the two must agree wherever both are representable. The grid reaches the
+// regions where the scaled paths switch to underflow/overflow handling
+// (2|Im z| above ELIM for Y, large orders), which a value comparison at
+// moderate arguments does not.
 
-#[cfg(all(test, feature = "alloc"))]
-mod neg_order_seq_tests {
+#[cfg(test)]
+mod scaling_tests {
     use super::*;
     use num_complex::Complex64;
 
-    const TOL: f64 = 2e-14;
+    type F<T> = fn(T, Complex<T>) -> Result<Complex<T>, Error>;
 
-    fn rel_err(a: Complex64, b: Complex64) -> f64 {
-        let diff = (a - b).norm();
-        let mag = a.norm().max(b.norm());
-        if mag == 0.0 { diff } else { diff / mag }
+    fn fns<T: BesselFloat>() -> [(&'static str, F<T>, F<T>); 6] {
+        [
+            ("J", besselj, besselj_scaled),
+            ("Y", bessely, bessely_scaled),
+            ("I", besseli, besseli_scaled),
+            ("K", besselk, besselk_scaled),
+            ("H1", hankel1, hankel1_scaled),
+            ("H2", hankel2, hankel2_scaled),
+        ]
     }
 
-    /// Verify _seq(ν, z, n)[j] == single_value(ν+j, z) for all j.
-    #[allow(clippy::too_many_arguments)]
-    fn check_seq_vs_single<F, G>(
-        seq_fn: F,
-        single_fn: G,
-        nu: f64,
-        z: Complex64,
+    /// Log of the factor in scaled = exp(c)·unscaled.
+    fn log_factor(name: &str, z: Complex64) -> Complex64 {
+        let i = Complex64::new(0.0, 1.0);
+        match name {
+            "J" | "Y" => Complex64::new(-z.im.abs(), 0.0),
+            "I" => Complex64::new(-z.re.abs(), 0.0),
+            "K" => z,
+            "H1" => -i * z,
+            _ => i * z,
+        }
+    }
+
+    /// Compare scaled with exp(c)·unscaled, formed in log space so neither
+    /// the factor nor the product overflows. Pairs where either value fails,
+    /// is non-finite, or lies below `floor` (underflow handling) are skipped.
+    fn check<T: BesselFloat>(nus: &[f64], radii: &[f64], floor: f64, tol: f64) {
+        let to64 = |v: Complex<T>| Complex64::new(v.re.to_f64().unwrap(), v.im.to_f64().unwrap());
+        let mut compared = 0;
+        for (name, unscaled, scaled) in fns::<T>() {
+            for &nu in nus {
+                for &r in radii {
+                    for k in 0..12 {
+                        // 12 angles over the full circle, including both axes
+                        let th =
+                            -core::f64::consts::PI + core::f64::consts::FRAC_PI_6 * f64::from(k);
+                        let z = Complex::from_polar(T::from_f64(r), T::from_f64(th));
+                        let nu_t = T::from_f64(nu);
+                        let (Ok(u), Ok(s)) = (unscaled(nu_t, z), scaled(nu_t, z)) else {
+                            continue;
+                        };
+                        let (u, s) = (to64(u), to64(s));
+                        let ok = |v: Complex64| v.norm().is_finite() && v.norm() > floor;
+                        if !ok(u) || !ok(s) {
+                            continue;
+                        }
+                        let expected = (u.ln() + log_factor(name, to64(z))).exp();
+                        let err = (s - expected).norm() / expected.norm();
+                        assert!(
+                            err < tol,
+                            "{name}: nu={nu}, z={z:?}: scaled={s:?}, exp(c)*unscaled={expected:?}, \
+                             rel_err={err:e}"
+                        );
+                        compared += 1;
+                    }
+                }
+            }
+        }
+        assert!(compared > 0);
+    }
+
+    #[test]
+    fn scaled_matches_unscaled_f64() {
+        // Radii past ELIM/2 ≈ 350 with orders up to beyond |z|. Observed up to
+        // ~6e-13 (large ν and |z|); a lost or mis-scaled term gives O(1).
+        check::<f64>(
+            &[0.0, 0.3, 2.5, 45.7, 250.0, 575.0, 800.0, 1200.0],
+            &[0.5, 5.0, 40.0, 200.0, 360.0, 450.0, 600.0],
+            1e-290,
+            1e-10,
+        );
+    }
+
+    #[test]
+    fn scaled_matches_unscaled_f32() {
+        // ELIM/2 ≈ 40 in f32. Observed up to ~4e-5.
+        check::<f32>(
+            &[0.0, 0.3, 2.5, 25.7, 65.0, 90.0, 130.0],
+            &[0.5, 5.0, 20.0, 41.0, 50.0, 60.0, 75.0],
+            1e-30,
+            1e-3,
+        );
+    }
+}
+
+// ── Tests for _seq functions (negative orders, recurrence paths) ──
+
+#[cfg(all(test, feature = "alloc"))]
+mod seq_tests {
+    use super::*;
+    use num_complex::Complex64;
+
+    /// Power series path (ZSERI) where the top orders underflow after the
+    /// near-underflow scaling was switched on: the lower orders retried after
+    /// that must keep the scaling consistent (they came out multiplied by TOL,
+    /// and so did every order below them through the recurrence).
+    /// Whether a top order underflows is a rounding-level ZUCHK decision on
+    /// the real axis, so scan several top orders and require at least one hit.
+    #[test]
+    fn seq_power_series_underflow_retry_keeps_scaling() {
+        fn check<T: BesselFloat>(
+            tops: core::ops::Range<i32>,
+            ns: &[usize],
+            z: Complex<T>,
+            tol: f64,
+        ) {
+            for &n in ns {
+                let mut hits = 0;
+                for top in tops.clone() {
+                    let nu = T::from_f64(f64::from(top) - (n - 1) as f64);
+                    let r = besselj_seq(nu, z, n, Scaling::Unscaled).unwrap();
+                    if r.underflow_count == 0 || r.values[0].norm() == T::zero() {
+                        continue;
+                    }
+                    hits += 1;
+                    for (j, &got) in r.values.iter().enumerate() {
+                        if got.norm() == T::zero() {
+                            continue;
+                        }
+                        let order = nu + T::from_f64(j as f64);
+                        let single = besselj(order, z).unwrap();
+                        let err = ((got - single).norm() / single.norm()).to_f64().unwrap();
+                        // Loose bound: the scaled path near underflow differs from the
+                        // single value by ~1e-13 (as in Fortran); the bug was a factor of TOL.
+                        assert!(
+                            err < tol,
+                            "n={n} order={:?}: {got:?} vs {single:?}",
+                            order.to_f64()
+                        );
+                    }
+                }
+                assert!(hits > 0, "n={n}: no case with a partial underflow");
+            }
+        }
+        check(202..219, &[3, 40], Complex64::new(6.5, 0.0), 1e-10);
+        check(36..48, &[3, 20], Complex::new(6.5f32, 0.0), 1e-4);
+    }
+
+    // ── Edge: n = 0 with negative ν ──
+
+    #[test]
+    fn seq_neg_n_zero_is_invalid_input() {
+        let z = Complex64::new(1.5, 0.5);
+        let s = Scaling::Unscaled;
+        // Non-integer and integer ν take different code paths
+        for nu in [-1.5, -2.0] {
+            assert_eq!(besselj_seq(nu, z, 0, s).unwrap_err(), Error::InvalidInput);
+            assert_eq!(bessely_seq(nu, z, 0, s).unwrap_err(), Error::InvalidInput);
+            assert_eq!(besseli_seq(nu, z, 0, s).unwrap_err(), Error::InvalidInput);
+            assert_eq!(besselk_seq(nu, z, 0, s).unwrap_err(), Error::InvalidInput);
+            assert_eq!(hankel1_seq(nu, z, 0, s).unwrap_err(), Error::InvalidInput);
+            assert_eq!(hankel2_seq(nu, z, 0, s).unwrap_err(), Error::InvalidInput);
+        }
+    }
+
+    // ── Seq/single consistency over a grid of regions ──
+    //
+    // Every element of a `_seq` result must match the single-value function at
+    // the same order. The grid spans negative and positive orders, small to
+    // near-overflow |z|, all four quadrants, and long sequences, so it reaches
+    // the recurrence, rescaling, and analytic-continuation paths that only run
+    // for n > 1.
+
+    type SeqFn<T> = fn(T, Complex<T>, usize, Scaling) -> Result<BesselResult<T>, Error>;
+    type SingleFn<T> = fn(T, Complex<T>) -> Result<Complex<T>, Error>;
+    /// (name, seq, single unscaled, single scaled)
+    type SeqCase<T> = (&'static str, SeqFn<T>, SingleFn<T>, SingleFn<T>);
+
+    fn seq_fns<T: BesselFloat>() -> [SeqCase<T>; 6] {
+        [
+            ("J", besselj_seq, besselj, besselj_scaled),
+            ("Y", bessely_seq, bessely, bessely_scaled),
+            ("I", besseli_seq, besseli, besseli_scaled),
+            ("K", besselk_seq, besselk, besselk_scaled),
+            ("H1", hankel1_seq, hankel1, hankel1_scaled),
+            ("H2", hankel2_seq, hankel2, hankel2_scaled),
+        ]
+    }
+
+    /// Compare seq[j] with single(ν+j) for every (ν, |z|, arg z) on the grid.
+    /// A sequence may fail as a whole only if some of its orders fail on their
+    /// own (e.g. orders below the requested range must not cause an error).
+    /// The converse does not hold: Amos's overflow tests depend on the starting
+    /// order of the call, so a single value can report `Overflow` where a
+    /// sequence that contains it succeeds (as in the Fortran, e.g. f32 K at
+    /// ν = 10.5 alone vs. from ν = 7.5 with n = 9, z = 90·e^{-2.6i}). Elements whose single value
+    /// is an error, non-finite, or below 1e3 times the smallest normal number
+    /// are skipped.
+    fn check_seq_grid<T: BesselFloat>(
+        nus: &[f64],
+        radii: &[f64],
+        args: &[f64],
         n: usize,
-        scaling: Scaling,
         tol: f64,
-        label: &str,
-    ) where
-        F: FnOnce(f64, Complex64, usize, Scaling) -> Result<BesselResult<f64>, Error>,
-        G: Fn(f64, Complex64) -> Result<Complex64, Error>,
-    {
-        let result = seq_fn(nu, z, n, scaling).unwrap();
-        assert_eq!(result.values.len(), n, "{label}: wrong length");
-        for j in 0..n {
-            let order = nu + j as f64;
-            let expected = single_fn(order, z).unwrap();
-            let err = rel_err(result.values[j], expected);
-            assert!(
-                err < tol,
-                "{label}: order={order}, seq={:?}, single={expected:?}, rel_err={err}",
-                result.values[j]
+    ) {
+        let floor = T::MACH_TINY * T::from_f64(1e3);
+        for (name, seq, single, single_scaled) in seq_fns::<T>() {
+            for scaling in [Scaling::Unscaled, Scaling::Exponential] {
+                let single = if scaling == Scaling::Unscaled {
+                    single
+                } else {
+                    single_scaled
+                };
+                for &nu in nus {
+                    for &r in radii {
+                        for &th in args {
+                            let nu_t = T::from_f64(nu);
+                            let z = Complex::from_polar(T::from_f64(r), T::from_f64(th));
+                            let res = match seq(nu_t, z, n, scaling) {
+                                Ok(res) => res,
+                                Err(e) => {
+                                    let some_order_fails = (0..n)
+                                        .any(|j| single(nu_t + T::from_f64(j as f64), z).is_err());
+                                    assert!(
+                                        some_order_fails,
+                                        "{name} {scaling:?}: nu={nu}, z={z:?}, n={n}: seq \
+                                         failed with {e:?} but every single value succeeds"
+                                    );
+                                    continue;
+                                }
+                            };
+                            assert_eq!(res.values.len(), n);
+                            for (j, &w) in res.values.iter().enumerate() {
+                                let order = nu_t + T::from_f64(j as f64);
+                                let Ok(v) = single(order, z) else {
+                                    continue;
+                                };
+                                if !(v.norm() > floor && v.norm().is_finite()) {
+                                    continue;
+                                }
+                                let err = ((w - v).norm() / v.norm()).to_f64().unwrap();
+                                assert!(
+                                    err < tol,
+                                    "{name} {scaling:?}: nu={nu}, z={z:?}, n={n}, j={j}: \
+                                     seq={w:?}, single={v:?}, rel_err={err:e}"
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Angles covering all four quadrants, the real and imaginary axes, and
+    /// both sides of the |Im z| = √3·|Re z| region boundary.
+    const ARGS: [f64; 8] = [
+        0.0,
+        0.5,
+        1.2,
+        core::f64::consts::FRAC_PI_2,
+        2.2,
+        3.0,
+        -1.0,
+        -2.6,
+    ];
+
+    /// Recurrence paths in f64. The seq values come from recurrence while the
+    /// single values come from direct expansions, so their ~1e-14 errors do not
+    /// cancel (observed up to ~6e-12 for n = 100); a misplaced or mis-scaled
+    /// element gives O(1e-3) error or worse.
+    const TOL_GRID_F64: f64 = 1e-10;
+
+    #[test]
+    fn seq_matches_single_grid_f64() {
+        // Orders: all-negative / crossing (integer and not), small, and beyond
+        // FNUL (≈ 86) so the uniform expansions recur. Radii include values near
+        // the ELIM/ALIM scaling thresholds (≈ 665–700) and beyond, where low
+        // orders overflow but ν = -200 does not. ν = 575 at |z| = 360 reaches
+        // scaled Y with 2|Im z| > ELIM, where the K term still dominates. -0.0
+        // is an edge case of the sign dispatch; n = 1 is the one-element
+        // lattice edge case.
+        for n in [1, 9] {
+            check_seq_grid::<f64>(
+                &[
+                    -200.0, -20.0, -12.3, -5.3, -3.0, -2.5, -0.0, 0.0, 0.4, 13.5, 46.2, 81.7,
+                    121.3, 575.0,
+                ],
+                &[
+                    0.3, 3.0, 17.0, 45.0, 120.0, 330.0, 360.0, 666.0, 698.0, 705.0, 709.0,
+                ],
+                &ARGS,
+                n,
+                TOL_GRID_F64,
             );
         }
     }
 
-    // ── K (even function) ──
+    #[test]
+    fn seq_matches_single_grid_f64_long() {
+        // n = 100 with small ν: ν + n − 1 exceeds FNUL while ν itself does not
+        check_seq_grid::<f64>(&[0.5, 3.3], &[2.2, 25.0, 90.0], &ARGS, 100, TOL_GRID_F64);
+    }
+
+    /// f32 hits the scaling thresholds at |values| ≈ 1e28, so moderate |z|
+    /// exercises the rescaling branches. Observed up to ~1.4e-4 on this grid;
+    /// misplaced or mis-scaled elements give O(1) error or worse. (Off this grid,
+    /// near the turning point ν ≈ |z| ≈ FNUL, Amos's single-precision algorithm
+    /// itself loses up to ~2e-2, so random points would need a looser bound.)
+    const TOL_GRID_F32: f64 = 1e-3;
 
     #[test]
-    fn besselk_seq_all_negative_nonint() {
-        let z = Complex64::new(1.5, 0.5);
-        check_seq_vs_single(
-            besselk_seq,
-            besselk,
-            -3.7,
-            z,
-            3,
-            Scaling::Unscaled,
-            TOL,
-            "K all neg",
+    fn seq_matches_single_grid_f32() {
+        // At |z| = 90, low orders overflow but ν = -60 does not. ν = 70 at
+        // |z| = 45 reaches scaled Y with 2|Im z| > ELIM (K term dominant).
+        check_seq_grid::<f32>(
+            &[
+                -60.0, -9.0, -4.6, -0.0, 0.0, 0.4, 7.5, 21.2, 29.9, 46.3, 70.0,
+            ],
+            &[0.3, 3.0, 17.0, 45.0, 70.0, 90.0],
+            &ARGS,
+            9,
+            TOL_GRID_F32,
+        );
+    }
+
+    // ── Three-term recurrence across ν = 0 ──
+    //
+    // Negative orders come from reflection formulas shared by the single-value
+    // and `_seq` functions, so comparing the two cannot catch an error in a
+    // formula. The recurrence can: across ν = 0 it links reflected values to
+    // directly computed ones. Every scaling factor is independent of the order,
+    // so scaled values satisfy the same recurrence.
+
+    /// Check C(ν-1) + s·C(ν+1) = t·(2ν/z)·C(ν) on consecutive `_seq` elements,
+    /// with (s, t) = (1, 1) for J, Y, H1, H2, (-1, 1) for I, and (-1, -1) for K
+    /// (DLMF 10.6.1, 10.29.1). The residual is relative to the largest term.
+    fn check_recurrence_grid<T: BesselFloat>(
+        nus: &[f64],
+        radii: &[f64],
+        args: &[f64],
+        n: usize,
+        tol: f64,
+    ) {
+        for (name, seq, _, _) in seq_fns::<T>() {
+            let (s, t) = match name {
+                "I" => (-1.0, 1.0),
+                "K" => (-1.0, -1.0),
+                _ => (1.0, 1.0),
+            };
+            let (s, t) = (T::from_f64(s), T::from_f64(t));
+            for scaling in [Scaling::Unscaled, Scaling::Exponential] {
+                for &nu in nus {
+                    for &r in radii {
+                        for &th in args {
+                            let nu_t = T::from_f64(nu);
+                            let z = Complex::from_polar(T::from_f64(r), T::from_f64(th));
+                            let Ok(res) = seq(nu_t, z, n, scaling) else {
+                                continue;
+                            };
+                            for (j, w) in res.values.windows(3).enumerate() {
+                                // Underflowed (zeroed) or overflowed elements break the recurrence
+                                if w.iter()
+                                    .any(|v| v.norm() == T::zero() || !v.norm().is_finite())
+                                {
+                                    continue;
+                                }
+                                let order = nu_t + T::from_f64((j + 1) as f64);
+                                let lhs = w[0] + w[2] * s;
+                                let rhs = w[1] * (z.inv() * (T::from_f64(2.0) * order * t));
+                                let mag = w[0].norm().max(w[2].norm()).max(rhs.norm());
+                                let err = ((lhs - rhs).norm() / mag).to_f64().unwrap();
+                                assert!(
+                                    err < tol,
+                                    "{name} {scaling:?}: nu={nu}, z={z:?}, order={:?}: \
+                                     recurrence residual {err:e}",
+                                    order.to_f64()
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn seq_recurrence_across_zero_f64() {
+        // Non-integer (generic and half-integer) and integer orders crossing
+        // zero, plus all-negative sequences.
+        check_recurrence_grid::<f64>(
+            &[-12.3, -5.3, -4.0, -3.7, -2.5, -0.3],
+            &[0.3, 3.0, 17.0, 45.0],
+            &ARGS,
+            9,
+            1e-11, // observed up to ~1.3e-13
         );
     }
 
     #[test]
-    fn besselk_seq_crossing_nonint() {
-        let z = Complex64::new(1.5, 0.5);
-        check_seq_vs_single(
-            besselk_seq,
-            besselk,
-            -1.5,
-            z,
-            5,
-            Scaling::Unscaled,
-            TOL,
-            "K crossing nonint",
-        );
-    }
-
-    #[test]
-    fn besselk_seq_int_negative() {
-        let z = Complex64::new(1.5, 0.5);
-        check_seq_vs_single(
-            besselk_seq,
-            besselk,
-            -3.0,
-            z,
-            4,
-            Scaling::Unscaled,
-            TOL,
-            "K int neg",
-        );
-    }
-
-    #[test]
-    fn besselk_seq_int_crossing() {
-        let z = Complex64::new(1.5, 0.5);
-        check_seq_vs_single(
-            besselk_seq,
-            besselk,
-            -2.0,
-            z,
-            5,
-            Scaling::Unscaled,
-            TOL,
-            "K int cross",
-        );
-    }
-
-    #[test]
-    fn besselk_seq_neg_zero() {
-        let z = Complex64::new(1.0, 0.0);
-        check_seq_vs_single(
-            besselk_seq,
-            besselk,
-            -0.0,
-            z,
-            1,
-            Scaling::Unscaled,
-            TOL,
-            "K neg zero",
-        );
-    }
-
-    // ── H^(1) ──
-
-    #[test]
-    fn hankel1_seq_all_negative_nonint() {
-        let z = Complex64::new(1.5, 0.5);
-        check_seq_vs_single(
-            hankel1_seq,
-            hankel1,
-            -3.7,
-            z,
-            3,
-            Scaling::Unscaled,
-            TOL,
-            "H1 all neg",
-        );
-    }
-
-    #[test]
-    fn hankel1_seq_crossing_nonint() {
-        let z = Complex64::new(1.5, 0.5);
-        check_seq_vs_single(
-            hankel1_seq,
-            hankel1,
-            -1.5,
-            z,
-            5,
-            Scaling::Unscaled,
-            TOL,
-            "H1 crossing",
-        );
-    }
-
-    #[test]
-    fn hankel1_seq_int_crossing() {
-        let z = Complex64::new(1.5, 0.5);
-        check_seq_vs_single(
-            hankel1_seq,
-            hankel1,
-            -2.0,
-            z,
-            5,
-            Scaling::Unscaled,
-            TOL,
-            "H1 int cross",
-        );
-    }
-
-    // ── H^(2) ──
-
-    #[test]
-    fn hankel2_seq_all_negative_nonint() {
-        let z = Complex64::new(1.5, 0.5);
-        check_seq_vs_single(
-            hankel2_seq,
-            hankel2,
-            -3.7,
-            z,
-            3,
-            Scaling::Unscaled,
-            TOL,
-            "H2 all neg",
-        );
-    }
-
-    #[test]
-    fn hankel2_seq_crossing_nonint() {
-        let z = Complex64::new(1.5, 0.5);
-        check_seq_vs_single(
-            hankel2_seq,
-            hankel2,
-            -1.5,
-            z,
-            5,
-            Scaling::Unscaled,
-            TOL,
-            "H2 crossing",
-        );
-    }
-
-    #[test]
-    fn hankel2_seq_int_crossing() {
-        let z = Complex64::new(1.5, 0.5);
-        check_seq_vs_single(
-            hankel2_seq,
-            hankel2,
-            -2.0,
-            z,
-            5,
-            Scaling::Unscaled,
-            TOL,
-            "H2 int cross",
-        );
-    }
-
-    // ── J ──
-
-    #[test]
-    fn besselj_seq_all_negative_nonint() {
-        let z = Complex64::new(1.5, 0.5);
-        check_seq_vs_single(
-            besselj_seq,
-            besselj,
-            -3.7,
-            z,
-            3,
-            Scaling::Unscaled,
-            TOL,
-            "J all neg",
-        );
-    }
-
-    #[test]
-    fn besselj_seq_crossing_nonint() {
-        let z = Complex64::new(1.5, 0.5);
-        check_seq_vs_single(
-            besselj_seq,
-            besselj,
-            -1.5,
-            z,
-            5,
-            Scaling::Unscaled,
-            TOL,
-            "J crossing",
-        );
-    }
-
-    #[test]
-    fn besselj_seq_int_negative() {
-        let z = Complex64::new(1.5, 0.5);
-        check_seq_vs_single(
-            besselj_seq,
-            besselj,
-            -3.0,
-            z,
-            4,
-            Scaling::Unscaled,
-            TOL,
-            "J int neg",
-        );
-    }
-
-    #[test]
-    fn besselj_seq_int_crossing() {
-        let z = Complex64::new(1.5, 0.5);
-        check_seq_vs_single(
-            besselj_seq,
-            besselj,
-            -2.0,
-            z,
-            5,
-            Scaling::Unscaled,
-            TOL,
-            "J int cross",
-        );
-    }
-
-    // ── Y ──
-
-    #[test]
-    fn bessely_seq_all_negative_nonint() {
-        let z = Complex64::new(1.5, 0.5);
-        check_seq_vs_single(
-            bessely_seq,
-            bessely,
-            -3.7,
-            z,
-            3,
-            Scaling::Unscaled,
-            TOL,
-            "Y all neg",
-        );
-    }
-
-    #[test]
-    fn bessely_seq_crossing_nonint() {
-        let z = Complex64::new(1.5, 0.5);
-        check_seq_vs_single(
-            bessely_seq,
-            bessely,
-            -1.5,
-            z,
-            5,
-            Scaling::Unscaled,
-            TOL,
-            "Y crossing",
-        );
-    }
-
-    #[test]
-    fn bessely_seq_int_negative() {
-        let z = Complex64::new(1.5, 0.5);
-        check_seq_vs_single(
-            bessely_seq,
-            bessely,
-            -3.0,
-            z,
-            4,
-            Scaling::Unscaled,
-            TOL,
-            "Y int neg",
-        );
-    }
-
-    #[test]
-    fn bessely_seq_int_crossing() {
-        let z = Complex64::new(1.5, 0.5);
-        check_seq_vs_single(
-            bessely_seq,
-            bessely,
-            -2.0,
-            z,
-            5,
-            Scaling::Unscaled,
-            TOL,
-            "Y int cross",
-        );
-    }
-
-    // ── I ──
-
-    #[test]
-    fn besseli_seq_all_negative_nonint() {
-        let z = Complex64::new(1.5, 0.5);
-        check_seq_vs_single(
-            besseli_seq,
-            besseli,
-            -3.7,
-            z,
-            3,
-            Scaling::Unscaled,
-            TOL,
-            "I all neg",
-        );
-    }
-
-    #[test]
-    fn besseli_seq_crossing_nonint() {
-        let z = Complex64::new(1.5, 0.5);
-        check_seq_vs_single(
-            besseli_seq,
-            besseli,
-            -1.5,
-            z,
-            5,
-            Scaling::Unscaled,
-            TOL,
-            "I crossing",
-        );
-    }
-
-    #[test]
-    fn besseli_seq_int_negative() {
-        let z = Complex64::new(1.5, 0.5);
-        check_seq_vs_single(
-            besseli_seq,
-            besseli,
-            -3.0,
-            z,
-            4,
-            Scaling::Unscaled,
-            TOL,
-            "I int neg",
-        );
-    }
-
-    #[test]
-    fn besseli_seq_int_crossing() {
-        let z = Complex64::new(1.5, 0.5);
-        check_seq_vs_single(
-            besseli_seq,
-            besseli,
-            -2.0,
-            z,
-            5,
-            Scaling::Unscaled,
-            TOL,
-            "I int cross",
-        );
-    }
-
-    // ── Scaled variants ──
-
-    #[test]
-    fn besseli_seq_scaled_negative_nonint() {
-        let z = Complex64::new(2.0, 1.0);
-        check_seq_vs_single(
-            besseli_seq,
-            besseli_scaled,
-            -2.3,
-            z,
-            5,
-            Scaling::Exponential,
-            TOL,
-            "I scaled neg",
-        );
-    }
-
-    #[test]
-    fn besselj_seq_scaled_crossing() {
-        let z = Complex64::new(2.0, 1.0);
-        check_seq_vs_single(
-            besselj_seq,
-            besselj_scaled,
-            -1.5,
-            z,
-            4,
-            Scaling::Exponential,
-            TOL,
-            "J scaled cross",
-        );
-    }
-
-    #[test]
-    fn besselk_seq_scaled_negative() {
-        let z = Complex64::new(2.0, 1.0);
-        check_seq_vs_single(
-            besselk_seq,
-            besselk_scaled,
-            -2.5,
-            z,
-            4,
-            Scaling::Exponential,
-            TOL,
-            "K scaled neg",
-        );
-    }
-
-    #[test]
-    fn hankel1_seq_scaled_negative() {
-        let z = Complex64::new(2.0, 1.0);
-        check_seq_vs_single(
-            hankel1_seq,
-            hankel1_scaled,
-            -2.5,
-            z,
-            4,
-            Scaling::Exponential,
-            TOL,
-            "H1 scaled neg",
-        );
-    }
-
-    #[test]
-    fn bessely_seq_scaled_crossing() {
-        let z = Complex64::new(2.0, 1.0);
-        check_seq_vs_single(
-            bessely_seq,
-            bessely_scaled,
-            -1.5,
-            z,
-            4,
-            Scaling::Exponential,
-            TOL,
-            "Y scaled cross",
-        );
-    }
-
-    // ── Edge: -0.0 ──
-
-    #[test]
-    fn besselj_seq_neg_zero() {
-        let z = Complex64::new(1.0, 0.0);
-        check_seq_vs_single(
-            besselj_seq,
-            besselj,
-            -0.0,
-            z,
-            3,
-            Scaling::Unscaled,
-            TOL,
-            "J neg zero",
+    fn seq_recurrence_across_zero_f32() {
+        check_recurrence_grid::<f32>(
+            &[-12.3, -5.3, -4.0, -3.7, -2.5, -0.3],
+            &[0.3, 3.0, 17.0, 45.0],
+            &ARGS,
+            9,
+            1e-4, // observed up to ~1e-5
         );
     }
 }

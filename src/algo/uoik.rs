@@ -47,7 +47,7 @@ pub(crate) fn zuoik<T: BesselFloat>(
     let mut nuf: i32 = 0;
     let mut nn = n;
 
-    // AIC = ln(sqrt(pi/2)) = 0.5*ln(pi/2) (Fortran line 4017)
+    // AIC = ln(2*sqrt(pi)) (Fortran line 4017)
     let aic = T::from_f64(AIC);
 
     // Reflect to right half plane (Fortran lines 4020-4026)
@@ -68,23 +68,28 @@ pub(crate) fn zuoik<T: BesselFloat>(
 
     // ── Compute ZN for iform=2 (Fortran lines 4051-4055) ──
     let zn = if iform == 2 {
-        // ZNR = ZRI, ZNI = -ZRR; if ZI <= 0 then ZNR = -ZNR
-        let znr = if z.im <= zero { -zr.im } else { zr.im };
+        // ZNR = ZRI, ZNI = -ZRR; if ZRI <= 0 then ZNR = -ZNR, so Re(ZN) >= 0.
+        // Fortran line 4053 tests ZI (the unreflected z) instead, which for
+        // Re(z) < 0 puts ZN in the left half plane, where ZUNHJ gives a wrong
+        // estimate. We follow the single-precision CUOIK, which tests
+        // AIMAG(ZR); this only matters for K/H calls with Re(z) < 0.
+        let znr = if zr.im <= zero { -zr.im } else { zr.im };
         Complex::new(znr, -zr.re)
     } else {
         czero // unused for iform=1
     };
 
     // ── Compute leading terms (Fortran lines 4043-4060) ──
-    let (mut cz, phi, aarg) = if iform == 1 {
+    let (mut cz, phi, arg) = if iform == 1 {
         // ZUNIK path (Fortran lines 4044-4048)
         let result = zunik(zr, gnu, ikflg, SumOption::SkipSum, tol, None);
-        (result.zeta2 - result.zeta1, result.phi, zero)
+        (result.zeta2 - result.zeta1, result.phi, czero)
     } else {
         // ZUNHJ path (Fortran lines 4056-4060)
         let result = zunhj(zn, gnu, SumOption::SkipSum, tol);
-        (result.zeta2 - result.zeta1, result.phi, zabs(result.arg))
+        (result.zeta2 - result.zeta1, result.phi, result.arg)
     };
+    let aarg = zabs(arg);
 
     // ── Apply KODE and IKFLG adjustments (Fortran lines 4062-4071) ──
     if kode == Scaling::Exponential {
@@ -134,8 +139,8 @@ pub(crate) fn zuoik<T: BesselFloat>(
             cz.im = cz.im + log_phi.im;
             if iform == 2 {
                 // Fortran lines 4103-4105: subtract 0.25*ln(arg) + AIC
-                let log_arg = Complex::new(aarg, zero).ln();
-                cz.im = cz.im - T::from_f64(0.25) * log_arg.im;
+                // Im(ln ARG) is the phase of the complex ARG, not of |ARG|
+                cz.im = cz.im - T::from_f64(0.25) * arg.arg();
             }
             // label 120 (Fortran lines 4107-4111)
             let cz_check = Complex::new(rcz, cz.im).exp() / tol;
@@ -160,20 +165,18 @@ pub(crate) fn zuoik<T: BesselFloat>(
     loop {
         gnu = fnu + T::from_f64((nn - 1) as f64);
 
-        let (phi2, aarg2);
-        if iform == 1 {
+        let (phi2, arg2) = if iform == 1 {
             // ZUNIK call (Fortran lines 4122-4126)
             let result2 = zunik(zr, gnu, ikflg, SumOption::SkipSum, tol, None);
             cz = result2.zeta2 - result2.zeta1;
-            phi2 = result2.phi;
-            aarg2 = zero;
+            (result2.phi, czero)
         } else {
             // ZUNHJ call (Fortran lines 4129-4133)
             let result2 = zunhj(zn, gnu, SumOption::SkipSum, tol);
             cz = result2.zeta2 - result2.zeta1;
-            phi2 = result2.phi;
-            aarg2 = zabs(result2.arg);
-        }
+            (result2.phi, result2.arg)
+        };
+        let aarg2 = zabs(arg2);
 
         // Apply KODE adjustment (Fortran lines 4135-4137)
         if kode == Scaling::Exponential {
@@ -221,8 +224,7 @@ pub(crate) fn zuoik<T: BesselFloat>(
         cz.im = cz.im + log_phi2.im;
         if iform == 2 {
             // Fortran lines 4159-4161
-            let log_arg2 = Complex::new(aarg2, zero).ln();
-            cz.im = cz.im - T::from_f64(0.25) * log_arg2.im;
+            cz.im = cz.im - T::from_f64(0.25) * arg2.arg();
         }
         // label 200 (Fortran lines 4163-4167)
         let cz_check = Complex::new(rcz, cz.im).exp() / tol;

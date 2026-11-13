@@ -375,47 +375,39 @@ pub(crate) fn zunk2<T: BesselFloat>(
         let fn_val = fnu + T::from_f64((kk_idx - 1) as f64);
 
         // ── Logic to reuse phase 1 params or recompute (Fortran labels 172-175) ──
-        let (phid, argd, zet1d, zet2d, asumd, bsumd);
-
-        if n <= 2 {
+        let (phid, argd, zet1d, zet2d, asumd, bsumd) = if n <= 2 {
             // label 172: use cached J-slot params
             let jj = j - 1; // current j slot (0-based)
-            phid = phi_arr[jj];
-            argd = arg_arr[jj];
-            zet1d = zeta1_arr[jj];
-            zet2d = zeta2_arr[jj];
-            asumd = asum_arr[jj];
-            bsumd = bsum_arr[jj];
             j = 3 - j; // flip j
+            (
+                phi_arr[jj],
+                arg_arr[jj],
+                zeta1_arr[jj],
+                zeta2_arr[jj],
+                asum_arr[jj],
+                bsum_arr[jj],
+            )
         } else if kk_idx == n && ib_ac < n {
             // label 210: fresh computation
-            let result_ac = zunhj(zn, fn_val, SumOption::Full, tol);
-            phid = result_ac.phi;
-            argd = result_ac.arg;
-            zet1d = result_ac.zeta1;
-            zet2d = result_ac.zeta2;
-            asumd = result_ac.asum;
-            bsumd = result_ac.bsum;
+            let r = zunhj(zn, fn_val, SumOption::Full, tol);
+            (r.phi, r.arg, r.zeta1, r.zeta2, r.asum, r.bsum)
         } else if kk_idx == ib_ac || kk_idx == ic {
             // label 172: reuse cached
             let jj = j - 1;
-            phid = phi_arr[jj];
-            argd = arg_arr[jj];
-            zet1d = zeta1_arr[jj];
-            zet2d = zeta2_arr[jj];
-            asumd = asum_arr[jj];
-            bsumd = bsum_arr[jj];
             j = 3 - j;
+            (
+                phi_arr[jj],
+                arg_arr[jj],
+                zeta1_arr[jj],
+                zeta2_arr[jj],
+                asum_arr[jj],
+                bsum_arr[jj],
+            )
         } else {
             // Fresh ZUNHJ
-            let result_ac = zunhj(zn, fn_val, SumOption::Full, tol);
-            phid = result_ac.phi;
-            argd = result_ac.arg;
-            zet1d = result_ac.zeta1;
-            zet2d = result_ac.zeta2;
-            asumd = result_ac.asum;
-            bsumd = result_ac.bsum;
-        }
+            let r = zunhj(zn, fn_val, SumOption::Full, tol);
+            (r.phi, r.arg, r.zeta1, r.zeta2, r.asum, r.bsum)
+        };
 
         // S1 exponent for I function (Fortran lines 6514-6525)
         let s1_exp = if kode == Scaling::Exponential {

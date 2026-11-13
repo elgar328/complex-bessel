@@ -17,5 +17,8 @@ pub(crate) const R1M5: f64 = 0.30102999566398120;
 /// 2/3 (Fortran: TTH)
 pub(crate) const TTH: f64 = 6.66666666666666667e-01;
 
-/// ln(√(π/2)) (Fortran: AIC in ZUNI2, ZUNK2)
+/// ln(2√π) = ln 2 + ½·ln π (Fortran: AIC in ZUOIK, ZUNI2, ZUNK2)
+///
+/// Log of the 2√π normalization in the Airy asymptotic form
+/// Ai(x) ~ e^{-ζ} / (2√π·x^{1/4}).
 pub(crate) const AIC: f64 = 1.26551212348464539e+00;

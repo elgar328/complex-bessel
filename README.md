@@ -20,7 +20,7 @@ Pure Rust implementation of complex Bessel functions based on **Amos Algorithm 6
 
 ```toml
 [dependencies]
-complex-bessel = "0.3"
+complex-bessel = "0.4"
 ```
 
 ```rust
@@ -110,11 +110,17 @@ The 24 single-value functions include 12 Bessel (J/Y/I/K/H<sup>(1)</sup>/H<sup>(
 
 ```toml
 # Bare no_std — no allocator needed:
-complex-bessel = { version = "0.3", default-features = false }
+complex-bessel = { version = "0.4", default-features = false }
 
 # no_std + alloc — full API:
-complex-bessel = { version = "0.3", default-features = false, features = ["alloc"] }
+complex-bessel = { version = "0.4", default-features = false, features = ["alloc"] }
 ```
+
+## Differences from TOMS 644
+
+- **Scaled Y** — keeps a term that ZBESY wrongly drops as an underflow (large ν, |Im z| > ~350).
+- **K/H overflow test** — follows single-precision CUOIK; double ZUOIK reports spurious `Overflow` near 1e300.
+- **Complex division** — Smith's algorithm instead of ZDIV, for better f32 accuracy.
 
 ## Accuracy & performance
 
@@ -126,11 +132,11 @@ Since this library is a Rust translation of AMOS/TOMS 644, the two should produc
 
 [![Rust vs Fortran — relative error](https://raw.githubusercontent.com/elgar328/complex-bessel-test/main/images/fidelity.svg)](https://github.com/elgar328/complex-bessel-test/blob/main/images/fidelity.pdf)
 
-Median evaluation time per function call. On average, **19% faster** than AMOS (Fortran) and **8× faster** than SciPy (Python).
+Median evaluation time per function call.
 
 [![Performance — median time per call](https://raw.githubusercontent.com/elgar328/complex-bessel-test/main/images/eval_time.svg)](https://github.com/elgar328/complex-bessel-test/blob/main/images/eval_time.pdf)
 
-For methodology, datasets, and full benchmark results, see the [test repository](https://github.com/elgar328/complex-bessel-test).
+The charts are for f64. For methodology, datasets, full benchmark results, and f32 accuracy, see the [test repository](https://github.com/elgar328/complex-bessel-test).
 
 ## License
 

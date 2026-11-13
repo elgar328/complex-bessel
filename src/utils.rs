@@ -67,20 +67,26 @@ pub(crate) fn zabs<T: BesselFloat>(z: Complex<T>) -> T {
     }
 }
 
-/// Overflow-safe complex division `a / b`.
+/// Overflow-safe complex division `a / b` (Smith's algorithm).
 ///
-/// Uses the Amos algorithm: normalize b by its magnitude first to avoid
-/// overflow in intermediate products. Computes:
-///   `bm = 1 / |b|`
-///   `c = (a.re * b.re + a.im * b.im, a.im * b.re - a.re * b.im) * bm²`
-///
-/// Equivalent to Fortran ZDIV in TOMS 644.
+/// Divides through by the larger component of `b`, so intermediates stay
+/// bounded. Replaces Fortran ZDIV, which scales by `1/|b|` (a square root and
+/// three roundings) and errs by up to ~3 ulp versus ~1 ulp here. In ZUNHJ and
+/// ZUNIK the quotient feeds `ln((1+w)/z)`, whose difference from `w` cancels
+/// near the turning point; the extra ulps were amplified enough to make f32
+/// results several times less accurate than Amos's single-precision CBSUBS,
+/// which uses native complex division at these sites.
 #[inline]
 pub(crate) fn zdiv<T: BesselFloat>(a: Complex<T>, b: Complex<T>) -> Complex<T> {
-    let bm = T::one() / zabs(b);
-    let cc = b.re * bm;
-    let cd = b.im * bm;
-    Complex::new((a.re * cc + a.im * cd) * bm, (a.im * cc - a.re * cd) * bm)
+    if b.re.abs() >= b.im.abs() {
+        let r = b.im / b.re;
+        let d = b.re + b.im * r;
+        Complex::new((a.re + a.im * r) / d, (a.im - a.re * r) / d)
+    } else {
+        let r = b.re / b.im;
+        let d = b.re * r + b.im;
+        Complex::new((a.re * r + a.im) / d, (a.im * r - a.re) / d)
+    }
 }
 
 /// Overflow-safe reciprocal: `rz = 2 / z`.
@@ -294,6 +300,38 @@ mod tests {
         let recovered = Complex64::new(c.re * b.re - c.im * b.im, c.re * b.im + c.im * b.re);
         assert!((recovered.re - a.re).abs() < 1e-13);
         assert!((recovered.im - a.im).abs() < 1e-13);
+    }
+
+    #[test]
+    fn zdiv_f32_within_two_ulp() {
+        // Normwise error against the f64 quotient, over sign/magnitude combos
+        // (including near-zero components and ratios far from 1)
+        let vals: [f32; 12] = [
+            -3.7, -1.0, -0.31, -1e-3, 0.0, 2e-3, 0.27, 0.9, 1.0, 1.7, 12.5, 1e4,
+        ];
+        for &ar in &vals {
+            for &ai in &vals {
+                for &br in &vals {
+                    for &bi in &vals {
+                        if br == 0.0 && bi == 0.0 {
+                            continue;
+                        }
+                        let q = zdiv(Complex::new(ar, ai), Complex::new(br, bi));
+                        let exact = Complex64::new(ar.into(), ai.into())
+                            / Complex64::new(br.into(), bi.into());
+                        if exact.norm() == 0.0 {
+                            continue;
+                        }
+                        let err = (Complex64::new(q.re.into(), q.im.into()) - exact).norm()
+                            / exact.norm();
+                        assert!(
+                            err < 2.0 * f64::from(f32::EPSILON),
+                            "({ar},{ai})/({br},{bi}): {q:?} vs {exact:?}"
+                        );
+                    }
+                }
+            }
+        }
     }
 
     #[test]

@@ -262,8 +262,10 @@ pub(crate) fn zuni1<T: BesselFloat>(
             bry2
         };
 
-        let mut k = nd - 2; // 0-based index into y (Fortran K = ND - 2, 1-based)
-        let mut fn_rec = T::from_f64(k as f64); // Fortran: FN = FLOAT(K), where K starts at ND-2
+        // Fortran K = ND - 2 is a 1-based index into Y, so it maps to y[k - 1]
+        // (order fnu + k - 1). FN = FLOAT(K) is the recurrence order offset.
+        let mut k = nd - 2;
+        let mut fn_rec = T::from_f64(k as f64);
 
         // Fortran DO 90 I=3,ND
         for _i in 2..nd {
@@ -272,7 +274,7 @@ pub(crate) fn zuni1<T: BesselFloat>(
             s2 = s1 + rz * c2 * cfn;
             s1 = c2;
             let c2_scaled = s2 * c1r;
-            y[k] = c2_scaled;
+            y[k - 1] = c2_scaled;
             k -= 1;
             fn_rec = fn_rec - one;
 
