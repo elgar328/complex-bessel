@@ -130,7 +130,7 @@ Median evaluation time per function call.
 
 [![Performance — median time per call](https://raw.githubusercontent.com/elgar328/complex-bessel-test/main/images/eval_time.svg)](https://github.com/elgar328/complex-bessel-test/blob/main/images/eval_time.pdf)
 
-For methodology, datasets, and full benchmark results, see the [test repository](https://github.com/elgar328/complex-bessel-test).
+The charts are for f64. For methodology, datasets, full benchmark results, and f32 accuracy, see the [test repository](https://github.com/elgar328/complex-bessel-test).
 
 ## License
 
