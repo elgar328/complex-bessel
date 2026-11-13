@@ -2601,7 +2601,115 @@ mod special_value_tests {
         }
     }
 
-    /// f32 version of the test above. Amos's single-precision algorithm keeps
+    /// Scaled K and H continued across the imaginary axis (ZACON) combine
+    /// K(−z), rescaled by exp(−2z), with I(−z). Fortran rounds the phase of
+    /// that rescaling to an ulp of 2·Im z, a relative error of up to eps·|z|.
+    /// Half-integer orders have closed forms (DLMF 10.49.12, 10.16.1, 10.39.2);
+    /// the points are where the K term is not negligible (near the imaginary
+    /// axis for K and I, near the real axis for H). The K sequence (n = 5)
+    /// reaches ZACON's second and loop calls and its IUF = 3 recovery.
+    fn check_scaled_continuation<T: BesselFloat>(radii: &[f64], tol: f64) {
+        use core::f64::consts::PI;
+        let to64 = |z: Complex<T>| Complex::new(z.re.to_f64().unwrap(), z.im.to_f64().unwrap());
+        // √(2/(πz)) on the principal branch (the reciprocal of z would flip
+        // the sign of a zero imaginary part)
+        let rt = |z: Complex<f64>| Complex::new((2.0 / PI).sqrt(), 0.0) / z.sqrt();
+        // K_{n+1/2}(z)·e^z = √(π/(2z)) Σ_{k=0}^{n} (n+k)!/(k!(n−k)!) (2z)^−k
+        let k_half = |n: usize, z: Complex<f64>| {
+            let (mut sum, mut term, mut c) = (Complex::new(0.0, 0.0), Complex::new(1.0, 0.0), 1.0);
+            for k in 0..=n {
+                sum += term * c;
+                c *= ((n + k + 1) * (n - k)) as f64 / (k + 1) as f64;
+                term /= z * 2.0;
+            }
+            rt(z) * (PI / 2.0) * sum
+        };
+        let check =
+            |what: &str, z: Complex<T>, v: Complex<T>, expected: Complex<f64>, scale: f64| {
+                let err = (to64(v) - expected).norm() / scale;
+                assert!(
+                    err < tol,
+                    "{what}: z={z:?}, value={v:?}, expected={expected:?}, err={err:e}"
+                );
+            };
+        let i = Complex::new(0.0, 1.0);
+        let half = T::from_f64(0.5);
+        let three_halves = T::from_f64(1.5);
+        for &r in radii {
+            for d in [1e-3, 1.0, 5.0] {
+                // K and I(−1/2) just left of the imaginary axis
+                for z in [Complex::new(-d, r), Complex::new(-d, -r)] {
+                    let z = Complex::new(T::from_f64(z.re), T::from_f64(z.im));
+                    let z64 = to64(z);
+                    let k0 = k_half(0, z64);
+                    check("K 1/2", z, besselk_scaled(half, z).unwrap(), k0, k0.norm());
+                    let k1 = k_half(1, z64);
+                    check(
+                        "K 3/2",
+                        z,
+                        besselk_scaled(three_halves, z).unwrap(),
+                        k1,
+                        k1.norm(),
+                    );
+                    let mut seq = [Complex::new(T::zero(), T::zero()); 5];
+                    besselk_seq_into(half, z, Scaling::Exponential, &mut seq).unwrap();
+                    for (n, &v) in seq.iter().enumerate() {
+                        let k = k_half(n, z64);
+                        check("K seq", z, v, k, k.norm());
+                    }
+                    // I_{−1/2}(z) = √(2/(πz))·cosh z, scaled by exp(−|Re z|);
+                    // relative to √(2/(π|z|)), as cosh z can be small
+                    let x = z64.re.abs();
+                    let cosh = (Complex::from_polar((z64.re - x).exp(), z64.im)
+                        + Complex::from_polar((-z64.re - x).exp(), -z64.im))
+                        / 2.0;
+                    let ri = rt(z64);
+                    check(
+                        "I -1/2",
+                        z,
+                        besseli_scaled(-half, z).unwrap(),
+                        ri * cosh,
+                        ri.norm(),
+                    );
+                }
+                // H(1) below and H(2) above the real axis, and H(2) on its negative part
+                for (z, h2) in [
+                    (Complex::new(r, -d), false),
+                    (Complex::new(-r, -d), false),
+                    (Complex::new(r, d), true),
+                    (Complex::new(-r, d), true),
+                    (Complex::new(-r, 0.0), true),
+                ] {
+                    let z = Complex::new(T::from_f64(z.re), T::from_f64(z.im));
+                    let z64 = to64(z);
+                    let s = rt(z64);
+                    let (f, e0, e1): (scaling_tests::F<T>, _, _) = if h2 {
+                        (hankel2_scaled, i * s, -s * (1.0 - i / z64))
+                    } else {
+                        (hankel1_scaled, -i * s, -s * (1.0 + i / z64))
+                    };
+                    let name = if h2 { "H2" } else { "H1" };
+                    check(name, z, f(half, z).unwrap(), e0, e0.norm());
+                    check(name, z, f(three_halves, z).unwrap(), e1, e1.norm());
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn scaled_continuation_phase_f64() {
+        // The old error is up to eps·|z|, ~2e-8 at |z| = 1e8
+        check_scaled_continuation::<f64>(&[1e2, 1e4, 1e6, 1e8, 1e9], 1e-13);
+    }
+
+    #[test]
+    fn scaled_continuation_phase_f32() {
+        // The old error reaches ~3e-2 at |z| = 4e6
+        check_scaled_continuation::<f32>(&[1e2, 1e3, 1e4, 1e6, 4e6], 2e-6);
+    }
+
+    /// f32 version of `uniform_expansion_beyond_airy_range_f64`. Amos's
+    /// single-precision algorithm keeps
     /// few correct digits at this |z| (as just below this range), so only the
     /// magnitudes are checked: |H(1,2)| ≈ √(2/(π|z|)) and |K| ≈ √(π/(2|z|))
     /// for |z| ≫ ν², which rules out the former zeros. Half-integer orders

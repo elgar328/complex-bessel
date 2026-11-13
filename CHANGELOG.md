@@ -45,6 +45,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   function there beyond its range limit and use the undefined result; the
   crate now evaluates it. The results have the accuracy Amos's algorithm has
   at smaller |z| (status `Accuracy::Reduced`; for f32, few correct digits).
+- `besselk_scaled` (Re z < 0), `hankel1_scaled` (Im z < 0), `hankel2_scaled`
+  (Im z > 0 or on the negative real axis), and `besseli_scaled` with negative
+  non-integer ν and Re z < 0 (and their `_seq` and `_seq_into` variants) lost
+  relative accuracy of up to about ε·|z| for orders |ν| below about 86 (34 for
+  f32), where the analytic continuation's K term is not negligible (|Re z| up
+  to about 10 for K and I, |Im z| for H). E.g. `hankel2_scaled(0.5, -1e8)` had
+  a relative error of 7.9e-9, and 0.21 for f32 at −4e6; both are now about ε.
+  Amos's ZS1S2 rounds the phase of the factor exp(−2z) to an ulp of 2·Im z;
+  the crate applies exp(−2i·Im z) separately, deliberately differing from
+  Amos. Other results computed through ZS1S2 (scaled Airy functions with
+  Re z < 0 and the uniform asymptotic expansions, including those used by
+  unscaled J, Y, I, and H at moderate orders) change only in the last digits.
 
 ### Removed
 
