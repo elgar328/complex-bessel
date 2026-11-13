@@ -2535,6 +2535,126 @@ mod special_value_tests {
     fn negative_half_integer_needs_one_function_f32() {
         check_negative_half_integer::<f32>(&[0.5, 2.5, 10.5, 30.5, 40.5, 150.5]);
     }
+
+    /// Above FNUL, the uniform expansions (ZUNI2, ZUNK2) evaluate the Airy
+    /// function at about (1.5|z|)^(2/3), beyond the Airy functions' own range
+    /// limit once |z| exceeds about 7.2e8. Amos leaves the result undefined
+    /// there; these values were 0 (or, for Y, missing the K part). The
+    /// Wronskians (DLMF 10.5.4–5, 10.28.2) rule out a zero or a missing term.
+    /// They cannot see a phase error common to ν and ν + 1; against mpmath
+    /// the error here is up to ~2e-5, as at smaller |z| (status `Reduced`).
+    #[test]
+    fn uniform_expansion_beyond_airy_range_f64() {
+        use core::f64::consts::{FRAC_PI_2, PI};
+        let czero = Complex::new(0.0, 0.0);
+        let check =
+            |what: &str, nu: f64, z: Complex<f64>, w: Complex<f64>, expected: Complex<f64>| {
+                let err = (w - expected).norm() / expected.norm();
+                assert!(err < 1e-4, "{what}: nu={nu}, z={z:?}, rel_err={err:e}");
+            };
+        // Within ~30° of the real axis (H, J, Y) or the imaginary axis (I, K),
+        // where ZUNI2 and ZUNK2 are used
+        let args = [
+            0.0,
+            0.3,
+            FRAC_PI_2 - 0.3,
+            FRAC_PI_2,
+            FRAC_PI_2 + 0.3,
+            PI - 0.3,
+            PI,
+            -0.3,
+            -FRAC_PI_2,
+            -FRAC_PI_2 + 0.3,
+        ];
+        // ν = 1e5 also takes J and I through ZUNI2 (2|z| < ν²)
+        for nu in [86.0, 90.5, 1000.0, 1e5] {
+            for r in [7.5e8, 9e8, 1.05e9] {
+                for th in args {
+                    let z = Complex::from_polar(r, th);
+                    // H1·H2 (the scaling factors cancel), from single values and from one call
+                    let h1 = |n: f64| hankel1_scaled(n, z).unwrap();
+                    let h2 = |n: f64| hankel2_scaled(n, z).unwrap();
+                    let expected = Complex::new(0.0, 4.0 / PI) / z;
+                    let w = h1(nu) * h2(nu + 1.0) - h1(nu + 1.0) * h2(nu);
+                    check("H single", nu, z, w, expected);
+                    let (mut s1, mut s2) = ([czero; 2], [czero; 2]);
+                    hankel1_seq_into(nu, z, Scaling::Exponential, &mut s1).unwrap();
+                    hankel2_seq_into(nu, z, Scaling::Exponential, &mut s2).unwrap();
+                    check("H seq", nu, z, s1[0] * s2[1] - s1[1] * s2[0], expected);
+                    // I·K for Re z ≥ 0, where the scaling factors leave exp(i Im z)
+                    if z.re >= 0.0 {
+                        let i = |n: f64| besseli_scaled(n, z).unwrap();
+                        let k = |n: f64| besselk_scaled(n, z).unwrap();
+                        let w = i(nu) * k(nu + 1.0) + i(nu + 1.0) * k(nu);
+                        let expected = Complex::from_polar(1.0, z.im) / z;
+                        check("I K", nu, z, w, expected);
+                    }
+                }
+                for x in [r, -r] {
+                    let z = Complex::new(x, 0.0);
+                    let j = |n: f64| besselj(n, z).unwrap();
+                    let y = |n: f64| bessely(n, z).unwrap();
+                    let w = j(nu) * y(nu + 1.0) - j(nu + 1.0) * y(nu);
+                    check("J Y", nu, z, w, Complex::new(-2.0 / PI, 0.0) / z);
+                }
+            }
+        }
+    }
+
+    /// f32 version of the test above. Amos's single-precision algorithm keeps
+    /// few correct digits at this |z| (as just below this range), so only the
+    /// magnitudes are checked: |H(1,2)| ≈ √(2/(π|z|)) and |K| ≈ √(π/(2|z|))
+    /// for |z| ≫ ν², which rules out the former zeros. Half-integer orders
+    /// avoid the 2·cos(νπ) term that H(2) and K pick up across the negative
+    /// real axis; points on the axes are exact, as `from_polar` would put
+    /// them off by ~0.3 in f32. Observed ratios are within 0.9–1.1.
+    #[test]
+    fn uniform_expansion_beyond_airy_range_f32() {
+        let polar = Complex::from_polar;
+        for r in [3e6_f32, 4e6] {
+            // The axes, and 0.3 rad on either side of them
+            let points = [
+                Complex::new(r, 0.0),
+                Complex::new(-r, 0.0),
+                Complex::new(0.0, r),
+                Complex::new(0.0, -r),
+                polar(r, 0.3),
+                polar(r, 1.27),
+                polar(r, 1.87),
+                polar(r, 2.84),
+                polar(r, -0.3),
+                polar(r, -1.27),
+                polar(r, -1.87),
+                polar(r, -2.84),
+            ];
+            for (nu, z) in [35.5_f32, 40.5, 100.5]
+                .into_iter()
+                .flat_map(|nu| points.map(|z| (nu, z)))
+            {
+                let s = (z.norm() * core::f32::consts::FRAC_PI_2).sqrt();
+                for (name, v) in [
+                    ("H1", hankel1_scaled(nu, z).unwrap() * s),
+                    ("H2", hankel2_scaled(nu, z).unwrap() * s),
+                    (
+                        "K",
+                        besselk_scaled(nu, z).unwrap() * (s / core::f32::consts::FRAC_PI_2),
+                    ),
+                ] {
+                    // On the negative real axis H(2) is continued from two
+                    // terms of equal weight, whose f32 phase noise leaves
+                    // even the magnitude off by up to ~2.4
+                    if name == "H2" && z.im == 0.0 && z.re < 0.0 {
+                        continue;
+                    }
+                    let m = v.norm();
+                    assert!(
+                        (0.5..2.0).contains(&m),
+                        "{name}: nu={nu}, z={z:?}, ratio={m}"
+                    );
+                }
+            }
+        }
+    }
 }
 
 // ── Tests for _seq functions (negative orders, recurrence paths) ──

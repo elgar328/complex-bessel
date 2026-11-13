@@ -35,6 +35,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   instead of 0. Such orders now use J alone, so at z = 0 they return 0
   instead of `Error::InvalidInput` (for `bessely_seq`, when all orders are
   negative half-integers).
+- `besselj`, `bessely`, `besseli`, `besselk`, `hankel1`, and `hankel2` (and
+  their `_scaled`, `_seq`, and `_seq_into` variants) returned 0 or wrong values
+  for |z| between about 7.2e8 and 1.07e9 (2.8e6 and 4.2e6 for f32) within
+  about 30° of the real axis (J, Y, H) or the imaginary axis (I, K): for K, H,
+  and Y when |ν| exceeds about 86 (34 for f32), and for J and I when ν exceeds
+  about √(2|z|). E.g. `hankel1(86.0, 1e9)` returned 0 instead of
+  −2.47e-5 + 5.21e-6i. Amos's uniform asymptotic expansions evaluate an Airy
+  function there beyond its range limit and use the undefined result; the
+  crate now evaluates it. The results have the accuracy Amos's algorithm has
+  at smaller |z| (status `Accuracy::Reduced`; for f32, few correct digits).
 
 ### Removed
 

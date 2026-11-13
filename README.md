@@ -119,6 +119,7 @@ complex-bessel = { version = "0.4", default-features = false }
 - **Scaled Y** — keeps a term that ZBESY wrongly drops as an underflow (large ν, |Im z| > ~350).
 - **K/H overflow test** — follows single-precision CUOIK; double ZUOIK reports spurious `Overflow` near 1e300.
 - **Complex division** — Smith's algorithm instead of ZDIV, for better f32 accuracy.
+- **Uniform expansions at |z| ≈ 7e8–1e9** — evaluate the Airy function beyond its range limit, where ZUNI2/ZUNK2 use an undefined result (ν > ~86).
 
 ## Accuracy & performance
 
