@@ -2540,7 +2540,7 @@ mod special_value_tests {
     /// function at about (1.5|z|)^(2/3), beyond the Airy functions' own range
     /// limit once |z| exceeds about 7.2e8. Amos leaves the result undefined
     /// there; these values were 0 (or, for Y, missing the K part). The
-    /// Wronskians (DLMF 10.5.4–5, 10.28.2) rule out a zero or a missing term.
+    /// Wronskians (DLMF 10.5.2, 10.5.5, 10.28.2) rule out a zero or a missing term.
     /// They cannot see a phase error common to ν and ν + 1; against mpmath
     /// the error here is up to ~3e-5, as at smaller |z| (status `Reduced`).
     #[test]
@@ -2604,7 +2604,7 @@ mod special_value_tests {
     /// Scaled K and H continued across the imaginary axis (ZACON) combine
     /// K(−z), rescaled by exp(−2z), with I(−z). Fortran rounds the phase of
     /// that rescaling to an ulp of 2·Im z, a relative error of up to eps·|z|.
-    /// Half-integer orders have closed forms (DLMF 10.49.12, 10.16.1, 10.39.2);
+    /// Half-integer orders have closed forms (DLMF 10.49.12, 10.16.2, 10.39.1);
     /// the points are where the K term is not negligible (near the imaginary
     /// axis for K and I, near the real axis for H). The K sequence (n = 5)
     /// reaches ZACON's second and loop calls and its IUF = 3 recovery.
@@ -2713,7 +2713,7 @@ mod special_value_tests {
     /// just below this range), so only the magnitudes are checked:
     /// |H(1,2)| ≈ √(2/(π|z|)) and |K| ≈ √(π/(2|z|)) for |z| ≫ ν², which rules
     /// out the former zeros. Half-integer orders avoid the 2·cos(νπ) term that
-    /// H(2) and K pick up across the negative real axis; points on the axes
+    /// H(2) picks up across the negative real axis; points on the axes
     /// are exact, as `from_polar` would put them off by ~0.3 in f32. Observed
     /// ratios are within 1%.
     #[test]
