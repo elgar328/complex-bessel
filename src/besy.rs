@@ -16,6 +16,26 @@ use crate::machine::BesselFloat;
 use crate::types::{Accuracy, Error, Scaling};
 use crate::utils::{mul_i, mul_neg_i, zabs};
 
+/// The K term of scaled Y when 2|Im z| >= ELIM: `zv * exp(-tay)`.
+///
+/// Fortran ZBESY drops it there (EY = 0) as an underflow, but for large fnu
+/// K(fnu, zn) is large enough that this term dominates Y (e.g. fnu = 575,
+/// z = 360i, where Fortran returns only the tiny I term). The term is kept
+/// when it lies above 1e3 times the smallest normal number (Amos's ARM); each
+/// half exp(-tay/2) is then a normal number too, so applying them in turn
+/// loses no precision. Below that it is dropped as in Fortran.
+/// Deliberate deviation from TOMS 644.
+#[inline]
+fn far_k_term<T: BesselFloat>(zv: Complex<T>, tay: T) -> Complex<T> {
+    let arm = T::from_f64(1.0e3) * T::MACH_TINY;
+    let m = zv.re.abs().max(zv.im.abs());
+    if m == T::zero() || m.ln() - tay <= arm.ln() {
+        return Complex::new(T::zero(), T::zero());
+    }
+    let half = (-tay * T::from_f64(0.5)).exp();
+    zv * half * half
+}
+
 /// Compute Y_{fnu+j}(z) for j = 0, 1, ..., n-1.
 ///
 /// Results are written into the `y` slice. `n` is derived from `y.len()`.
@@ -129,11 +149,11 @@ pub(crate) fn zbesy<T: BesselFloat>(
 
         let exr = z.re.cos();
         let exi = z.re.sin();
-        let mut ey = zero;
         let tay = (z.im + z.im).abs();
-        if tay < elim {
-            ey = (-tay).exp();
-        }
+        // Fortran sets EY = 0 when TAY >= ELIM, dropping the K term. Here CSPN
+        // is left unscaled and `far_k_term` applies exp(-TAY) instead.
+        let k_term_far = tay >= elim;
+        let ey = if k_term_far { one } else { (-tay).exp() };
 
         // Apply exponential scaling to CSPN (Fortran lines 1411-1413)
         cspn = Complex::new(exr, exi) * cspn * ey;
@@ -147,7 +167,10 @@ pub(crate) fn zbesy<T: BesselFloat>(
         } else {
             (k_buf[0], one)
         };
-        let zv = zv_s * cspn * zv_atol;
+        let mut zv = zv_s * cspn * zv_atol;
+        if k_term_far {
+            zv = far_k_term(zv, tay);
+        }
 
         // Scale I values if near underflow (Fortran lines 1434-1444)
         let (zu_s, zu_atol) = if i_buf[0].re.abs().max(i_buf[0].im.abs()) <= ascle {
@@ -162,7 +185,7 @@ pub(crate) fn zbesy<T: BesselFloat>(
 
         y[0] = if z.im < zero { cy_val.conj() } else { cy_val };
 
-        let nz_out = if cy_val == czero && ey == zero { 1 } else { 0 };
+        let nz_out = if cy_val == czero && k_term_far { 1 } else { 0 };
 
         return Ok((nz_out, status));
     }
@@ -208,11 +231,11 @@ pub(crate) fn zbesy<T: BesselFloat>(
 
         let exr = z.re.cos();
         let exi = z.re.sin();
-        let mut ey = zero;
         let tay = (z.im + z.im).abs();
-        if tay < elim {
-            ey = (-tay).exp();
-        }
+        // Fortran sets EY = 0 when TAY >= ELIM, dropping the K term. Here CSPN
+        // is left unscaled and `far_k_term` applies exp(-TAY) instead.
+        let k_term_far = tay >= elim;
+        let ey = if k_term_far { one } else { (-tay).exp() };
 
         // Apply exponential scaling to CSPN (Fortran lines 1411-1413)
         cspn = Complex::new(exr, exi) * cspn * ey;
@@ -228,7 +251,10 @@ pub(crate) fn zbesy<T: BesselFloat>(
             } else {
                 (k_buf[i], one)
             };
-            let zv = zv_s * cspn * zv_atol;
+            let mut zv = zv_s * cspn * zv_atol;
+            if k_term_far {
+                zv = far_k_term(zv, tay);
+            }
 
             // Scale I values if near underflow (Fortran lines 1434-1444)
             let (zu_s, zu_atol) = if i_buf[i].re.abs().max(i_buf[i].im.abs()) <= ascle {
@@ -243,7 +269,7 @@ pub(crate) fn zbesy<T: BesselFloat>(
 
             y[i] = if z.im < zero { cy_val.conj() } else { cy_val };
 
-            if cy_val == czero && ey == zero {
+            if cy_val == czero && k_term_far {
                 nz_out += 1;
             }
 

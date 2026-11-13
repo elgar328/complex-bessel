@@ -41,6 +41,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   applied the large-order expansion from the first order.
 - `besselk` and `besselk_seq` returned zeros instead of `Error::Overflow` for
   Re z < 0 when the result overflows.
+- `bessely_scaled` and `bessely_seq` with `Scaling::Exponential` (and
+  `besselj_scaled` / `besselj_seq` for negative non-integer ν, which use them)
+  returned wrong values, reported as `Accuracy::Normal`, when |Im z| exceeds
+  about 350 for f64 (40 for f32) and ν is larger than about 1.5|Im z|, e.g.
+  `bessely_scaled(575.0, 360i)`. Amos's routine drops a term there as an
+  underflow that in fact dominates; the crate keeps it, so it deliberately
+  differs from the Fortran in this region.
 - `besselj_seq` and `besseli_seq` could return every nonzero element too small
   by a factor of about 5e15 (1e7 for f32) for small |z| (power series range),
   when the highest requested orders underflow to zero and the highest nonzero

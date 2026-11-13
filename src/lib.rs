@@ -2091,6 +2091,106 @@ mod non_finite_tests {
     }
 }
 
+// ── Scaled vs unscaled consistency ──
+//
+// Every `_scaled` function is the unscaled one times an elementary factor, so
+// the two must agree wherever both are representable. The grid reaches the
+// regions where the scaled paths switch to underflow/overflow handling
+// (2|Im z| above ELIM for Y, large orders), which a value comparison at
+// moderate arguments does not.
+
+#[cfg(test)]
+mod scaling_tests {
+    use super::*;
+    use num_complex::Complex64;
+
+    type F<T> = fn(T, Complex<T>) -> Result<Complex<T>, Error>;
+
+    fn fns<T: BesselFloat>() -> [(&'static str, F<T>, F<T>); 6] {
+        [
+            ("J", besselj, besselj_scaled),
+            ("Y", bessely, bessely_scaled),
+            ("I", besseli, besseli_scaled),
+            ("K", besselk, besselk_scaled),
+            ("H1", hankel1, hankel1_scaled),
+            ("H2", hankel2, hankel2_scaled),
+        ]
+    }
+
+    /// Log of the factor in scaled = exp(c)·unscaled.
+    fn log_factor(name: &str, z: Complex64) -> Complex64 {
+        let i = Complex64::new(0.0, 1.0);
+        match name {
+            "J" | "Y" => Complex64::new(-z.im.abs(), 0.0),
+            "I" => Complex64::new(-z.re.abs(), 0.0),
+            "K" => z,
+            "H1" => -i * z,
+            _ => i * z,
+        }
+    }
+
+    /// Compare scaled with exp(c)·unscaled, formed in log space so neither
+    /// the factor nor the product overflows. Pairs where either value fails,
+    /// is non-finite, or lies below `floor` (underflow handling) are skipped.
+    fn check<T: BesselFloat>(nus: &[f64], radii: &[f64], floor: f64, tol: f64) {
+        let to64 = |v: Complex<T>| Complex64::new(v.re.to_f64().unwrap(), v.im.to_f64().unwrap());
+        let mut compared = 0;
+        for (name, unscaled, scaled) in fns::<T>() {
+            for &nu in nus {
+                for &r in radii {
+                    for k in 0..12 {
+                        // 12 angles over the full circle, including both axes
+                        let th =
+                            -core::f64::consts::PI + core::f64::consts::FRAC_PI_6 * f64::from(k);
+                        let z = Complex::from_polar(T::from_f64(r), T::from_f64(th));
+                        let nu_t = T::from_f64(nu);
+                        let (Ok(u), Ok(s)) = (unscaled(nu_t, z), scaled(nu_t, z)) else {
+                            continue;
+                        };
+                        let (u, s) = (to64(u), to64(s));
+                        let ok = |v: Complex64| v.norm().is_finite() && v.norm() > floor;
+                        if !ok(u) || !ok(s) {
+                            continue;
+                        }
+                        let expected = (u.ln() + log_factor(name, to64(z))).exp();
+                        let err = (s - expected).norm() / expected.norm();
+                        assert!(
+                            err < tol,
+                            "{name}: nu={nu}, z={z:?}: scaled={s:?}, exp(c)*unscaled={expected:?}, \
+                             rel_err={err:e}"
+                        );
+                        compared += 1;
+                    }
+                }
+            }
+        }
+        assert!(compared > 0);
+    }
+
+    #[test]
+    fn scaled_matches_unscaled_f64() {
+        // Radii past ELIM/2 ≈ 350 with orders up to beyond |z|. Observed up to
+        // ~6e-13 (large ν and |z|); a lost or mis-scaled term gives O(1).
+        check::<f64>(
+            &[0.0, 0.3, 2.5, 45.7, 250.0, 575.0, 800.0, 1200.0],
+            &[0.5, 5.0, 40.0, 200.0, 360.0, 450.0, 600.0],
+            1e-290,
+            1e-10,
+        );
+    }
+
+    #[test]
+    fn scaled_matches_unscaled_f32() {
+        // ELIM/2 ≈ 40 in f32. Observed up to ~4e-5.
+        check::<f32>(
+            &[0.0, 0.3, 2.5, 25.7, 65.0, 90.0, 130.0],
+            &[0.5, 5.0, 20.0, 41.0, 50.0, 60.0, 75.0],
+            1e-30,
+            1e-3,
+        );
+    }
+}
+
 // ── Tests for _seq functions (negative orders, recurrence paths) ──
 
 #[cfg(all(test, feature = "alloc"))]
@@ -2274,15 +2374,18 @@ mod seq_tests {
         // Orders: all-negative / crossing (integer and not), small, and beyond
         // FNUL (≈ 86) so the uniform expansions recur. Radii include values near
         // the ELIM/ALIM scaling thresholds (≈ 665–700) and beyond, where low
-        // orders overflow but ν = -200 does not. -0.0 is an edge case of the
-        // sign dispatch; n = 1 is the one-element lattice edge case.
+        // orders overflow but ν = -200 does not. ν = 575 at |z| = 360 reaches
+        // scaled Y with 2|Im z| > ELIM, where the K term still dominates. -0.0
+        // is an edge case of the sign dispatch; n = 1 is the one-element
+        // lattice edge case.
         for n in [1, 9] {
             check_seq_grid::<f64>(
                 &[
-                    -200.0, -20.0, -12.3, -5.3, -3.0, -2.5, -0.0, 0.0, 0.4, 13.5, 46.2, 81.7, 121.3,
+                    -200.0, -20.0, -12.3, -5.3, -3.0, -2.5, -0.0, 0.0, 0.4, 13.5, 46.2, 81.7,
+                    121.3, 575.0,
                 ],
                 &[
-                    0.3, 3.0, 17.0, 45.0, 120.0, 330.0, 666.0, 698.0, 705.0, 709.0,
+                    0.3, 3.0, 17.0, 45.0, 120.0, 330.0, 360.0, 666.0, 698.0, 705.0, 709.0,
                 ],
                 &ARGS,
                 n,
@@ -2306,9 +2409,12 @@ mod seq_tests {
 
     #[test]
     fn seq_matches_single_grid_f32() {
-        // At |z| = 90, low orders overflow but ν = -60 does not.
+        // At |z| = 90, low orders overflow but ν = -60 does not. ν = 70 at
+        // |z| = 45 reaches scaled Y with 2|Im z| > ELIM (K term dominant).
         check_seq_grid::<f32>(
-            &[-60.0, -9.0, -4.6, -0.0, 0.0, 0.4, 7.5, 21.2, 29.9, 46.3],
+            &[
+                -60.0, -9.0, -4.6, -0.0, 0.0, 0.4, 7.5, 21.2, 29.9, 46.3, 70.0,
+            ],
             &[0.3, 3.0, 17.0, 45.0, 70.0, 90.0],
             &ARGS,
             9,
