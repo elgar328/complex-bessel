@@ -29,6 +29,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   variants) returned wrong values on the negative real axis when the imaginary
   part of z was −0.0, e.g. −0.114 + 0.206i for Ai(−2 − 0i) instead of 0.227.
   As in Amos, −0 is now treated like +0.
+- `bessely`, `bessely_scaled`, and `bessely_seq` with a negative half-integer
+  order returned `Error::Overflow` when Y of the positive order overflows,
+  although its term vanishes there (cos(νπ) = 0), e.g. `bessely(-200.5, 1.0)`
+  instead of 0. Such orders now use J alone, so at z = 0 they return 0
+  instead of `Error::InvalidInput` (for `bessely_seq`, when all orders are
+  negative half-integers).
 
 ### Removed
 

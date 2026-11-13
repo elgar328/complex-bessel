@@ -12,7 +12,8 @@ use crate::machine::BesselFloat;
 /// non-integer reflection formulas need a second function next to the first.
 /// `_seq_into` puts those in this buffer, in chunks of its length (Y, and I
 /// with non-integer ν < 0) or of half of it (J and Y with non-integer ν < 0,
-/// whose reflection formulas also need Y's own K values).
+/// whose reflection formulas also need Y's own K values). For half-integer
+/// ν < 0, J and Y need only one function (Y's K values in whole chunks).
 pub(crate) const SEQ_WORKSPACE: usize = 64;
 
 /// Source of the workspace for a sequence computation.

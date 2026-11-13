@@ -96,7 +96,7 @@ All functions return `Result<_, Error>`. The four error variants are:
 
 | Variant | Cause |
 |---------|-------|
-| `InvalidInput` | non-finite z or ν, z = 0 for K/Y/H, n < 1 (empty `out`) |
+| `InvalidInput` | non-finite z or ν, z = 0 for K, H, Y (except at negative half-integer orders), and J, I of negative non-integer order, n < 1 (empty `out`) |
 | `Overflow` | \|z\| or \|ν\| too large (or \|z\| too small) for finite result |
 | `TotalPrecisionLoss` | \|z\| or \|ν\| too large for meaningful computation |
 | `ConvergenceFailure` | Internal algorithm did not converge |

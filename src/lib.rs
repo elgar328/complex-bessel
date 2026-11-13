@@ -73,6 +73,8 @@
 //! - **H<sup>(2)</sup>**: H<sup>(2)</sup><sub>−ν</sub>(z) = exp(−νπi) H<sup>(2)</sup><sub>ν</sub>(z) (DLMF 10.4.6)
 //!
 //! For integer orders, simplified identities are used (e.g., J<sub>−n</sub>(z) = (−1)<sup>n</sup> J<sub>n</sub>(z)).
+//! For half-integer orders, cos(νπ) = 0, so only one function is computed:
+//! J<sub>−ν</sub>(z) = −sin(νπ) Y<sub>ν</sub>(z) and Y<sub>−ν</sub>(z) = sin(νπ) J<sub>ν</sub>(z).
 //!
 //! # Function variants
 //!
@@ -120,7 +122,7 @@
 //!
 //! | Variant | Cause |
 //! |---------|-------|
-//! | [`InvalidInput`](Error::InvalidInput) | non-finite z or ν, z = 0 for K/Y/H, n < 1 (empty `out`) |
+//! | [`InvalidInput`](Error::InvalidInput) | non-finite z or ν, z = 0 for K, H, Y (except at negative half-integer orders), and J, I of negative non-integer order, n < 1 (empty `out`) |
 //! | [`Overflow`](Error::Overflow) | \|z\| or \|ν\| too large (or \|z\| too small) for finite result |
 //! | [`TotalPrecisionLoss`](Error::TotalPrecisionLoss) | \|z\| or \|ν\| too large for meaningful computation |
 //! | [`ConvergenceFailure`](Error::ConvergenceFailure) | Internal algorithm did not converge |
@@ -263,6 +265,13 @@ fn besselj_internal<T: BesselFloat>(
         return Ok(y[0] * integer_sign::<T>(n));
     }
 
+    // Half-integer |ν|: cos(νπ) = 0, so J_ν is not needed
+    if utils::cospi(abs_nu) == zero {
+        let mut y_buf = [czero];
+        besy::zbesy(z, abs_nu, scaling, &mut y_buf)?;
+        return Ok(reflect_j_element(abs_nu, czero, y_buf[0]));
+    }
+
     // General case: need both J and Y at positive |ν|
     let mut j_buf = [czero];
     let mut y_buf = [czero];
@@ -293,6 +302,14 @@ fn bessely_internal<T: BesselFloat>(
         let mut y = [czero];
         besy::zbesy(z, abs_nu, scaling, &mut y)?;
         return Ok(y[0] * integer_sign::<T>(n));
+    }
+
+    // Half-integer |ν|: cos(νπ) = 0, so Y_ν is not needed (it can overflow,
+    // or be undefined at z = 0, where Y_{−ν} = ±J_ν is finite)
+    if utils::cospi(abs_nu) == zero {
+        let mut j_buf = [czero];
+        besj::zbesj(z, abs_nu, scaling, &mut j_buf)?;
+        return Ok(reflect_y_element(abs_nu, j_buf[0], czero));
     }
 
     // General case: need both J and Y at positive |ν|
@@ -385,7 +402,8 @@ fn hankel_internal<T: BesselFloat>(
 ///
 /// For negative ν, the DLMF 10.2.3 reflection formula is applied:
 /// `J_{-ν}(z) = cos(νπ) J_ν(z) - sin(νπ) Y_ν(z)`.
-/// For negative integer n, `J_{−n}(z) = (−1)^n J_n(z)`.
+/// For negative integer n, `J_{−n}(z) = (−1)^n J_n(z)`; for half-integer ν,
+/// `J_{−ν}(z) = −sin(νπ) Y_ν(z)`.
 ///
 /// # Example
 ///
@@ -416,7 +434,8 @@ pub fn besselj<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error
 ///
 /// For negative ν, the DLMF 10.2.3 reflection formula is applied:
 /// `Y_{-ν}(z) = sin(νπ) J_ν(z) + cos(νπ) Y_ν(z)`.
-/// For negative integer n, `Y_{−n}(z) = (−1)^n Y_n(z)`.
+/// For negative integer n, `Y_{−n}(z) = (−1)^n Y_n(z)`; for half-integer ν,
+/// `Y_{−ν}(z) = sin(νπ) J_ν(z)`.
 ///
 /// # Example
 ///
@@ -431,7 +450,7 @@ pub fn besselj<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>, Error
 ///
 /// # Errors
 ///
-/// - [`Error::InvalidInput`] if z or ν is not finite (NaN or infinite), or if z = 0.
+/// - [`Error::InvalidInput`] if z or ν is not finite (NaN or infinite), or if z = 0 (except at negative half-integer ν, where Y_ν(0) = 0).
 /// - [`Error::Overflow`] if |z| is too small or too large for a finite result.
 /// - [`Error::TotalPrecisionLoss`] if |z| or |ν| is too large for any significant digits (roughly > 10⁹ for f64).
 /// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
@@ -735,7 +754,7 @@ pub fn besselj_scaled<T: BesselFloat>(nu: T, z: Complex<T>) -> Result<Complex<T>
 ///
 /// # Errors
 ///
-/// - [`Error::InvalidInput`] if z or ν is not finite (NaN or infinite), or if z = 0.
+/// - [`Error::InvalidInput`] if z or ν is not finite (NaN or infinite), or if z = 0 (except at negative half-integer ν, where Y_ν(0) = 0).
 /// - [`Error::Overflow`] if |z| is too small or too large for a finite result.
 /// - [`Error::TotalPrecisionLoss`] if |z| or |ν| is too large for any significant digits (roughly > 10⁹ for f64).
 /// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
@@ -1173,7 +1192,8 @@ type SeqFn<'a, T> = dyn FnMut(T, &mut [Complex<T>]) -> Result<(usize, Accuracy),
 //
 // Orders ν, ν+1, …, ν+n−1 with ν < 0 are computed at |order| and reflected.
 // Everything happens in `out`; only the secondary function of the non-integer
-// reflection formulas (and Y's K values) needs a workspace: the full length on
+// reflection formulas (none for half-integer J and Y, where cos(νπ) = 0) and
+// Y's K values need a workspace: the full length on
 // the heap for `_seq`, or a fixed stack buffer filled in chunks for `_seq_into`.
 
 /// Set `out[j]` = f(|ν+j|) when the |orders| form a single lattice: all
@@ -1376,6 +1396,25 @@ fn besselj_seq_neg<T: BesselFloat>(
         let status = fill_abs_orders(out, nu, nc, f)?;
         apply_integer_sign(out, nu);
         status
+    } else if utils::cospi(nu.abs()) == T::zero() {
+        // Half-integer |ν|: cos(νπ) = 0, so the negative orders need only Y
+        // (into `out`, its K values into the workspace)
+        with_workspace(ws, n, |ws| {
+            let abs_nu = nu.abs();
+            let czero = Complex::new(T::zero(), T::zero());
+            let (neg, pos) = out.split_at_mut(nc);
+            let status1 = fill_abs_orders(neg, nu, nc, &mut |start, buf| {
+                besy::zbesy_with(z, start, scaling, buf, Workspace::Slice(&mut *ws))
+            })?;
+            for (j, v) in neg.iter_mut().enumerate() {
+                *v = reflect_j_element(abs_nu - T::from_f64(j as f64), czero, *v);
+            }
+            if pos.is_empty() {
+                return Ok(status1);
+            }
+            let (_, status2) = besj::zbesj(z, nu + T::from_f64(nc as f64), scaling, pos)?;
+            Ok(worse_status(status1, status2))
+        })?
     } else {
         // J into `out`, Y into one half of the workspace and Y's K values
         // into the other (J first, as before)
@@ -1418,8 +1457,10 @@ fn bessely_seq_neg<T: BesselFloat>(
     let n = out.len();
     let nc = neg_count(nu, n);
     let is_int = as_integer(nu.abs()).is_some();
+    // Half-integer |ν|: cos(νπ) = 0, so the negative orders need only J
+    let half_int = !is_int && utils::cospi(nu.abs()) == T::zero();
     // Heap: Y's K values only, or also the Y values of the reflection formula
-    let ws_len = if is_int { n } else { 2 * n };
+    let ws_len = if is_int || half_int { n } else { 2 * n };
     let status = with_workspace(ws, ws_len, |ws| {
         if is_int {
             let f = &mut |start, buf: &mut [Complex<T>]| {
@@ -1429,10 +1470,20 @@ fn bessely_seq_neg<T: BesselFloat>(
             apply_integer_sign(out, nu);
             return Ok(status);
         }
-        // J into `out`, Y into one half of the workspace and Y's K values
-        // into the other (J first, as before)
         let (neg, pos) = out.split_at_mut(nc);
-        let status1 = {
+        let status1 = if half_int {
+            let abs_nu = nu.abs();
+            let czero = Complex::new(T::zero(), T::zero());
+            let status = fill_abs_orders(neg, nu, nc, &mut |start, buf| {
+                besj::zbesj(z, start, scaling, buf)
+            })?;
+            for (j, v) in neg.iter_mut().enumerate() {
+                *v = reflect_y_element(abs_nu - T::from_f64(j as f64), *v, czero);
+            }
+            status
+        } else {
+            // J into `out`, Y into one half of the workspace and Y's K values
+            // into the other (J first, as before)
             let (y_buf, k_buf) = ws.split_at_mut(ws.len() / 2);
             reflect_lattice(
                 neg,
@@ -1665,7 +1716,7 @@ pub fn besselj_seq_into<T: BesselFloat>(
 ///
 /// # Errors
 ///
-/// - [`Error::InvalidInput`] if `out` is empty, if z or ν is not finite (NaN or infinite), or if z = 0.
+/// - [`Error::InvalidInput`] if `out` is empty, if z or ν is not finite (NaN or infinite), or if z = 0 (unless every order is a negative half-integer, where Y_ν(0) = 0).
 /// - [`Error::Overflow`] if |z| is too small or too large for a finite result.
 /// - [`Error::TotalPrecisionLoss`] if |z| or |ν| is too large for any significant digits (roughly > 10⁹ for f64).
 /// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
@@ -1956,7 +2007,7 @@ pub fn besselj_seq<T: BesselFloat>(
 ///
 /// # Errors
 ///
-/// - [`Error::InvalidInput`] if n < 1, if z or ν is not finite (NaN or infinite), or if z = 0.
+/// - [`Error::InvalidInput`] if n < 1, if z or ν is not finite (NaN or infinite), or if z = 0 (unless every order is a negative half-integer, where Y_ν(0) = 0).
 /// - [`Error::Overflow`] if |z| is too small or too large for a finite result.
 /// - [`Error::TotalPrecisionLoss`] if |z| or |ν| is too large for any significant digits (roughly > 10⁹ for f64).
 /// - [`Error::ConvergenceFailure`] if an internal series or recurrence does not converge (rare).
@@ -2178,8 +2229,10 @@ mod non_finite_tests {
             assert!(matches!(besselk(0.0, z), Err(Error::InvalidInput)));
             assert!(matches!(hankel1(0.0, z), Err(Error::InvalidInput)));
             assert!(matches!(hankel2(0.0, z), Err(Error::InvalidInput)));
-            // Negative order exercises the reflection path in the wrappers.
+            // Negative orders exercise the reflection paths in the wrappers
+            // (one function for half-integer |ν|, two otherwise).
             assert!(matches!(besselj(-2.5, z), Err(Error::InvalidInput)));
+            assert!(matches!(besselj(-2.3, z), Err(Error::InvalidInput)));
             assert!(matches!(besselk(-2.5, z), Err(Error::InvalidInput)));
         }
     }
@@ -2433,6 +2486,55 @@ mod special_value_tests {
     fn signed_zero_matches_positive_zero_f32() {
         check_signed_zero::<f32>();
     }
+
+    /// For half-integer |ν|, cos(νπ) = 0, so J_{−ν} = −sin(νπ)·Y_ν and
+    /// Y_{−ν} = sin(νπ)·J_ν: the result (or error) is that of the one
+    /// remaining function, even where the vanishing one overflows (Y_ν for
+    /// large ν and small |z|) or is undefined (Y_ν at z = 0).
+    fn check_negative_half_integer<T: BesselFloat>(orders: &[f64]) {
+        let zero = T::zero();
+        let zs = [
+            Complex::new(T::one(), zero),
+            Complex::new(T::from_f64(100.0), zero),
+            Complex::from_polar(T::from_f64(0.3), T::one()),
+            Complex::from_polar(T::from_f64(5.0), T::from_f64(2.0)),
+            Complex::new(zero, zero),
+        ];
+        let pairs: [(&str, scaling_tests::F<T>, scaling_tests::F<T>); 2] = [
+            ("unscaled", besselj, bessely),
+            ("scaled", besselj_scaled, bessely_scaled),
+        ];
+        for &a in orders {
+            let a = T::from_f64(a);
+            let s = utils::sinpi(a);
+            for (name, j, y) in pairs {
+                for z in zs {
+                    assert_eq!(
+                        y(-a, z),
+                        j(a, z).map(|v| v * s),
+                        "Y {name}: nu={:?}, z={z:?}",
+                        -a
+                    );
+                    assert_eq!(
+                        j(-a, z),
+                        y(a, z).map(|v| -(v * s)),
+                        "J {name}: nu={:?}, z={z:?}",
+                        -a
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn negative_half_integer_needs_one_function_f64() {
+        check_negative_half_integer::<f64>(&[0.5, 2.5, 10.5, 150.5, 200.5, 519.5]);
+    }
+
+    #[test]
+    fn negative_half_integer_needs_one_function_f32() {
+        check_negative_half_integer::<f32>(&[0.5, 2.5, 10.5, 30.5, 40.5, 150.5]);
+    }
 }
 
 // ── Tests for _seq functions (negative orders, recurrence paths) ──
@@ -2559,7 +2661,7 @@ mod seq_tests {
     fn seq_reports_reduced_accuracy() {
         fn check<T: BesselFloat>(r: f64) {
             let z = Complex::new(T::from_f64(r * 0.6), T::from_f64(r * 0.8));
-            for nu in [-80.5, -3.0, -2.5, 0.5] {
+            for nu in [-80.5, -80.3, -3.0, -2.5, 0.5] {
                 for n in [5, 70] {
                     for (name, seq, _, _) in seq_fns::<T>() {
                         let mut out = zeros::<T>();
@@ -2714,8 +2816,8 @@ mod seq_tests {
         for n in [1, 9] {
             check_seq_grid::<f64>(
                 &[
-                    -200.0, -20.0, -12.3, -7.0, -5.3, -4.0, -3.0, -2.5, -0.0, 0.0, 0.4, 13.5, 46.2,
-                    81.7, 121.3, 575.0,
+                    -200.5, -200.0, -20.0, -12.3, -7.0, -5.3, -4.0, -3.0, -2.5, -0.0, 0.0, 0.4,
+                    13.5, 46.2, 81.7, 121.3, 575.0,
                 ],
                 &[
                     0.3, 3.0, 17.0, 45.0, 120.0, 330.0, 360.0, 666.0, 698.0, 705.0, 709.0,
@@ -2755,7 +2857,7 @@ mod seq_tests {
         // |z| = 45 reaches scaled Y with 2|Im z| > ELIM (K term dominant).
         check_seq_grid::<f32>(
             &[
-                -60.0, -9.0, -4.6, -0.0, 0.0, 0.4, 7.5, 21.2, 29.9, 46.3, 70.0,
+                -60.0, -25.5, -9.0, -4.6, -0.0, 0.0, 0.4, 7.5, 21.2, 29.9, 46.3, 70.0,
             ],
             &[0.3, 3.0, 17.0, 45.0, 70.0, 90.0],
             &ARGS,
@@ -2855,7 +2957,8 @@ mod seq_tests {
     // Y's K values and the secondary function of the negative non-integer
     // reflection formulas go to a workspace, in chunks of its length (Y, and
     // I with non-integer ν < 0) or of half of it (J and Y with non-integer
-    // ν < 0). A workspace that covers the whole
+    // ν < 0, except half-integer ν, which need one function). A workspace
+    // that covers the whole
     // sequence (as `_seq` allocates) gives one Amos call per function, so
     // compare short workspaces against it. Amos's tests depend on the orders
     // and length of each call, so a chunked sequence may fail only where some
@@ -2999,9 +3102,9 @@ mod seq_tests {
         }
     }
 
-    /// Workspace lengths: chunks of 1, 2, 7 orders for J and Y with non-integer
-    /// ν < 0 (half the workspace) and of 2, 4, 14 otherwise, and the stack
-    /// workspace.
+    /// Workspace lengths: chunks of 1, 2, 7 orders for J and Y with non-integer,
+    /// non-half-integer ν < 0 (half the workspace) and of 2, 4, 14 otherwise,
+    /// and the stack workspace.
     const WS_LENS: [usize; 4] = [2, 4, 14, SEQ_WORKSPACE];
 
     #[test]
@@ -3012,7 +3115,9 @@ mod seq_tests {
         // values inside Y. Radii reach the ELIM/ALIM thresholds. With the
         // stack workspace, n = 32 and 33 end at a chunk boundary or one past it
         // for J and Y with non-integer ν < 0, and n = 9 is a single chunk.
-        let nus = [-80.3, -70.0, -40.3, -40.0, -12.3, -0.7, 0.4, 3.3, 81.7];
+        let nus = [
+            -80.3, -70.0, -40.5, -40.3, -40.0, -12.3, -0.7, 0.4, 3.3, 81.7,
+        ];
         let radii = [0.3, 3.0, 17.0, 45.0, 120.0, 666.0, 698.0, 705.0];
         let ns = [9, 32, 33, 65, 100];
         for ws_len in WS_LENS {
@@ -3096,7 +3201,7 @@ mod seq_vec_tests {
             &mut [Complex64],
             Workspace<'a, f64>,
         ) -> Result<SeqInfo, Error>;
-        let cases: [(Seq, Impl, f64, Complex64); 4] = [
+        let cases: [(Seq, Impl, f64, Complex64); 6] = [
             (
                 bessely_seq,
                 bessely_seq_impl,
@@ -3120,6 +3225,19 @@ mod seq_vec_tests {
                 besseli_seq_impl,
                 -40.3,
                 Complex64::from_polar(17.0, 2.2),
+            ),
+            // Half-integer |ν|: one function for the negative orders
+            (
+                besselj_seq,
+                besselj_seq_impl,
+                -80.5,
+                Complex64::from_polar(45.0, 3.0),
+            ),
+            (
+                bessely_seq,
+                bessely_seq_impl,
+                -80.5,
+                Complex64::from_polar(17.0, -1.0),
             ),
         ];
         const N: usize = 100;
