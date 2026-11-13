@@ -55,8 +55,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Amos's ZS1S2 rounds the phase of the factor exp(−2z) to an ulp of 2·Im z;
   the crate applies exp(−2i·Im z) separately, deliberately differing from
   Amos. Other results computed through ZS1S2 (scaled Airy functions with
-  Re z < 0 and the uniform asymptotic expansions, including those used by
-  unscaled J, Y, I, and H at moderate orders) change only in the last digits.
+  Re z < 0, and the uniform asymptotic expansions, which also serve some
+  unscaled J, Y, I, K, and H values) can change, but only within their
+  existing error, which comes from elsewhere.
 
 ### Removed
 

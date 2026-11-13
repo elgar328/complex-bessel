@@ -2542,7 +2542,7 @@ mod special_value_tests {
     /// there; these values were 0 (or, for Y, missing the K part). The
     /// Wronskians (DLMF 10.5.4–5, 10.28.2) rule out a zero or a missing term.
     /// They cannot see a phase error common to ν and ν + 1; against mpmath
-    /// the error here is up to ~2e-5, as at smaller |z| (status `Reduced`).
+    /// the error here is up to ~3e-5, as at smaller |z| (status `Reduced`).
     #[test]
     fn uniform_expansion_beyond_airy_range_f64() {
         use core::f64::consts::{FRAC_PI_2, PI};
@@ -2550,7 +2550,7 @@ mod special_value_tests {
         let check =
             |what: &str, nu: f64, z: Complex<f64>, w: Complex<f64>, expected: Complex<f64>| {
                 let err = (w - expected).norm() / expected.norm();
-                assert!(err < 1e-4, "{what}: nu={nu}, z={z:?}, rel_err={err:e}");
+                assert!(err < 1e-5, "{what}: nu={nu}, z={z:?}, rel_err={err:e}");
             };
         // Within ~30° of the real axis (H, J, Y) or the imaginary axis (I, K),
         // where ZUNI2 and ZUNK2 are used
@@ -2704,18 +2704,18 @@ mod special_value_tests {
 
     #[test]
     fn scaled_continuation_phase_f32() {
-        // The old error reaches ~3e-2 at |z| = 4e6
+        // The old error reaches ~0.2 at |z| = 4e6
         check_scaled_continuation::<f32>(&[1e2, 1e3, 1e4, 1e6, 4e6], 2e-6);
     }
 
     /// f32 version of `uniform_expansion_beyond_airy_range_f64`. Amos's
-    /// single-precision algorithm keeps
-    /// few correct digits at this |z| (as just below this range), so only the
-    /// magnitudes are checked: |H(1,2)| ≈ √(2/(π|z|)) and |K| ≈ √(π/(2|z|))
-    /// for |z| ≫ ν², which rules out the former zeros. Half-integer orders
-    /// avoid the 2·cos(νπ) term that H(2) and K pick up across the negative
-    /// real axis; points on the axes are exact, as `from_polar` would put
-    /// them off by ~0.3 in f32. Observed ratios are within 0.9–1.1.
+    /// single-precision algorithm keeps few correct digits at this |z| (as
+    /// just below this range), so only the magnitudes are checked:
+    /// |H(1,2)| ≈ √(2/(π|z|)) and |K| ≈ √(π/(2|z|)) for |z| ≫ ν², which rules
+    /// out the former zeros. Half-integer orders avoid the 2·cos(νπ) term that
+    /// H(2) and K pick up across the negative real axis; points on the axes
+    /// are exact, as `from_polar` would put them off by ~0.3 in f32. Observed
+    /// ratios are within 1%.
     #[test]
     fn uniform_expansion_beyond_airy_range_f32() {
         let polar = Complex::from_polar;
@@ -2750,7 +2750,7 @@ mod special_value_tests {
                 ] {
                     // On the negative real axis H(2) is continued from two
                     // terms of equal weight, whose f32 phase noise leaves
-                    // even the magnitude off by up to ~2.4
+                    // even the magnitude off by up to ~2.7
                     if name == "H2" && z.im == 0.0 && z.re < 0.0 {
                         continue;
                     }
