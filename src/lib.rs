@@ -2532,14 +2532,17 @@ mod seq_tests {
 
     /// Compare seq[j] with single(ν+j) for every (ν, |z|, arg z) on the grid.
     /// A sequence may fail as a whole only if some of its orders fail on their
-    /// own (e.g. orders below the requested range must not cause an error).
-    /// The converse does not hold: Amos's overflow tests depend on the orders
-    /// and length of the call (K tests max(last order, n)), so a single value can
-    /// report `Overflow` where a sequence that contains it succeeds (as in the
-    /// Fortran, e.g. f32 K at ν = 10.5 alone vs. from ν = 7.5 with n = 9,
-    /// z = 90·e^{-2.6i}). Elements whose single value
-    /// is an error, non-finite, or below 1e3 times the smallest normal number
-    /// are skipped.
+    /// own (e.g. orders below the requested range must not cause an error),
+    /// with one exception kept from the Fortran: K tests order max(last
+    /// order, n), up to one order above the last for orders starting below 1,
+    /// so such K, H, and Y sequences can report `Overflow` just below the
+    /// limit (e.g. K from ν = 0.5 at z = 0.05 with n = 97). The converse does
+    /// not hold either: Amos's overflow tests depend on the orders and length
+    /// of the call, so a single value can report `Overflow` where a sequence
+    /// that contains it succeeds (as in the Fortran, e.g. f32 K at ν = 10.5
+    /// alone vs. from ν = 7.5 with n = 9, z = 90·e^{-2.6i}). Elements whose
+    /// single value is an error, non-finite, or below 1e3 times the smallest
+    /// normal number are skipped.
     fn check_seq_grid<T: BesselFloat>(
         nus: &[f64],
         radii: &[f64],
