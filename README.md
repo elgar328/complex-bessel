@@ -120,7 +120,7 @@ complex-bessel = { version = "0.4", default-features = false }
 - **K/H overflow test** — follows single-precision CUOIK; double ZUOIK reports spurious `Overflow` near 1e300.
 - **Complex division** — Smith's algorithm instead of ZDIV, for better f32 accuracy.
 - **Uniform expansions at |z| ≈ 7e8–1e9** — evaluate the Airy function beyond its range limit, where ZUNI2/ZUNK2 use an undefined result (ν > ~86).
-- **Scaled K/H by analytic continuation** — ZS1S2 applies exp(−2i Im z) separately, so the phase is not rounded (ZS1S2 loses up to ε·|z|).
+- **Scaled K/H by analytic continuation** — applies exp(−2i Im z) separately, keeping the phase exact; Amos's ZS1S2 loses up to ε·|z|.
 
 ## Accuracy & performance
 
