@@ -76,7 +76,10 @@ pub(crate) fn zabs<T: BesselFloat>(z: Complex<T>) -> T {
 /// near the turning point; the extra ulps were amplified enough to make f32
 /// results several times less accurate than Amos's single-precision CBSUBS,
 /// which uses native complex division at these sites.
-#[inline]
+///
+/// Kept out of line: inlined into large callers such as `zbknu`, its two
+/// branches slowed them more than a call costs (scaled Airy by ~10%).
+#[inline(never)]
 pub(crate) fn zdiv<T: BesselFloat>(a: Complex<T>, b: Complex<T>) -> Complex<T> {
     if b.re.abs() >= b.im.abs() {
         let r = b.im / b.re;
@@ -87,6 +90,21 @@ pub(crate) fn zdiv<T: BesselFloat>(a: Complex<T>, b: Complex<T>) -> Complex<T> {
         let d = b.re * r + b.im;
         Complex::new((a.re * r + a.im) / d, (a.im * r - a.re) / d)
     }
+}
+
+/// Complex division `a / b` as in Fortran ZDIV, which scales `b` by `1/|b|`.
+///
+/// Less accurate than [`zdiv`] (~3 ulp instead of ~1), but its division and
+/// square root involve only `b`. Where a loop carries `a` and computes `b`
+/// independently (the ZASYI term loop), the loop-carried path is then
+/// multiplications only; [`zdiv`] would put a division on it, which made J,
+/// I, and Bi up to ~25% slower.
+#[inline]
+pub(crate) fn zdiv_by_norm<T: BesselFloat>(a: Complex<T>, b: Complex<T>) -> Complex<T> {
+    let bm = T::one() / zabs(b);
+    let cc = b.re * bm;
+    let cd = b.im * bm;
+    Complex::new((a.re * cc + a.im * cd) * bm, (a.im * cc - a.re * cd) * bm)
 }
 
 /// Overflow-safe reciprocal: `rz = 2 / z`.
@@ -343,6 +361,33 @@ mod tests {
         let expected_re = 1.0e-200;
         assert!((c.re - expected_re).abs() / expected_re < 1e-14);
         assert!(c.im.abs() < 1e-214);
+    }
+
+    #[test]
+    fn zdiv_by_norm_matches_zdiv() {
+        // Agrees with the Smith quotient to a few ulp, including operands
+        // whose products would overflow without scaling
+        let vals = [
+            -3.7e200, -1.0, -0.31, -1e-3, 0.0, 2e-3, 0.27, 1.7, 12.5, 4e-200,
+        ];
+        for &ar in &vals {
+            for &ai in &vals {
+                for &br in &vals {
+                    for &bi in &vals {
+                        if br == 0.0 && bi == 0.0 {
+                            continue;
+                        }
+                        let (a, b) = (Complex64::new(ar, ai), Complex64::new(br, bi));
+                        let (q, s) = (zdiv_by_norm(a, b), zdiv(a, b));
+                        if s.norm() == 0.0 || !s.norm().is_normal() {
+                            continue;
+                        }
+                        let err = (q - s).norm() / s.norm();
+                        assert!(err < 8.0 * f64::EPSILON, "{a}/{b}: {q} vs {s}");
+                    }
+                }
+            }
+        }
     }
 
     // ── f32 tests ──
