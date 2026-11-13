@@ -53,8 +53,13 @@ pub(crate) fn zseri<T: BesselFloat>(
     // Fortran lines 3651-3654
     let arm = T::from_f64(1.0e3) * T::MACH_TINY;
     let rtr1 = arm.sqrt();
+    // Scaling state persists across the GO TO 20 underflow retries, as in
+    // Fortran: once the top order needed scaling, the lower orders retried
+    // after it underflows keep that scaling even when they are on scale.
     let mut crscr = one;
     let mut iflag: i32 = 0;
+    let mut ss = one;
+    let mut ascle = zero;
 
     // |z| very tiny (Fortran label 150, line 3789)
     if az < arm {
@@ -106,8 +111,6 @@ pub(crate) fn zseri<T: BesselFloat>(
         }
 
         // Label 40: check near-underflow scaling (Fortran lines 3687-3691)
-        let mut ss = one;
-        let mut ascle = zero;
         if ak1r <= -alim {
             iflag = 1;
             ss = one / tol;

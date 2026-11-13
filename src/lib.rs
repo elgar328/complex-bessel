@@ -2106,6 +2106,52 @@ mod seq_tests {
         if mag == 0.0 { diff } else { diff / mag }
     }
 
+    /// Power series path (ZSERI) where the top orders underflow after the
+    /// near-underflow scaling was switched on: the lower orders retried after
+    /// that must keep the scaling consistent (they came out multiplied by TOL,
+    /// and so did every order below them through the recurrence).
+    /// Whether a top order underflows is a rounding-level ZUCHK decision on
+    /// the real axis, so scan several top orders and require at least one hit.
+    #[test]
+    fn seq_power_series_underflow_retry_keeps_scaling() {
+        fn check<T: BesselFloat>(
+            tops: core::ops::Range<i32>,
+            ns: &[usize],
+            z: Complex<T>,
+            tol: f64,
+        ) {
+            for &n in ns {
+                let mut hits = 0;
+                for top in tops.clone() {
+                    let nu = T::from_f64(f64::from(top) - (n - 1) as f64);
+                    let r = besselj_seq(nu, z, n, Scaling::Unscaled).unwrap();
+                    if r.underflow_count == 0 || r.values[0].norm() == T::zero() {
+                        continue;
+                    }
+                    hits += 1;
+                    for (j, &got) in r.values.iter().enumerate() {
+                        if got.norm() == T::zero() {
+                            continue;
+                        }
+                        let order = nu + T::from_f64(j as f64);
+                        let single = besselj(order, z).unwrap();
+                        let err = ((got - single).norm() / single.norm()).to_f64().unwrap();
+                        // Loose bound: the scaled path near underflow differs from the
+                        // single value by ~1e-13 (as in Fortran); the bug was a factor of TOL.
+                        assert!(
+                            err < tol,
+                            "n={n} order={:?}: {got:?} vs {single:?}",
+                            order.to_f64()
+                        );
+                    }
+                }
+                assert!(hits > 0, "n={n}: no case with a partial underflow");
+            }
+        }
+        check(202..219, &[3, 40], Complex64::new(6.5, 0.0), 1e-10);
+        check(36..48, &[3, 20], Complex::new(6.5f32, 0.0), 1e-4);
+    }
+
     /// Verify _seq(ν, z, n)[j] == single_value(ν+j, z) for all j.
     #[allow(clippy::too_many_arguments)]
     fn check_seq_vs_single<F, G>(

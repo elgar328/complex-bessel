@@ -41,6 +41,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   applied the large-order expansion from the first order.
 - `besselk` and `besselk_seq` returned zeros instead of `Error::Overflow` for
   Re z < 0 when the result overflows.
+- `besselj_seq` and `besseli_seq` could return every nonzero element too small
+  by a factor of about 5e15 (1e7 for f32) for small |z| (power series range),
+  when the highest requested orders underflow to zero and the highest nonzero
+  one is just above about 1e-289 (1e-28 for f32). Lower orders were affected
+  however large they are.
 - An internal threshold test for results near the underflow and overflow limits
   used a wrong phase, so some results were zero (or `Error::Overflow`) where
   Amos's algorithm computes them, or the reverse:
