@@ -121,6 +121,7 @@ complex-bessel = { version = "0.4", default-features = false }
 - **Complex division** — Smith's algorithm instead of ZDIV, for better f32 accuracy.
 - **Uniform expansions at |z| ≈ 7e8–1e9** — evaluate the Airy function beyond its range limit, where ZUNI2/ZUNK2 use an undefined result (ν > ~86).
 - **Scaled K/H by analytic continuation** — applies exp(−2i Im z) separately, keeping the phase exact; Amos's ZS1S2 loses up to ε·|z|.
+- **Components on the axes** — where a value combines two real functions of very different size (e.g. H = J + iY for real x), the small component is computed separately; Amos returns it only to normwise accuracy.
 
 ## Accuracy & performance
 

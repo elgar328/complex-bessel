@@ -65,6 +65,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Y of the positive order by cos(νπ), which was computed with a relative
   error of about ε/|cos(νπ)| there. J and the Hankel functions use the same
   factor, but their results change only in the last digits.
+- Values on the real and imaginary axes whose real and imaginary parts are
+  real functions of very different size had a small part that could be
+  wrong entirely, although the value was accurate relative to its modulus:
+  `hankel1` and `hankel2` on the real axis, `bessely` (and `bessely_scaled`)
+  on the negative real axis, `besselk` on the imaginary axis, and `hankel2`
+  (`hankel2_scaled`) for z = ix and `hankel1` (`hankel1_scaled`) for z = −ix,
+  x > 0, with their `_seq` and `_seq_into` variants. E.g. `hankel1(10.0, 1.0)`
+  had the real part 8.4e-9 instead of J₁₀(1) = 2.6e-10, and
+  `hankel1(1.0, 2e-32)` 1.9e15 instead of 1e-32 (openspecfun#45). Such a part
+  is now computed from the two real functions (J and Y, or I and K, at |z|),
+  deliberately differing from Amos, which returns it only to normwise
+  accuracy. Where a part is recomputed, these values take up to about 3
+  times as long (sequences up to about 6 times); elsewhere nothing changes.
+- `besselj` and `bessely` (and their `_scaled`, `_seq`, and `_seq_into`
+  variants) on the positive real axis returned a rounding residue as the
+  imaginary part, e.g. −5.4e-16 for `besselj(0.3, 5.0)`; they are now
+  exactly real.
 
 ### Removed
 

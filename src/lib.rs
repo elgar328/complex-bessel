@@ -76,6 +76,25 @@
 //! For half-integer orders, cos(νπ) = 0, so only one function is computed:
 //! J<sub>−ν</sub>(z) = −sin(νπ) Y<sub>ν</sub>(z) and Y<sub>−ν</sub>(z) = sin(νπ) J<sub>ν</sub>(z).
 //!
+//! # Accuracy on the axes
+//!
+//! Amos's algorithm is accurate normwise: the error is small relative to |f(z)|.
+//! On the real and imaginary axes some values combine two real functions of
+//! very different size, e.g. H<sup>(1)</sup><sub>ν</sub>(x) = J<sub>ν</sub>(x) + iY<sub>ν</sub>(x)
+//! with J ≪ Y for x < ν, and Amos's small component can then be off entirely.
+//! The crate recomputes such a component from the two real functions:
+//!
+//! - H<sup>(1)</sup>, H<sup>(2)</sup> on the positive and negative real axis
+//! - Y on the negative real axis (also scaled)
+//! - K on the imaginary axis
+//! - H<sup>(2)</sup> on the positive and H<sup>(1)</sup> on the negative imaginary axis (also scaled)
+//!
+//! J and Y are exactly real on the positive real axis. A remaining limitation:
+//! for orders within about 1e-9 of an integer or a half-integer, a small
+//! component that is the product of a nearly vanishing cos(νπ) or sin(νπ) with
+//! one real function (e.g. Re J<sub>ν</sub>(−x) = cos(νπ) J<sub>ν</sub>(x)) is
+//! still only accurate relative to |f(z)|.
+//!
 //! # Function variants
 //!
 //! ## Consecutive orders
@@ -154,6 +173,7 @@ extern crate std;
 
 pub(crate) mod airy;
 pub(crate) mod algo;
+pub(crate) mod axis;
 pub(crate) mod besh;
 pub(crate) mod besi;
 pub(crate) mod besj;
@@ -243,7 +263,7 @@ fn integer_sign<T: BesselFloat>(n: i64) -> T {
 // ── Internal: compute with given scaling for negative order support ──
 
 #[inline]
-fn besselj_internal<T: BesselFloat>(
+fn besselj_value<T: BesselFloat>(
     nu: T,
     z: Complex<T>,
     scaling: Scaling,
@@ -282,7 +302,7 @@ fn besselj_internal<T: BesselFloat>(
 }
 
 #[inline]
-fn bessely_internal<T: BesselFloat>(
+fn bessely_value<T: BesselFloat>(
     nu: T,
     z: Complex<T>,
     scaling: Scaling,
@@ -359,7 +379,7 @@ fn besseli_internal<T: BesselFloat>(
 }
 
 #[inline]
-fn besselk_internal<T: BesselFloat>(
+fn besselk_value<T: BesselFloat>(
     nu: T,
     z: Complex<T>,
     scaling: Scaling,
@@ -373,7 +393,7 @@ fn besselk_internal<T: BesselFloat>(
 }
 
 #[inline]
-fn hankel_internal<T: BesselFloat>(
+fn hankel_value<T: BesselFloat>(
     kind: HankelKind,
     nu: T,
     z: Complex<T>,
@@ -391,6 +411,58 @@ fn hankel_internal<T: BesselFloat>(
     besh::zbesh(z, abs_nu, kind, scaling, &mut y)?;
 
     Ok(reflect_h_element(abs_nu, kind, y[0]))
+}
+
+// The functions as computed by Amos (with the reflection formulas for ν < 0),
+// then with the components on the axes made accurate (see `axis`).
+
+#[inline]
+fn besselj_internal<T: BesselFloat>(
+    nu: T,
+    z: Complex<T>,
+    scaling: Scaling,
+) -> Result<Complex<T>, Error> {
+    Ok(axis::real_on_positive_axis(
+        z,
+        besselj_value(nu, z, scaling)?,
+    ))
+}
+
+#[inline]
+fn bessely_internal<T: BesselFloat>(
+    nu: T,
+    z: Complex<T>,
+    scaling: Scaling,
+) -> Result<Complex<T>, Error> {
+    let v = axis::real_on_positive_axis(z, bessely_value(nu, z, scaling)?);
+    Ok(axis::fix_single(axis::AxisFn::Y, nu, z, scaling, v))
+}
+
+#[inline]
+fn besselk_internal<T: BesselFloat>(
+    nu: T,
+    z: Complex<T>,
+    scaling: Scaling,
+) -> Result<Complex<T>, Error> {
+    let v = besselk_value(nu, z, scaling)?;
+    Ok(axis::fix_single(axis::AxisFn::K, nu, z, scaling, v))
+}
+
+#[inline]
+fn hankel_internal<T: BesselFloat>(
+    kind: HankelKind,
+    nu: T,
+    z: Complex<T>,
+    scaling: Scaling,
+) -> Result<Complex<T>, Error> {
+    let v = hankel_value(kind, nu, z, scaling)?;
+    Ok(axis::fix_single(
+        axis::AxisFn::Hankel(kind),
+        nu,
+        z,
+        scaling,
+        v,
+    ))
 }
 
 // ── Single-value convenience functions ──
@@ -1570,14 +1642,19 @@ fn besselj_seq_impl<T: BesselFloat>(
     out: &mut [Complex<T>],
     ws: Workspace<'_, T>,
 ) -> Result<SeqInfo, Error> {
-    if nu < T::zero() {
-        return besselj_seq_neg(nu, z, scaling, out, ws);
+    let info = if nu < T::zero() {
+        besselj_seq_neg(nu, z, scaling, out, ws)?
+    } else {
+        let (underflow_count, status) = besj::zbesj(z, nu, scaling, out)?;
+        SeqInfo {
+            underflow_count,
+            status,
+        }
+    };
+    for v in out.iter_mut() {
+        *v = axis::real_on_positive_axis(z, *v);
     }
-    let (underflow_count, status) = besj::zbesj(z, nu, scaling, out)?;
-    Ok(SeqInfo {
-        underflow_count,
-        status,
-    })
+    Ok(info)
 }
 
 fn bessely_seq_impl<T: BesselFloat>(
@@ -1587,14 +1664,20 @@ fn bessely_seq_impl<T: BesselFloat>(
     out: &mut [Complex<T>],
     ws: Workspace<'_, T>,
 ) -> Result<SeqInfo, Error> {
-    if nu < T::zero() {
-        return bessely_seq_neg(nu, z, scaling, out, ws);
+    let info = if nu < T::zero() {
+        bessely_seq_neg(nu, z, scaling, out, ws)?
+    } else {
+        let (underflow_count, status) = besy::zbesy_with(z, nu, scaling, out, ws)?;
+        SeqInfo {
+            underflow_count,
+            status,
+        }
+    };
+    for v in out.iter_mut() {
+        *v = axis::real_on_positive_axis(z, *v);
     }
-    let (underflow_count, status) = besy::zbesy_with(z, nu, scaling, out, ws)?;
-    Ok(SeqInfo {
-        underflow_count,
-        status,
-    })
+    axis::fix_seq(axis::AxisFn::Y, nu, z, scaling, out);
+    Ok(info)
 }
 
 fn besseli_seq_impl<T: BesselFloat>(
@@ -1621,14 +1704,17 @@ fn hankel_seq_impl<T: BesselFloat>(
     scaling: Scaling,
     out: &mut [Complex<T>],
 ) -> Result<SeqInfo, Error> {
-    if nu < T::zero() {
-        return hankel_seq_neg(kind, nu, z, scaling, out);
-    }
-    let (underflow_count, status) = besh::zbesh(z, nu, kind, scaling, out)?;
-    Ok(SeqInfo {
-        underflow_count,
-        status,
-    })
+    let info = if nu < T::zero() {
+        hankel_seq_neg(kind, nu, z, scaling, out)?
+    } else {
+        let (underflow_count, status) = besh::zbesh(z, nu, kind, scaling, out)?;
+        SeqInfo {
+            underflow_count,
+            status,
+        }
+    };
+    axis::fix_seq(axis::AxisFn::Hankel(kind), nu, z, scaling, out);
+    Ok(info)
 }
 
 /// Compute J<sub>ν+j</sub>(z) for j = 0, 1, …, n−1 into `out`, where n = `out.len()`.
@@ -1817,14 +1903,17 @@ pub fn besselk_seq_into<T: BesselFloat>(
     scaling: Scaling,
     out: &mut [Complex<T>],
 ) -> Result<SeqInfo, Error> {
-    if nu < T::zero() {
-        return besselk_seq_neg(nu, z, scaling, out);
-    }
-    let (underflow_count, status) = besk::zbesk(z, nu, scaling, out)?;
-    Ok(SeqInfo {
-        underflow_count,
-        status,
-    })
+    let info = if nu < T::zero() {
+        besselk_seq_neg(nu, z, scaling, out)?
+    } else {
+        let (underflow_count, status) = besk::zbesk(z, nu, scaling, out)?;
+        SeqInfo {
+            underflow_count,
+            status,
+        }
+    };
+    axis::fix_seq(axis::AxisFn::K, nu, z, scaling, out);
+    Ok(info)
 }
 
 /// Compute H<sub>ν+j</sub><sup>(1)</sup>(z) for j = 0, 1, …, n−1 into `out`, where n = `out.len()`.
@@ -2791,6 +2880,584 @@ mod special_value_tests {
 }
 
 // ── Tests for _seq functions (negative orders, recurrence paths) ──
+
+#[cfg(test)]
+mod axis_tests {
+    //! Components of values on the real and imaginary axes, against
+    //! independent oracles for the real functions of order m = |ν| at x > 0:
+    //! power series (J, I), half-integer and integral formulas (Y, K).
+    //! Expected values use the |ν|-basis formulas (DLMF, with the reflection
+    //! formulas merged in); the signed-ν formulas would cancel for some rows.
+    use super::*;
+    use crate::algo::gamln::gamln;
+    use crate::utils::{cospi, sinpi};
+
+    const PI: f64 = core::f64::consts::PI;
+
+    /// (sign, ln|Γ(t)|) for t not a non-positive integer.
+    fn lgamma_sign(t: f64) -> (f64, f64) {
+        if t > 0.0 {
+            (1.0, gamln(t).unwrap())
+        } else {
+            let s = sinpi(t);
+            (s.signum(), PI.ln() - s.abs().ln() - gamln(1.0 - t).unwrap())
+        }
+    }
+
+    /// exp(−shift)·Σ_k (∓1)^k (x/2)^{2k+ν} / (k!·Γ(k+ν+1)): J_ν (alternating)
+    /// or I_ν, for any real ν that is not a negative integer.
+    fn series(nu: f64, x: f64, alternating: bool, shift: f64) -> f64 {
+        let lx = (x / 2.0).ln();
+        let mut sum = 0.0;
+        for k in 0..5000usize {
+            let kf = k as f64;
+            let (sg, lg) = lgamma_sign(kf + nu + 1.0);
+            let lkf = gamln(kf + 1.0).unwrap();
+            let mag = ((2.0 * kf + nu) * lx - lkf - lg - shift).exp();
+            let term = if alternating && k % 2 == 1 {
+                -sg * mag
+            } else {
+                sg * mag
+            };
+            sum += term;
+            if kf > x && term.abs() <= 1e-18 * sum.abs() {
+                return sum;
+            }
+        }
+        panic!("series did not converge: nu={nu}, x={x}");
+    }
+
+    fn near_integer(m: f64) -> bool {
+        (m - m.round()).abs() < 1e-3
+    }
+
+    fn half_integer(m: f64) -> bool {
+        (m - 0.5).fract() == 0.0
+    }
+
+    /// Y_m(x), if an accurate oracle exists (not for integer or near-integer m).
+    fn y_oracle(m: f64, x: f64) -> Option<f64> {
+        if half_integer(m) {
+            // Y_{n+½} = (−1)^{n+1} J_{−n−½}
+            let n = (m - 0.5) as i64;
+            let sign = if n % 2 == 0 { -1.0 } else { 1.0 };
+            Some(sign * series(-m, x, true, 0.0))
+        } else if near_integer(m) || x >= m {
+            None
+        } else {
+            // J_{−m} dominates J_m·cos for x < m: no cancellation
+            Some((series(m, x, true, 0.0) * cospi(m) - series(-m, x, true, 0.0)) / sinpi(m))
+        }
+    }
+
+    /// exp(x)·K_m(x), if an accurate oracle exists.
+    fn k_scaled_oracle(m: f64, x: f64) -> Option<f64> {
+        if half_integer(m) {
+            // K_{n+½}(x)·e^x = √(π/2x)·Σ_k (n+k)!/(k!(n−k)!(2x)^k)
+            let n = (m - 0.5) as i64;
+            let mut term = 1.0;
+            let mut sum = 1.0;
+            for k in 1..=n {
+                let kf = k as f64;
+                term *= ((n + k) as f64) * ((n - k + 1) as f64) / (kf * 2.0 * x);
+                sum += term;
+            }
+            Some((PI / (2.0 * x)).sqrt() * sum)
+        } else if x >= 1.0 && m <= 31.0 {
+            // e^x·K_ν(x) = ∫₀^∞ exp(−2x·sinh²(t/2))·cosh(νt) dt (trapezoid)
+            let h = (0.6 / x.sqrt()).min(0.1);
+            let f = |t: f64| (-2.0 * x * (t / 2.0).sinh().powi(2)).exp() * (m * t).cosh();
+            let mut sum = f(0.0) / 2.0;
+            for k in 1..100_000 {
+                let v = f(k as f64 * h);
+                sum += v;
+                if v <= 1e-18 * sum {
+                    break;
+                }
+            }
+            Some(sum * h)
+        } else if !near_integer(m) && x < m.max(1.0) / 4.0 {
+            // K_m = π/2·(I_{−m} − I_m)/sin(mπ); I_{−m} dominates for small x
+            let d = series(-m, x, false, -x) - series(m, x, false, -x);
+            Some(PI / 2.0 * d / sinpi(m))
+        } else {
+            None
+        }
+    }
+
+    /// Coefficients of (A, B) in the (real, imaginary) parts of `row` at
+    /// order ν (written out from the DLMF formulas, independently of
+    /// `axis::coefficients`).
+    #[allow(clippy::type_complexity)]
+    fn coeffs(row: &str, nu: f64) -> ((f64, f64), (f64, f64)) {
+        let m = nu.abs();
+        let (c, s) = (cospi(m), sinpi(m));
+        let (c2, s2) = (cospi(2.0 * m), sinpi(2.0 * m));
+        let (ch, sh) = (cospi(m / 2.0), sinpi(m / 2.0));
+        let (c3, s3) = (cospi(1.5 * m), sinpi(1.5 * m));
+        let neg = nu < 0.0;
+        let h = PI / 2.0;
+        let t = 2.0 / PI;
+        // ((A re, B re), (A im, B im))
+        match (row, neg) {
+            ("H1+x", false) => ((1.0, 0.0), (0.0, 1.0)),
+            ("H1+x", true) => ((c, -s), (s, c)),
+            ("H2+x", false) => ((1.0, 0.0), (0.0, -1.0)),
+            ("H2+x", true) => ((c, -s), (-s, -c)),
+            ("H1-x", false) => ((-c, s), (s, c)),
+            ("H1-x", true) => ((-1.0, 0.0), (0.0, 1.0)),
+            ("H2-x", false) => ((3.0 * c, -s), (s, -c)),
+            ("H2-x", true) => ((c2 + 2.0, -s2), (-s2, -c2)),
+            ("Y-x", false) => ((0.0, c), (2.0 * c, -s)),
+            ("Y-x", true) => ((s2 / 2.0, c * c), (c * c + 1.0, -s2 / 2.0)),
+            ("K+ix", _) => ((-h * sh, -h * ch), (-h * ch, h * sh)),
+            ("K-ix", _) => ((-h * sh, -h * ch), (h * ch, -h * sh)),
+            ("H2+ix", false) => ((2.0 * ch, t * sh), (2.0 * sh, t * ch)),
+            ("H2+ix", true) => ((2.0 * ch, t * s3), (-2.0 * sh, t * c3)),
+            ("H1-ix", false) => ((2.0 * ch, t * sh), (-2.0 * sh, -t * ch)),
+            ("H1-ix", true) => ((2.0 * ch, t * s3), (2.0 * sh, -t * c3)),
+            _ => unreachable!(),
+        }
+    }
+
+    type F<T> = fn(T, Complex<T>) -> Result<Complex<T>, Error>;
+
+    /// (row, function, z from x, scaled with factor exp(−x)?, I·K basis?)
+    type RowCase<T> = (&'static str, F<T>, fn(T) -> Complex<T>, bool, bool);
+
+    fn rows<T: BesselFloat>() -> [RowCase<T>; 13] {
+        [
+            (
+                "H1+x",
+                hankel1,
+                |x| Complex::new(x, T::zero()),
+                false,
+                false,
+            ),
+            (
+                "H2+x",
+                hankel2,
+                |x| Complex::new(x, T::zero()),
+                false,
+                false,
+            ),
+            (
+                "H1-x",
+                hankel1,
+                |x| Complex::new(-x, T::zero()),
+                false,
+                false,
+            ),
+            (
+                "H2-x",
+                hankel2,
+                |x| Complex::new(-x, T::zero()),
+                false,
+                false,
+            ),
+            (
+                "Y-x",
+                bessely,
+                |x| Complex::new(-x, T::zero()),
+                false,
+                false,
+            ),
+            (
+                "Y-x",
+                bessely_scaled,
+                |x| Complex::new(-x, T::zero()),
+                false,
+                false,
+            ),
+            (
+                "K+ix",
+                besselk,
+                |x| Complex::new(T::zero(), x),
+                false,
+                false,
+            ),
+            (
+                "K-ix",
+                besselk,
+                |x| Complex::new(T::zero(), -x),
+                false,
+                false,
+            ),
+            (
+                "H2+ix",
+                hankel2,
+                |x| Complex::new(T::zero(), x),
+                false,
+                true,
+            ),
+            (
+                "H2+ix",
+                hankel2_scaled,
+                |x| Complex::new(T::zero(), x),
+                true,
+                true,
+            ),
+            (
+                "H1-ix",
+                hankel1,
+                |x| Complex::new(T::zero(), -x),
+                false,
+                true,
+            ),
+            (
+                "H1-ix",
+                hankel1_scaled,
+                |x| Complex::new(T::zero(), -x),
+                true,
+                true,
+            ),
+            // Signed zeros as the real part of the imaginary axis
+            (
+                "K+ix",
+                besselk,
+                |x| Complex::new(-T::zero(), x),
+                false,
+                false,
+            ),
+        ]
+    }
+
+    /// Check every component that has an oracle; returns the number checked.
+    fn check_axis<T: BesselFloat>(
+        nus: &[f64],
+        jy_x: &[f64],
+        ik_x: &[f64],
+        tol: f64,
+        tiny: f64,
+    ) -> usize {
+        let mut checked = 0;
+        for (row, f, zf, scaled, ik) in rows::<T>() {
+            for &nu_d in nus {
+                let nu = T::from_f64(nu_d);
+                let nu_d = nu.to_f64().unwrap();
+                let m = nu_d.abs();
+                let xs: &[f64] = if ik { ik_x } else { jy_x };
+                for &xr in xs {
+                    // Values below 1 are fractions of m for the J·Y rows
+                    let x_d = if !ik && xr < 1.0 { xr * m } else { xr };
+                    let x = T::from_f64(x_d);
+                    let x_d = x.to_f64().unwrap();
+                    // The J series cancels beyond x ≈ √(m+1)
+                    if x_d == 0.0 || (!ik && x_d > (m / 2.0).min((m + 1.0).sqrt())) {
+                        continue;
+                    }
+                    let Ok(v) = f(nu, zf(x)) else { continue };
+                    let (a, b) = if ik {
+                        let shift = if scaled { x_d } else { 0.0 };
+                        let Some(k) = k_scaled_oracle(m, x_d) else {
+                            continue;
+                        };
+                        (series(m, x_d, false, shift), k * (-x_d - shift).exp())
+                    } else {
+                        (
+                            series(m, x_d, true, 0.0),
+                            y_oracle(m, x_d).unwrap_or(f64::NAN),
+                        )
+                    };
+                    let ((ar, br), (ai, bi)) = coeffs(row, nu_d);
+                    for (got, ca, cb) in [(v.re, ar, br), (v.im, ai, bi)] {
+                        let (ta, tb) = (ca * a, if cb == 0.0 { 0.0 } else { cb * b });
+                        let expected = ta + tb;
+                        // Skip where the two terms cancel (the oracle itself is then
+                        // inaccurate), e.g. H2_{1.5}(i) = 0 as K_{3/2}(1) = π·I_{3/2}(1)
+                        if !expected.is_finite()
+                            || expected.abs() < tiny
+                            || expected.abs() > 1e300
+                            || expected.abs() < 1e-3 * (ta.abs() + tb.abs())
+                        {
+                            continue;
+                        }
+                        let got = got.to_f64().unwrap();
+                        let err = ((got - expected) / expected).abs();
+                        assert!(
+                            err < tol,
+                            "{row}: nu={nu_d}, x={x_d}: got {got:e}, expected {expected:e}, rel {err:e}"
+                        );
+                        checked += 1;
+                    }
+                }
+            }
+        }
+        checked
+    }
+
+    // Includes orders a little away from integers (2.02, 3.97, ...), where
+    // the small sin(νπ) coefficients of Y take part
+    const NUS: [f64; 41] = [
+        0.5, -0.5, 1.5, -1.5, 2.5, -2.5, 5.5, -5.5, 10.5, -10.5, 30.5, -30.5, 90.5, 1.0, -1.0, 2.0,
+        -2.0, 10.0, -10.0, 0.3, -0.3, 3.3, -3.3, 10.7, -10.7, 2.000001, -1.999999, 2.500001,
+        -2.499999, 1.000001, -0.999999, 20.0, 85.5, 2.02, -2.02, 3.97, -3.97, 10.01, -10.01, 1.49,
+        -2.51,
+    ];
+
+    #[test]
+    fn axis_components_f64() {
+        // J·Y rows: x as fractions of m (≤ m/2) and absolute small values
+        let jy_x = [1e-10, 1e-5, 1e-2, 0.1, 0.3, 0.5];
+        let ik_x = [1e-5, 1e-2, 0.3, 1.0, 5.0, 20.0, 60.0, 200.0, 690.0];
+        let n = check_axis::<f64>(&NUS, &jy_x, &ik_x, 1e-11, 1e-280);
+        assert!(n > 2000, "only {n} components checked");
+    }
+
+    #[test]
+    fn axis_components_f32() {
+        let nus = [0.5, -0.5, 2.5, -2.5, 5.5, 10.5, 1.0, -2.0, 3.3, -3.3];
+        let jy_x = [1e-3, 0.1, 0.4];
+        let ik_x = [1e-2, 1.0, 10.0, 40.0];
+        let n = check_axis::<f32>(&nus, &jy_x, &ik_x, 1e-4, 1e-28);
+        assert!(n > 200, "only {n} components checked");
+    }
+
+    /// Re H(ν, x) against `besselj`: a different Amos path (J from zbinu,
+    /// H from K(−iz)).
+    #[test]
+    fn hankel_real_part_matches_besselj() {
+        for nu in [1.0, 5.0, 10.0, 30.5, -10.0, -3.3, 90.0, 150.5] {
+            for frac in [1e-6, 0.01, 0.3, 0.9] {
+                let z = Complex::new(frac * f64::abs(nu), 0.0);
+                let j = besselj(nu, z).unwrap().re;
+                if j == 0.0 {
+                    continue;
+                }
+                for h in [hankel1(nu, z).unwrap(), hankel2(nu, z).unwrap()] {
+                    let err = ((h.re - j) / j).abs();
+                    assert!(
+                        err < 1e-11,
+                        "nu={nu}, x={}: Re H = {:e}, J = {j:e}",
+                        z.re,
+                        h.re
+                    );
+                }
+            }
+        }
+    }
+
+    /// J and Y of real order are exactly real on the positive real axis.
+    #[test]
+    fn bessel_jy_real_on_positive_axis() {
+        let mut out = [Complex::new(0.0f64, 0.0); 9];
+        for nu in [0.0f64, 0.3, 1.0, 5.5, 120.0, -0.3, -2.0, -7.5, -40.25] {
+            for x in [1e-8f64, 0.5, 5.0, 37.0, 1e3, 1e5] {
+                let z = Complex::new(x, 0.0);
+                for f in [besselj, besselj_scaled, bessely, bessely_scaled] {
+                    if let Ok(v) = f(nu, z) {
+                        assert_eq!(v.im.to_bits(), 0, "nu={nu}, x={x}: {v}");
+                    }
+                }
+                for s in [Scaling::Unscaled, Scaling::Exponential] {
+                    if besselj_seq_into(nu, z, s, &mut out).is_ok() {
+                        assert!(
+                            out.iter().all(|v| v.im.to_bits() == 0),
+                            "J seq nu={nu}, x={x}"
+                        );
+                    }
+                    if bessely_seq_into(nu, z, s, &mut out).is_ok() {
+                        assert!(
+                            out.iter().all(|v| v.im.to_bits() == 0),
+                            "Y seq nu={nu}, x={x}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    /// Values the rule does not select are Amos's own, bit for bit: off the
+    /// axes, for the J·Y rows at x ≥ m, and where the components are not far
+    /// apart in size (ratio ≥ 0.1 for J·Y, ≥ 1e-3 for I·K).
+    #[test]
+    fn axis_fix_leaves_other_values_alone() {
+        type Raw = fn(f64, Complex<f64>, Scaling) -> Result<Complex<f64>, Error>;
+        let raw_h1: Raw = |nu, z, s| hankel_value(HankelKind::First, nu, z, s);
+        let raw_h2: Raw = |nu, z, s| hankel_value(HankelKind::Second, nu, z, s);
+        // (function, Amos's value, scaling, 'H' / 'K' / 'Y')
+        let fns: [(F<f64>, Raw, Scaling, char); 7] = [
+            (hankel1, raw_h1, Scaling::Unscaled, 'H'),
+            (hankel2, raw_h2, Scaling::Unscaled, 'H'),
+            (hankel1_scaled, raw_h1, Scaling::Exponential, 'H'),
+            (hankel2_scaled, raw_h2, Scaling::Exponential, 'H'),
+            (besselk, besselk_value, Scaling::Unscaled, 'K'),
+            (bessely, bessely_value, Scaling::Unscaled, 'Y'),
+            (bessely_scaled, bessely_value, Scaling::Exponential, 'Y'),
+        ];
+        let tiny = f64::MIN_POSITIVE;
+        for (f, raw, scaling, kind) in fns {
+            for nu in [0.0, 0.3, 2.0, 5.5, 20.0, -0.3, -2.0, -5.5, -20.0, 90.5] {
+                for x in [0.01, 0.7, 1.9, 6.0, 25.0, 100.0] {
+                    let zs = [
+                        Complex::new(x, 0.0),
+                        Complex::new(-x, 0.0),
+                        Complex::new(0.0, x),
+                        Complex::new(0.0, -x),
+                        // Just off the axes
+                        Complex::new(x, tiny),
+                        Complex::new(-x, -tiny),
+                        Complex::new(tiny, x),
+                        Complex::new(-tiny, -x),
+                        Complex::new(x, x),
+                    ];
+                    for (iz, z) in zs.into_iter().enumerate() {
+                        let (Ok(v), Ok(r)) = (f(nu, z), raw(nu, z, scaling)) else {
+                            continue;
+                        };
+                        let (sr, si) = (r.re.abs(), r.im.abs());
+                        let ratio = sr.min(si) / sr.max(si);
+                        let imag_axis = z.re == 0.0;
+                        // H on the imaginary axis is an I·K row; the rest are J·Y
+                        let ik = imag_axis && kind == 'H';
+                        let selectable = iz < 4
+                            && if ik {
+                                ratio < 1e-3
+                            } else {
+                                x < f64::abs(nu) && ratio < 0.1
+                            };
+                        // Y is made exactly real on the positive real axis
+                        let r = if kind == 'Y' && iz == 0 {
+                            Complex::new(r.re, 0.0)
+                        } else {
+                            r
+                        };
+                        if !selectable {
+                            assert!(
+                                v.re.to_bits() == r.re.to_bits()
+                                    && v.im.to_bits() == r.im.to_bits(),
+                                "nu={nu}, z={z}: {v} vs Amos {r}"
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    type SeqF = fn(f64, Complex<f64>, Scaling, &mut [Complex<f64>]) -> Result<SeqInfo, Error>;
+
+    /// `_seq_into` against single values on the axes, across chunk boundaries
+    /// and orders crossing zero. Where the small component is clearly
+    /// recomputed by both, compare it componentwise; otherwise normwise
+    /// (Amos's own seq and single values differ by up to ~2e-13 normwise).
+    #[test]
+    fn axis_seq_matches_single() {
+        type SeqCase = (SeqF, F<f64>, Scaling, fn(f64) -> Complex<f64>, f64);
+        let cases: [SeqCase; 9] = [
+            (
+                hankel1_seq_into,
+                hankel1,
+                Scaling::Unscaled,
+                |x| Complex::new(x, 0.0),
+                0.1,
+            ),
+            (
+                hankel2_seq_into,
+                hankel2,
+                Scaling::Unscaled,
+                |x| Complex::new(-x, 0.0),
+                0.1,
+            ),
+            (
+                bessely_seq_into,
+                bessely,
+                Scaling::Unscaled,
+                |x| Complex::new(-x, 0.0),
+                0.1,
+            ),
+            (
+                bessely_seq_into,
+                bessely_scaled,
+                Scaling::Exponential,
+                |x| Complex::new(-x, 0.0),
+                0.1,
+            ),
+            (
+                besselk_seq_into,
+                besselk,
+                Scaling::Unscaled,
+                |x| Complex::new(0.0, x),
+                0.1,
+            ),
+            (
+                besselk_seq_into,
+                besselk,
+                Scaling::Unscaled,
+                |x| Complex::new(0.0, -x),
+                0.1,
+            ),
+            (
+                hankel2_seq_into,
+                hankel2,
+                Scaling::Unscaled,
+                |x| Complex::new(0.0, x),
+                1e-3,
+            ),
+            (
+                hankel2_seq_into,
+                hankel2_scaled,
+                Scaling::Exponential,
+                |x| Complex::new(0.0, x),
+                1e-3,
+            ),
+            (
+                hankel1_seq_into,
+                hankel1_scaled,
+                Scaling::Exponential,
+                |x| Complex::new(0.0, -x),
+                1e-3,
+            ),
+        ];
+        let mut buf = [Complex::new(0.0, 0.0); 70];
+        for (seq, single, scaling, zf, ratio) in cases {
+            for nu0 in [-7.3, -6.0, -40.5, 0.5, 2.0, 30.5] {
+                for n in [1usize, 5, 40, 64, 70] {
+                    // Not x = 1: H2_{±1.5}(i) = 0 exactly (K_{3/2}(1) = π·I_{3/2}(1))
+                    // 1e-10 also reaches the single-value fallback of `fix_seq`
+                    // (a chunk of Y overflows for ν0 = −40.5, n = 64 on −x)
+                    for x in [1e-10, 0.01, 1.3, 7.5, 30.0] {
+                        let z = zf(x);
+                        let out = &mut buf[..n];
+                        if seq(nu0, z, scaling, out).is_err() {
+                            continue;
+                        }
+                        for (j, v) in out.iter().enumerate() {
+                            let nu = nu0 + j as f64;
+                            let Ok(s) = single(nu, z) else { continue };
+                            let (sr, si) = (s.re.abs(), s.im.abs());
+                            let (small, large) = (sr.min(si), sr.max(si));
+                            let jy_ok = ratio == 1e-3 || x < nu.abs();
+                            if jy_ok && small < 1e-3 * ratio * large && small > 0.0 {
+                                let (gs, ss) = if sr < si { (v.re, s.re) } else { (v.im, s.im) };
+                                let err = ((gs - ss) / ss).abs();
+                                assert!(
+                                    err < 1e-12,
+                                    "nu={nu}, z={z}, n={n}: seq {v} vs single {s}"
+                                );
+                            } else if s.norm() > 0.0 {
+                                let err = (v - s).norm() / s.norm();
+                                assert!(
+                                    err < 1e-10,
+                                    "nu={nu}, z={z}, n={n}: seq {v} vs single {s}"
+                                );
+                                // A part recomputed as exactly zero (cos(νπ) = 0 at
+                                // half-integers) must be zero in the sequence too
+                                if jy_ok && small == 0.0 {
+                                    let gs = if sr < si { v.re } else { v.im };
+                                    assert!(
+                                        gs == 0.0,
+                                        "nu={nu}, z={z}, n={n}: seq {v} vs single {s}"
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
 #[cfg(test)]
 mod seq_tests {
