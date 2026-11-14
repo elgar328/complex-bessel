@@ -72,17 +72,23 @@ impl Row {
 //   1e-3 it is 2.8e-11 with 174 above 1e-12. Above m, next to the zeros of
 //   J_m and Y_m (which all lie beyond m), J and Y computed separately are
 //   in general no more accurate than Amos's components.
-// - Y(−x) for x ≥ m is the exception: next to a half-integer order a
-//   component has small coefficients (e.g. Re Y_ν(−x) = cos(νπ)·Y_ν(x)),
-//   and Amos's has a relative error of ε/|cos(νπ)| or more. Such a
-//   component is recomputed too, when |α| + |β| < COEF_Y_NEG. In 1.2e5
-//   values beyond m (half of the orders next to half-integers, the others
-//   next to integers or generic) this fixes errors up to 54 (f32 150);
-//   the worst increase is 8.2e-14 → 1.9e-13 (f32 1.4e-3 → 8.4e-3), and
-//   nothing gets worse normwise. Left as they are, components small
-//   because x is next to a zero of J_m or Y_m have errors up to 2.0e-10
-//   (f32 1.5e-2): recomputing them as well would fix those but make 1 in
-//   20 of them less accurate, up to 6.9e-11 (f32 1.5e-2, also normwise).
+// - Y(−x) for x ≥ m is the exception, for its real part in two cases:
+//   - Next to a half-integer order it has small coefficients (e.g.
+//     Re Y_ν(−x) = cos(νπ)·Y_ν(x)), and Amos's has a relative error of
+//     ε/|cos(νπ)| or more. Recomputed when |α| + |β| < COEF_Y_NEG. In 1.2e5
+//     values beyond m (half of the orders next to half-integers, the others
+//     next to integers or generic) this fixes errors up to 54 (f32 150);
+//     the worst increase is 8.2e-14 → 1.9e-13 (f32 1.4e-3 → 8.4e-3), and
+//     nothing gets worse normwise.
+//   - Next to a zero of Y_m, for ν ≥ 0 and m < ORDER_Y_NEG, where it is the
+//     single term cos(νπ)·Y_m. Measured in units of ε·|cos(νπ)|·|H_m| (the
+//     relative error is meaningless next to a zero) on 1.5e4 values next to
+//     zeros, Amos's errors reach 617 (p99) and 1937 units, the recomputed
+//     ones 5 and 20; 5 of 3620 recomputed components get worse, by at most
+//     15 units (f32 alike). Above m ≈ 18, Y_m computed separately is no more
+//     accurate (its error grows with m). The two-term components (the
+//     imaginary part, and the real part c·(s·J_m + c·Y_m) for ν < 0) get
+//     worse more often than better when recomputed next to their zeros.
 // - (I, K): re-measured including f32 and a separate sample of orders next
 //   to integers (where these small components occur). Raising the ratio
 //   from 1e-3 to 1e-2 lowers the largest error left unfixed from 1.6e-4 to
@@ -95,6 +101,7 @@ impl Row {
 const RATIO_JY: f64 = 0.1;
 const RATIO_IK: f64 = 1e-2;
 const COEF_Y_NEG: f64 = 0.1;
+const ORDER_Y_NEG: f64 = 18.0;
 
 /// The row of `(f, z, scaling)` and x = |z|, if z is on a half-axis and the
 /// value has a small component to recompute. Signed zeros are treated like
@@ -162,15 +169,18 @@ fn small_component<T: BesselFloat>(
     if small >= T::from_f64(ratio) * large {
         return None;
     }
-    // (J, Y) beyond m only for Y(−x) with small coefficients; see RATIO_JY.
-    // Only its real part can have them (the imaginary part's are 2c and −s,
-    // or c² + 1 and −s₂/2)
+    // (J, Y) beyond m only for the real part of Y(−x), where it is the single
+    // term cos(νπ)·Y_m (ν ≥ 0, below order ORDER_Y_NEG) or has small
+    // coefficients; see RATIO_JY. The imaginary part's coefficients are 2c
+    // and −s, or c² + 1 and −s₂/2.
     if !row.ik() && x >= m {
-        let small_coefficients = row == Row::YNeg && k == 0 && {
-            let (ca, cb) = coefficients(row, neg, m, k);
-            ca.abs() + cb.abs() < T::from_f64(COEF_Y_NEG)
-        };
-        if !small_coefficients {
+        let recompute = row == Row::YNeg
+            && k == 0
+            && ((!neg && m < T::from_f64(ORDER_Y_NEG)) || {
+                let (ca, cb) = coefficients(row, neg, m, k);
+                ca.abs() + cb.abs() < T::from_f64(COEF_Y_NEG)
+            });
+        if !recompute {
             return None;
         }
     }

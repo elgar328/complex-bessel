@@ -89,9 +89,10 @@
 //! - K on the imaginary axis
 //! - H<sup>(2)</sup> on the positive and H<sup>(1)</sup> on the negative imaginary axis (also scaled)
 //!
-//! For Y on the negative real axis this includes orders close to a
-//! half-integer, where e.g. Re Y<sub>ν</sub>(−x) = cos(νπ) Y<sub>ν</sub>(x) is small
-//! for any x. J and Y are exactly real on the positive real axis.
+//! For Y on the negative real axis this includes Re Y<sub>ν</sub>(−x) = cos(νπ) Y<sub>ν</sub>(x)
+//! for |ν| < x where it is small: for orders close to a half-integer, and for
+//! 0 ≤ ν < 18 next to a zero of Y<sub>ν</sub>. J and Y are exactly real on the
+//! positive real axis.
 //!
 //! A remaining limitation: in the other functions, a small component that is
 //! a nearly vanishing cos(νπ) or sin(νπ) times one real function, for orders
@@ -3290,22 +3291,127 @@ mod axis_tests {
         assert!(n > 40, "only {n} values checked");
     }
 
-    /// Y(−x) beyond the order with a small component that is not small by
-    /// its coefficients: Re Y_41(−x) = −Y_41(x) next to a zero of Y_41.
-    /// Amos's value (error 5.5e-15) is kept; Y_41 computed separately would
-    /// be off by 2.2e-13 (mpmath).
+    /// Re Y_ν(−x) = cos(νπ)·Y_ν(x) for ν ≥ 0 beyond the order, next to a
+    /// zero of Y_ν (any order below 18). Errors in units of ε·|cos(νπ)|·|H_ν(x)|,
+    /// the error to expect of any normwise accurate Y_ν(x): Amos's are 267 to
+    /// 1746 here, the recomputed ones at most 7.1 (mpmath references).
+    #[test]
+    fn axis_y_neg_next_to_zeros() {
+        fn check<T: BesselFloat + core::fmt::Display>(cases: &[(f64, f64, f64, f64)]) {
+            for &(nu, x, re, scale) in cases {
+                let (nu, z) = (T::from_f64(nu), Complex::new(T::from_f64(-x), T::zero()));
+                for v in [bessely(nu, z).unwrap(), bessely_scaled(nu, z).unwrap()] {
+                    let units = (v.re.to_f64().unwrap() - re).abs()
+                        / (T::epsilon().to_f64().unwrap() * scale);
+                    assert!(
+                        units < 16.0,
+                        "nu={nu}, x={x}: Re Y(-x) = {}, {units} units",
+                        v.re
+                    );
+                }
+            }
+        }
+        // (ν, x, Re Y_ν(−x), |cos(νπ)|·|H_ν(x)|)
+        check::<f64>(&[
+            (
+                0.5404395744314369,
+                14.199204647196062,
+                1.7790766124893162e-07,
+                0.02683,
+            ),
+            (
+                5.4579621742598405,
+                17.955980580074737,
+                6.434329040379513e-07,
+                0.02539,
+            ),
+            (
+                8.553187617888364,
+                14.839639619602085,
+                6.376630874085129e-06,
+                0.03803,
+            ),
+            (
+                10.466204201871951,
+                20.809512383347556,
+                -0.0003560905884186947,
+                0.01992,
+            ),
+            (
+                12.541375369126225,
+                19.383109940166836,
+                -0.0010992113067365456,
+                0.02685,
+            ),
+            (
+                15.457226611852212,
+                17.934577879174395,
+                -0.0009456667810636375,
+                0.03461,
+            ),
+        ]);
+        check::<f32>(&[
+            (
+                0.42830756306648254,
+                7.750723838806152,
+                0.0003261815181377399,
+                0.06399,
+            ),
+            (
+                3.5858168601989746,
+                8.841499328613281,
+                3.636876710628325e-05,
+                0.0746,
+            ),
+            (
+                11.286245346069336,
+                38.86476516723633,
+                0.0005308631669817854,
+                0.0814,
+            ),
+            (
+                12.348158836364746,
+                40.268272399902344,
+                8.929377383150825e-08,
+                0.05917,
+            ),
+            (
+                17.424158096313477,
+                53.573184967041016,
+                6.935261359731625e-07,
+                0.02646,
+            ),
+        ]);
+    }
+
+    /// Y(−x) beyond the order with a small component that is not a single
+    /// term of an order below 18 nor small by its coefficients: Amos's value
+    /// is kept. Re Y_41(−x) = −Y_41(x) next to a zero of Y_41 (Amos's error
+    /// 5.5e-15; Y_41 computed separately would be off by 2.2e-13), and next to
+    /// zeros of two-term components, Re Y_ν(−x) = c·(s·J_m + c·Y_m) for ν < 0
+    /// and Im Y_ν(−x) = 2c·J_m − s·Y_m, which a recomputation leaves less
+    /// accurate more often than not.
     #[test]
     fn axis_y_neg_keeps_function_zeros() {
-        let (nu, z) = (41.0f64, Complex::new(-50.623088092303156, 0.0));
-        for (f, s) in [
-            (bessely as F<f64>, Scaling::Unscaled),
-            (bessely_scaled, Scaling::Exponential),
+        for (nu, x) in [
+            (41.0f64, 50.623088092303156),
+            (-1.0000000505613758, 18.058798586324336),
+            (-9.0, 15.361301343580108),
+            (0.7876708575032857, 29.094981102136426),
+            (2.000000000007951, 24.27010247905739),
         ] {
-            let (v, r) = (f(nu, z).unwrap(), bessely_value(nu, z, s).unwrap());
-            assert_eq!(
-                (v.re.to_bits(), v.im.to_bits()),
-                (r.re.to_bits(), r.im.to_bits())
-            );
+            let z = Complex::new(-x, 0.0);
+            for (f, s) in [
+                (bessely as F<f64>, Scaling::Unscaled),
+                (bessely_scaled, Scaling::Exponential),
+            ] {
+                let (v, r) = (f(nu, z).unwrap(), bessely_value(nu, z, s).unwrap());
+                assert_eq!(
+                    (v.re.to_bits(), v.im.to_bits()),
+                    (r.re.to_bits(), r.im.to_bits()),
+                    "nu={nu}, x={x}"
+                );
+            }
         }
     }
 
@@ -3364,9 +3470,9 @@ mod axis_tests {
     }
 
     /// Values the rule does not select are Amos's own, bit for bit: off the
-    /// axes, for the J·Y rows at x ≥ m (except Y(−x) next to half-integer
-    /// orders), and where the components are not far apart in size (ratio
-    /// ≥ 0.1 for J·Y, ≥ 1e-2 for I·K).
+    /// axes, for the J·Y rows at x ≥ m (except Re Y(−x) next to half-integer
+    /// orders or for 0 ≤ ν < 18), and where the components are not far apart
+    /// in size (ratio ≥ 0.1 for J·Y, ≥ 1e-2 for I·K).
     #[test]
     fn axis_fix_leaves_other_values_alone() {
         type Raw = fn(f64, Complex<f64>, Scaling) -> Result<Complex<f64>, Error>;
@@ -3413,8 +3519,12 @@ mod axis_tests {
                             } else if x < f64::abs(nu) {
                                 ratio < 0.1
                             } else {
-                                // Y(−x) next to half-integer orders
-                                kind == 'Y' && iz == 1 && ratio < 0.1 && cospi(nu).abs() < 0.1
+                                // Re Y(−x) next to half-integer orders or
+                                // for 0 ≤ ν < 18
+                                kind == 'Y'
+                                    && iz == 1
+                                    && ratio < 0.1
+                                    && (cospi(nu).abs() < 0.1 || (0.0..18.0).contains(&nu))
                             };
                         // Y is made exactly real on the positive real axis
                         let r = if kind == 'Y' && iz == 0 {
@@ -3443,8 +3553,8 @@ mod axis_tests {
     /// (Amos's own seq and single values differ by up to ~2e-13 normwise).
     #[test]
     fn axis_seq_matches_single() {
-        // (.., ratio, whether components beyond x = m are recomputed too,
-        // next to half-integer orders)
+        // (.., ratio, whether real parts beyond x = m are recomputed too,
+        // next to half-integer orders and for 0 ≤ ν < 18)
         type SeqCase = (SeqF, F<f64>, Scaling, fn(f64) -> Complex<f64>, f64, bool);
         let cases: [SeqCase; 9] = [
             (
@@ -3538,8 +3648,11 @@ mod axis_tests {
                             let Ok(s) = single(nu, z) else { continue };
                             let (sr, si) = (s.re.abs(), s.im.abs());
                             let (small, large) = (sr.min(si), sr.max(si));
-                            let jy_ok =
-                                ratio == 1e-2 || x < nu.abs() || (beyond && cospi(nu).abs() < 0.1);
+                            let jy_ok = ratio == 1e-2
+                                || x < nu.abs()
+                                || (beyond
+                                    && sr < si
+                                    && (cospi(nu).abs() < 0.1 || (0.0..18.0).contains(&nu)));
                             if jy_ok && small < 1e-3 * ratio * large && small > 0.0 {
                                 let (gs, ss) = if sr < si { (v.re, s.re) } else { (v.im, s.im) };
                                 let err = ((gs - ss) / ss).abs();
