@@ -90,10 +90,11 @@
 //! - H<sup>(2)</sup> on the positive and H<sup>(1)</sup> on the negative imaginary axis (also scaled)
 //!
 //! J and Y are exactly real on the positive real axis. A remaining limitation:
-//! for orders within about 1e-9 of an integer or a half-integer, a small
-//! component that is the product of a nearly vanishing cos(νπ) or sin(νπ) with
-//! one real function (e.g. Re J<sub>ν</sub>(−x) = cos(νπ) J<sub>ν</sub>(x)) is
-//! still only accurate relative to |f(z)|.
+//! a small component that is a nearly vanishing cos(νπ) or sin(νπ) times one
+//! real function, for orders close to an integer or a half-integer, is still
+//! only accurate relative to |f(z)|; its relative error grows roughly like
+//! ε/|cos(νπ)| (or ε/|sin(νπ)|). Examples are Re J<sub>ν</sub>(−x) = cos(νπ) J<sub>ν</sub>(x)
+//! and Re Y<sub>ν</sub>(−x) = cos(νπ) Y<sub>ν</sub>(x) for x ≥ |ν|.
 //!
 //! # Function variants
 //!
