@@ -3214,6 +3214,16 @@ mod axis_tests {
         assert!(n > 200, "only {n} components checked");
     }
 
+    /// An (I, K) component at |small|/|large| = 5e-3 is recomputed: Amos's
+    /// Im H^(2)_ν(ix) here is off by 5.2e-14, the recomputed one by < 1e-15
+    /// (mpmath reference).
+    #[test]
+    fn axis_ik_ratio_between_1e3_and_1e2() {
+        let h = hankel2(9.999_999_99f64, Complex::new(0.0, 8.199_999_991_8)).unwrap();
+        let err = ((h.im + 0.015700603715088221) / 0.015700603715088221).abs();
+        assert!(err < 1e-14, "Im H2_9.99999999(8.2i): error {err:e}");
+    }
+
     /// Re H(ν, x) against `besselj`: a different Amos path (J from zbinu,
     /// H from K(−iz)).
     #[test]
@@ -3270,7 +3280,7 @@ mod axis_tests {
 
     /// Values the rule does not select are Amos's own, bit for bit: off the
     /// axes, for the J·Y rows at x ≥ m, and where the components are not far
-    /// apart in size (ratio ≥ 0.1 for J·Y, ≥ 1e-3 for I·K).
+    /// apart in size (ratio ≥ 0.1 for J·Y, ≥ 1e-2 for I·K).
     #[test]
     fn axis_fix_leaves_other_values_alone() {
         type Raw = fn(f64, Complex<f64>, Scaling) -> Result<Complex<f64>, Error>;
@@ -3313,7 +3323,7 @@ mod axis_tests {
                         let ik = imag_axis && kind == 'H';
                         let selectable = iz < 4
                             && if ik {
-                                ratio < 1e-3
+                                ratio < 1e-2
                             } else {
                                 x < f64::abs(nu) && ratio < 0.1
                             };
@@ -3393,21 +3403,21 @@ mod axis_tests {
                 hankel2,
                 Scaling::Unscaled,
                 |x| Complex::new(0.0, x),
-                1e-3,
+                1e-2,
             ),
             (
                 hankel2_seq_into,
                 hankel2_scaled,
                 Scaling::Exponential,
                 |x| Complex::new(0.0, x),
-                1e-3,
+                1e-2,
             ),
             (
                 hankel1_seq_into,
                 hankel1_scaled,
                 Scaling::Exponential,
                 |x| Complex::new(0.0, -x),
-                1e-3,
+                1e-2,
             ),
         ];
         let mut buf = [Complex::new(0.0, 0.0); 70];
@@ -3428,7 +3438,7 @@ mod axis_tests {
                             let Ok(s) = single(nu, z) else { continue };
                             let (sr, si) = (s.re.abs(), s.im.abs());
                             let (small, large) = (sr.min(si), sr.max(si));
-                            let jy_ok = ratio == 1e-3 || x < nu.abs();
+                            let jy_ok = ratio == 1e-2 || x < nu.abs();
                             if jy_ok && small < 1e-3 * ratio * large && small > 0.0 {
                                 let (gs, ss) = if sr < si { (v.re, s.re) } else { (v.im, s.im) };
                                 let err = ((gs - ss) / ss).abs();

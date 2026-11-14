@@ -72,14 +72,17 @@ impl Row {
 //   1e-3 it is 2.8e-11 with 174 above 1e-12. Above m, next to the zeros of
 //   J_m and Y_m (which all lie beyond m), J and Y computed separately are
 //   no more accurate than Amos's components.
-// - (I, K): on that sample the largest remaining error is 3.2e-13 for any
-//   ratio from 0.1 to 1e-3, so the smallest one costs the fewest
-//   recomputations.
+// - (I, K): re-measured including f32 and a separate sample of orders next
+//   to integers (where these small components occur). Raising the ratio
+//   from 1e-3 to 1e-2 lowers the largest error left unfixed from 1.6e-4 to
+//   2.2e-5 for f32 and from 2.7e-13 to 1.4e-13 for f64. The worst case where
+//   the recomputed component is less accurate than Amos's stays the same.
+//   Ratios above 1e-2 add recomputations for no measurable gain in f64.
 // Next to x = m the recomputed component can be a few times less accurate
 // than Amos's (e.g. 6.7e-14 → 7.4e-13 for Im H^(2)_{−10.7}(−10)); the
 // ratios above keep such cases rare and small.
 const RATIO_JY: f64 = 0.1;
-const RATIO_IK: f64 = 1e-3;
+const RATIO_IK: f64 = 1e-2;
 
 /// The row of `(f, z, scaling)` and x = |z|, if z is on a half-axis and the
 /// value has a small component to recompute. Signed zeros are treated like
