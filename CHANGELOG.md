@@ -76,11 +76,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `hankel1(1.0, 2e-32)` 1.9e15 instead of 1e-32 (openspecfun#45). Such a part
   is now computed from the two real functions (J and Y, or I and K, at |z|),
   deliberately differing from Amos, which returns it only to normwise
-  accuracy. Where a part is recomputed, these values take up to about 2
-  times as long (sequences up to about 4 times); elsewhere nothing changes.
-  Still accurate only normwise are parts that are a nearly vanishing
+  accuracy. For `bessely` this includes orders close to a half-integer,
+  where the real part is small for any x, e.g. `bessely(0.500000000001,
+  -5.0)` had the real part 3.263e-13 instead of 3.180e-13. Where a part is
+  recomputed, these values take up to about 2 times as long (sequences up
+  to about 4 times); elsewhere nothing changes. Still accurate only
+  normwise are parts of the other functions that are a nearly vanishing
   cos(νπ) or sin(νπ) times one real function, for orders close to an
-  integer or a half-integer, e.g. Re Y_ν(−x) = cos(νπ)·Y_ν(x) for x ≥ |ν|.
+  integer or a half-integer, e.g. Re J_ν(−x) = cos(νπ)·J_ν(x).
 - `besselj` and `bessely` (and their `_scaled`, `_seq`, and `_seq_into`
   variants) on the positive real axis returned a rounding residue as the
   imaginary part, e.g. −5.4e-16 for `besselj(0.3, 5.0)`; they are now

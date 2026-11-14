@@ -67,11 +67,22 @@ impl Row {
 // Recompute the small component when |small| < RATIO·|large|. Measured on
 // ~1e5 small components (orders 0.05–300 of both signs, including integers,
 // half-integers and orders 1e-12…1e-4 away from them; mpmath references):
-// - (J, Y), only for x < m: with 0.1 the largest remaining error is 2.3e-11
+// - (J, Y) for x < m: with 0.1 the largest remaining error is 2.3e-11
 //   (20 components above 1e-12, worst increase 5.5e-13 → 3.2e-12); with
 //   1e-3 it is 2.8e-11 with 174 above 1e-12. Above m, next to the zeros of
 //   J_m and Y_m (which all lie beyond m), J and Y computed separately are
-//   no more accurate than Amos's components.
+//   in general no more accurate than Amos's components.
+// - Y(−x) for x ≥ m is the exception: next to a half-integer order a
+//   component has small coefficients (e.g. Re Y_ν(−x) = cos(νπ)·Y_ν(x)),
+//   and Amos's has a relative error of ε/|cos(νπ)| or more. Such a
+//   component is recomputed too, when |α| + |β| < COEF_Y_NEG. In 1.2e5
+//   values beyond m (half of the orders next to half-integers, the others
+//   next to integers or generic) this fixes errors up to 54 (f32 150);
+//   the worst increase is 8.2e-14 → 1.9e-13 (f32 1.4e-3 → 8.4e-3), and
+//   nothing gets worse normwise. Left as they are, components small
+//   because x is next to a zero of J_m or Y_m have errors up to 2.0e-10
+//   (f32 1.5e-2): recomputing them as well would fix those but make 1 in
+//   20 of them less accurate, up to 6.9e-11 (f32 1.5e-2, also normwise).
 // - (I, K): re-measured including f32 and a separate sample of orders next
 //   to integers (where these small components occur). Raising the ratio
 //   from 1e-3 to 1e-2 lowers the largest error left unfixed from 1.6e-4 to
@@ -83,6 +94,7 @@ impl Row {
 // ratios above keep such cases rare and small.
 const RATIO_JY: f64 = 0.1;
 const RATIO_IK: f64 = 1e-2;
+const COEF_Y_NEG: f64 = 0.1;
 
 /// The row of `(f, z, scaling)` and x = |z|, if z is on a half-axis and the
 /// value has a small component to recompute. Signed zeros are treated like
@@ -130,8 +142,14 @@ fn row<T: BesselFloat>(f: AxisFn, z: Complex<T>, scaling: Scaling) -> Option<(Ro
 }
 
 /// Index of the small component of `v` (0 = real, 1 = imaginary) if it is
-/// to be recomputed for order m.
-fn small_component<T: BesselFloat>(row: Row, x: T, m: T, v: Complex<T>) -> Option<usize> {
+/// to be recomputed for order ν = ±m (`neg` for ν < 0).
+fn small_component<T: BesselFloat>(
+    row: Row,
+    neg: bool,
+    x: T,
+    m: T,
+    v: Complex<T>,
+) -> Option<usize> {
     let (a, b) = (v.re.abs(), v.im.abs());
     if !(a.is_finite() && b.is_finite()) {
         return None;
@@ -140,16 +158,23 @@ fn small_component<T: BesselFloat>(row: Row, x: T, m: T, v: Complex<T>) -> Optio
     if large == T::zero() {
         return None;
     }
-    let ratio = if row.ik() {
-        T::from_f64(RATIO_IK)
-    } else {
-        // Below m only; see RATIO_JY
-        if x >= m {
+    let ratio = if row.ik() { RATIO_IK } else { RATIO_JY };
+    if small >= T::from_f64(ratio) * large {
+        return None;
+    }
+    // (J, Y) beyond m only for Y(−x) with small coefficients; see RATIO_JY.
+    // Only its real part can have them (the imaginary part's are 2c and −s,
+    // or c² + 1 and −s₂/2)
+    if !row.ik() && x >= m {
+        let small_coefficients = row == Row::YNeg && k == 0 && {
+            let (ca, cb) = coefficients(row, neg, m, k);
+            ca.abs() + cb.abs() < T::from_f64(COEF_Y_NEG)
+        };
+        if !small_coefficients {
             return None;
         }
-        T::from_f64(RATIO_JY)
-    };
-    (small < ratio * large).then_some(k)
+    }
+    Some(k)
 }
 
 /// sin(1.5πm) and cos(1.5πm) without the rounding of the product 1.5·m.
@@ -289,10 +314,10 @@ pub(crate) fn fix_single<T: BesselFloat>(
         return v;
     };
     let m = nu.abs();
-    let Some(k) = small_component(row, x, m, v) else {
+    let neg = nu < T::zero();
+    let Some(k) = small_component(row, neg, x, m, v) else {
         return v;
     };
-    let neg = nu < T::zero();
     // For H on the positive real axis with ν ≥ 0, the small component is
     // Re = J: Y is not needed
     let ab = if !neg && matches!(row, Row::H1Pos | Row::H2Pos) {
@@ -343,7 +368,7 @@ pub(crate) fn fix_seq<T: BesselFloat>(
             nu + T::from_f64(j as f64)
         }
     };
-    let needs = |j: usize, v: Complex<T>| small_component(row, x, order(j), v);
+    let needs = |j: usize, v: Complex<T>| small_component(row, j < nc, x, order(j), v);
     for (lo, hi, neg) in [(0, nc, true), (nc, n, false)] {
         let Some(first) = (lo..hi).find(|&j| needs(j, out[j]).is_some()) else {
             continue;

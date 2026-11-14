@@ -89,12 +89,15 @@
 //! - K on the imaginary axis
 //! - H<sup>(2)</sup> on the positive and H<sup>(1)</sup> on the negative imaginary axis (also scaled)
 //!
-//! J and Y are exactly real on the positive real axis. A remaining limitation:
-//! a small component that is a nearly vanishing cos(νπ) or sin(νπ) times one
-//! real function, for orders close to an integer or a half-integer, is still
-//! only accurate relative to |f(z)|; its relative error grows roughly like
-//! ε/|cos(νπ)| (or ε/|sin(νπ)|). Examples are Re J<sub>ν</sub>(−x) = cos(νπ) J<sub>ν</sub>(x)
-//! and Re Y<sub>ν</sub>(−x) = cos(νπ) Y<sub>ν</sub>(x) for x ≥ |ν|.
+//! For Y on the negative real axis this includes orders close to a
+//! half-integer, where e.g. Re Y<sub>ν</sub>(−x) = cos(νπ) Y<sub>ν</sub>(x) is small
+//! for any x. J and Y are exactly real on the positive real axis.
+//!
+//! A remaining limitation: in the other functions, a small component that is
+//! a nearly vanishing cos(νπ) or sin(νπ) times one real function, for orders
+//! close to an integer or a half-integer, is still only accurate relative to
+//! |f(z)|; its relative error grows roughly like ε/|cos(νπ)| (or
+//! ε/|sin(νπ)|). An example is Re J<sub>ν</sub>(−x) = cos(νπ) J<sub>ν</sub>(x).
 //!
 //! # Function variants
 //!
@@ -3224,6 +3227,88 @@ mod axis_tests {
         assert!(err < 1e-14, "Im H2_9.99999999(8.2i): error {err:e}");
     }
 
+    /// Re Y_ν(−x) for x ≥ |ν| next to half-integer orders is cos(νπ)·Y_ν(x),
+    /// with a nearly vanishing cos(νπ). Compared against `bessely` on the
+    /// positive real axis (a different Amos path, reflected with cospi for
+    /// ν < 0), skipping x next to zeros of Y_ν. Amos's own Re Y_ν(−x) fails
+    /// 248 of these f64 checks, with relative errors up to 0.8 (f32: 0.9).
+    fn check_y_neg_axis<T: BesselFloat + core::fmt::Display>(
+        nus: &[f64],
+        deltas: &[f64],
+        fracs: &[f64],
+        tol: f64,
+    ) -> usize {
+        let mut checked = 0;
+        for &nu0 in nus {
+            for &d in deltas {
+                for sign in [1.0, -1.0] {
+                    let nu = T::from_f64(sign * (nu0 + d));
+                    let m = nu.abs().to_f64().unwrap();
+                    for &frac in fracs {
+                        let x = T::from_f64(m * frac + 0.3);
+                        let (Ok(v), Ok(y)) = (
+                            bessely(nu, Complex::new(-x, T::zero())),
+                            bessely(nu, Complex::new(x, T::zero())),
+                        ) else {
+                            continue;
+                        };
+                        let j = besselj(nu, Complex::new(x, T::zero())).unwrap().re;
+                        let (y, j) = (y.re.to_f64().unwrap(), j.to_f64().unwrap());
+                        if y.abs() < 0.1 * j.abs() {
+                            continue;
+                        }
+                        let expected = cospi(nu).to_f64().unwrap() * y;
+                        let err = ((v.re.to_f64().unwrap() - expected) / expected).abs();
+                        assert!(
+                            err < tol,
+                            "nu={nu}, x={x}: Re Y(-x) = {}, expected {expected:e}",
+                            v.re
+                        );
+                        checked += 1;
+                    }
+                }
+            }
+        }
+        checked
+    }
+
+    #[test]
+    fn axis_y_neg_beyond_order_f64() {
+        let nus = [0.5, 1.5, 4.5, 10.5, 30.5, 70.5];
+        let deltas = [1e-13, 1e-10, -1e-7, 1e-5, -3e-4, 1e-3];
+        let fracs = [1.0, 1.1, 1.5, 3.0, 8.0];
+        let n = check_y_neg_axis::<f64>(&nus, &deltas, &fracs, 1e-11);
+        assert!(n > 250, "only {n} values checked");
+    }
+
+    #[test]
+    fn axis_y_neg_beyond_order_f32() {
+        let nus = [0.5, 1.5, 4.5, 10.5];
+        let deltas = [3e-6, -3e-5, 3e-4];
+        let fracs = [1.0, 1.5, 3.0];
+        let n = check_y_neg_axis::<f32>(&nus, &deltas, &fracs, 1e-4);
+        assert!(n > 40, "only {n} values checked");
+    }
+
+    /// Y(−x) beyond the order with a small component that is not small by
+    /// its coefficients: Re Y_41(−x) = −Y_41(x) next to a zero of Y_41.
+    /// Amos's value (error 5.5e-15) is kept; Y_41 computed separately would
+    /// be off by 2.2e-13 (mpmath).
+    #[test]
+    fn axis_y_neg_keeps_function_zeros() {
+        let (nu, z) = (41.0f64, Complex::new(-50.623088092303156, 0.0));
+        for (f, s) in [
+            (bessely as F<f64>, Scaling::Unscaled),
+            (bessely_scaled, Scaling::Exponential),
+        ] {
+            let (v, r) = (f(nu, z).unwrap(), bessely_value(nu, z, s).unwrap());
+            assert_eq!(
+                (v.re.to_bits(), v.im.to_bits()),
+                (r.re.to_bits(), r.im.to_bits())
+            );
+        }
+    }
+
     /// Re H(ν, x) against `besselj`: a different Amos path (J from zbinu,
     /// H from K(−iz)).
     #[test]
@@ -3279,8 +3364,9 @@ mod axis_tests {
     }
 
     /// Values the rule does not select are Amos's own, bit for bit: off the
-    /// axes, for the J·Y rows at x ≥ m, and where the components are not far
-    /// apart in size (ratio ≥ 0.1 for J·Y, ≥ 1e-2 for I·K).
+    /// axes, for the J·Y rows at x ≥ m (except Y(−x) next to half-integer
+    /// orders), and where the components are not far apart in size (ratio
+    /// ≥ 0.1 for J·Y, ≥ 1e-2 for I·K).
     #[test]
     fn axis_fix_leaves_other_values_alone() {
         type Raw = fn(f64, Complex<f64>, Scaling) -> Result<Complex<f64>, Error>;
@@ -3324,8 +3410,11 @@ mod axis_tests {
                         let selectable = iz < 4
                             && if ik {
                                 ratio < 1e-2
+                            } else if x < f64::abs(nu) {
+                                ratio < 0.1
                             } else {
-                                x < f64::abs(nu) && ratio < 0.1
+                                // Y(−x) next to half-integer orders
+                                kind == 'Y' && iz == 1 && ratio < 0.1 && cospi(nu).abs() < 0.1
                             };
                         // Y is made exactly real on the positive real axis
                         let r = if kind == 'Y' && iz == 0 {
@@ -3354,7 +3443,9 @@ mod axis_tests {
     /// (Amos's own seq and single values differ by up to ~2e-13 normwise).
     #[test]
     fn axis_seq_matches_single() {
-        type SeqCase = (SeqF, F<f64>, Scaling, fn(f64) -> Complex<f64>, f64);
+        // (.., ratio, whether components beyond x = m are recomputed too,
+        // next to half-integer orders)
+        type SeqCase = (SeqF, F<f64>, Scaling, fn(f64) -> Complex<f64>, f64, bool);
         let cases: [SeqCase; 9] = [
             (
                 hankel1_seq_into,
@@ -3362,6 +3453,7 @@ mod axis_tests {
                 Scaling::Unscaled,
                 |x| Complex::new(x, 0.0),
                 0.1,
+                false,
             ),
             (
                 hankel2_seq_into,
@@ -3369,6 +3461,7 @@ mod axis_tests {
                 Scaling::Unscaled,
                 |x| Complex::new(-x, 0.0),
                 0.1,
+                false,
             ),
             (
                 bessely_seq_into,
@@ -3376,6 +3469,7 @@ mod axis_tests {
                 Scaling::Unscaled,
                 |x| Complex::new(-x, 0.0),
                 0.1,
+                true,
             ),
             (
                 bessely_seq_into,
@@ -3383,6 +3477,7 @@ mod axis_tests {
                 Scaling::Exponential,
                 |x| Complex::new(-x, 0.0),
                 0.1,
+                true,
             ),
             (
                 besselk_seq_into,
@@ -3390,6 +3485,7 @@ mod axis_tests {
                 Scaling::Unscaled,
                 |x| Complex::new(0.0, x),
                 0.1,
+                false,
             ),
             (
                 besselk_seq_into,
@@ -3397,6 +3493,7 @@ mod axis_tests {
                 Scaling::Unscaled,
                 |x| Complex::new(0.0, -x),
                 0.1,
+                false,
             ),
             (
                 hankel2_seq_into,
@@ -3404,6 +3501,7 @@ mod axis_tests {
                 Scaling::Unscaled,
                 |x| Complex::new(0.0, x),
                 1e-2,
+                false,
             ),
             (
                 hankel2_seq_into,
@@ -3411,6 +3509,7 @@ mod axis_tests {
                 Scaling::Exponential,
                 |x| Complex::new(0.0, x),
                 1e-2,
+                false,
             ),
             (
                 hankel1_seq_into,
@@ -3418,10 +3517,11 @@ mod axis_tests {
                 Scaling::Exponential,
                 |x| Complex::new(0.0, -x),
                 1e-2,
+                false,
             ),
         ];
         let mut buf = [Complex::new(0.0, 0.0); 70];
-        for (seq, single, scaling, zf, ratio) in cases {
+        for (seq, single, scaling, zf, ratio, beyond) in cases {
             for nu0 in [-7.3, -6.0, -40.5, 0.5, 2.0, 30.5] {
                 for n in [1usize, 5, 40, 64, 70] {
                     // Not x = 1: H2_{±1.5}(i) = 0 exactly (K_{3/2}(1) = π·I_{3/2}(1))
@@ -3438,7 +3538,8 @@ mod axis_tests {
                             let Ok(s) = single(nu, z) else { continue };
                             let (sr, si) = (s.re.abs(), s.im.abs());
                             let (small, large) = (sr.min(si), sr.max(si));
-                            let jy_ok = ratio == 1e-2 || x < nu.abs();
+                            let jy_ok =
+                                ratio == 1e-2 || x < nu.abs() || (beyond && cospi(nu).abs() < 0.1);
                             if jy_ok && small < 1e-3 * ratio * large && small > 0.0 {
                                 let (gs, ss) = if sr < si { (v.re, s.re) } else { (v.im, s.im) };
                                 let err = ((gs - ss) / ss).abs();
