@@ -2708,6 +2708,31 @@ mod special_value_tests {
         check_scaled_continuation::<f32>(&[1e2, 1e3, 1e4, 1e6, 4e6], 2e-6);
     }
 
+    /// Y_{−ν} = sin(νπ)·J_ν + cos(νπ)·Y_ν next to a half-integer ν: the small
+    /// cos(νπ) multiplies the large Y_ν, so it needs full relative accuracy.
+    /// cospi used to lose it there (relative error ~ε/|cos(νπ)|).
+    #[test]
+    fn bessely_negative_order_near_half_integer() {
+        // References from mpmath (40 digits); the old errors were 4.2e-8 and 4.8e-5
+        let cases = [
+            (
+                -1.500000001,
+                Complex::new(1e-5, 0.0),
+                Complex::new(-0.07926656189549441, 0.0),
+            ),
+            (
+                -20.499999999999,
+                Complex::new(-3.0, 0.5),
+                Complex::new(22.825467418360233, -109.6379263279235),
+            ),
+        ];
+        for (nu, z, expected) in cases {
+            let got = bessely(nu, z).unwrap();
+            let err = (got - expected).norm() / expected.norm();
+            assert!(err < 5e-14, "Y_{nu}({z}) = {got}, rel_err = {err:e}");
+        }
+    }
+
     /// f32 version of `uniform_expansion_beyond_airy_range_f64`. Amos's
     /// single-precision algorithm keeps few correct digits at this |z| (as
     /// just below this range), so only the magnitudes are checked:

@@ -58,6 +58,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Re z < 0, and the uniform asymptotic expansions, which also serve some
   unscaled J, Y, I, K, and H values) can change, but only within their
   existing error, which comes from elsewhere.
+- `bessely`, `bessely_scaled`, and `bessely_seq` (and `bessely_seq_into`) with
+  a negative non-integer order close to a half-integer lost accuracy, e.g. a
+  relative error of 4.2e-8 for `bessely(-1.500000001, 1e-5)` and 4.8e-5 for
+  `bessely(-20.499999999999, -3+0.5i)`. The reflection formula multiplies
+  Y of the positive order by cos(νπ), which was computed with a relative
+  error of about ε/|cos(νπ)| there. J and the Hankel functions use the same
+  factor, but their results change only in the last digits.
 
 ### Removed
 
