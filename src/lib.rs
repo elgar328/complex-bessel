@@ -3297,6 +3297,156 @@ mod axis_tests {
         assert!(n > 40, "only {n} values checked");
     }
 
+    /// In a sequence the order of element j is exactly ν + j (from ν + nc
+    /// for ν < 0, as the sequence computes it), in general not a float. Next
+    /// to a half-integer, Re Y_μ(−x) = cos(μπ)·Y_μ(x) with
+    /// cos(μπ) = (−1)^p·cos(base·π) needs that exact order: an ulp of μ is a
+    /// relative error of ulp/|cos(μπ)| (e.g. 2.8e-9 at order 4.4999999 from
+    /// ν = 0.4999999 at −6).
+    /// Y_μ(x) comes from the sequence on the positive real axis (the same
+    /// orders); x next to zeros of Y_μ is skipped. Returns the number of
+    /// checked elements whose order is not a float.
+    fn check_y_neg_seq_orders<T: BesselFloat + core::fmt::Display>(
+        nus: &[f64],
+        xs: &[f64],
+        tol: f64,
+    ) -> usize {
+        const N: usize = 30;
+        let czero = Complex::new(T::zero(), T::zero());
+        let (mut neg, mut pos, mut jpos) = ([czero; N], [czero; N], [czero; N]);
+        let mut inexact = 0;
+        for &nu in nus {
+            let nu = T::from_f64(nu);
+            let nc = if nu < T::zero() {
+                nu.abs().ceil().to_usize().unwrap()
+            } else {
+                0
+            };
+            let base = nu + T::from_f64(nc as f64);
+            for &x in xs {
+                let x = T::from_f64(x);
+                let (zn, zp) = (Complex::new(-x, T::zero()), Complex::new(x, T::zero()));
+                bessely_seq_into(nu, zn, Scaling::Unscaled, &mut neg).unwrap();
+                bessely_seq_into(nu, zp, Scaling::Unscaled, &mut pos).unwrap();
+                besselj_seq_into(nu, zp, Scaling::Unscaled, &mut jpos).unwrap();
+                for j in nc..N {
+                    let p = j - nc;
+                    let (y, jv) = (pos[j].re, jpos[j].re);
+                    if y.abs() < T::from_f64(0.1) * jv.abs() {
+                        continue;
+                    }
+                    let sign = if p % 2 == 0 { T::one() } else { -T::one() };
+                    let expected = sign * cospi(base) * y;
+                    let err = ((neg[j].re - expected) / expected).abs().to_f64().unwrap();
+                    assert!(
+                        err < tol,
+                        "nu={nu}, x={x}, j={j}: Re Y(-x) = {}, expected {expected}, rel {err:e}",
+                        neg[j].re
+                    );
+                    // Whether base + p is a float
+                    let pt = T::from_f64(p as f64);
+                    let s = base + pt;
+                    let bb = s - base;
+                    if (base - (s - bb)) + (pt - bb) != T::zero() {
+                        inexact += 1;
+                    }
+                }
+            }
+        }
+        inexact
+    }
+
+    #[test]
+    fn axis_y_neg_seq_orders_off_the_float_grid() {
+        let nus = [0.4999999, 0.50000031, 2.4999997, -2.4999999, -0.50000013];
+        let n = check_y_neg_seq_orders::<f64>(&nus, &[0.3, 6.0, 15.0, 40.0], 1e-12);
+        assert!(n > 200, "only {n} inexact orders checked");
+        let nus = [0.4999, 0.50031, 2.4997, -2.4999, -0.50013];
+        let n = check_y_neg_seq_orders::<f32>(&nus, &[2.0, 6.0, 15.0], 1e-4);
+        assert!(n > 150, "only {n} inexact orders checked");
+    }
+
+    /// As `check_y_neg_seq_orders` for K_μ(ix) = −(π/2)·((s·J + c·Y) +
+    /// i(c·J − s·Y)) with (s, c) = (sin, cos)(μπ/2), x < μ: next to an
+    /// integer μ one of s, c nearly vanishes. They come from those of base/2
+    /// by p quarter turns; J and Y from sequences on the positive real axis.
+    fn check_k_imag_seq_orders<T: BesselFloat + core::fmt::Display>(
+        nus: &[f64],
+        xs: &[f64],
+        tol: f64,
+    ) -> usize {
+        const N: usize = 30;
+        let czero = Complex::new(T::zero(), T::zero());
+        let (mut k, mut ypos, mut jpos) = ([czero; N], [czero; N], [czero; N]);
+        let hpi = T::from_f64(PI / 2.0);
+        let mut checked = 0;
+        for &nu in nus {
+            let nu = T::from_f64(nu);
+            let nc = if nu < T::zero() {
+                nu.abs().ceil().to_usize().unwrap()
+            } else {
+                0
+            };
+            let base = nu + T::from_f64(nc as f64);
+            let half = base / T::from_f64(2.0);
+            let (s0, c0) = (sinpi(half), cospi(half));
+            for &x in xs {
+                let x = T::from_f64(x);
+                let zp = Complex::new(x, T::zero());
+                besselk_seq_into(nu, Complex::new(T::zero(), x), Scaling::Unscaled, &mut k)
+                    .unwrap();
+                bessely_seq_into(nu, zp, Scaling::Unscaled, &mut ypos).unwrap();
+                besselj_seq_into(nu, zp, Scaling::Unscaled, &mut jpos).unwrap();
+                for j in nc..N {
+                    let p = j - nc;
+                    let m = base + T::from_f64(p as f64);
+                    if x >= m {
+                        continue;
+                    }
+                    let (s, c) = match p % 4 {
+                        0 => (s0, c0),
+                        1 => (c0, -s0),
+                        2 => (-s0, -c0),
+                        _ => (-c0, s0),
+                    };
+                    let (jv, y) = (jpos[j].re, ypos[j].re);
+                    let terms = [(s * jv, c * y), (c * jv, -(s * y))];
+                    let got = [k[j].re, k[j].im];
+                    // The small component, where its two terms do not cancel
+                    let (i, (ta, tb)) = if got[0].abs() < got[1].abs() {
+                        (0, terms[0])
+                    } else {
+                        (1, terms[1])
+                    };
+                    let expected = -hpi * (ta + tb);
+                    if got[i].abs() >= T::from_f64(0.1) * got[1 - i].abs()
+                        || (ta + tb).abs() < T::from_f64(0.1) * (ta.abs() + tb.abs())
+                    {
+                        continue;
+                    }
+                    let err = ((got[i] - expected) / expected).abs().to_f64().unwrap();
+                    assert!(
+                        err < tol,
+                        "nu={nu}, x={x}, j={j}: K(ix) = {}, expected {expected} in part {i}, rel {err:e}",
+                        k[j]
+                    );
+                    checked += 1;
+                }
+            }
+        }
+        checked
+    }
+
+    #[test]
+    fn axis_k_imag_seq_orders_off_the_float_grid() {
+        let nus = [1.9999997, 3.00000031, 0.9999997, -2.0000001, -1.00000013];
+        let n = check_k_imag_seq_orders::<f64>(&nus, &[0.3, 2.0, 6.0], 1e-12);
+        assert!(n > 150, "only {n} components checked");
+        let nus = [1.9997, 3.00031, 0.9997, -2.0001, -1.00013];
+        let n = check_k_imag_seq_orders::<f32>(&nus, &[2.0, 6.0], 1e-4);
+        assert!(n > 100, "only {n} components checked");
+    }
+
     /// Whether the J·Y rule recomputes component k (0 = real, 1 = imaginary)
     /// of `kind` ('Y', or '2' for unscaled H^(2)) at −x for x ≥ |ν|: Y_m
     /// alone (J's coefficient below 1e-3 of Y's) for m < 18, or Re Y(−x)

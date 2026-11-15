@@ -163,15 +163,67 @@ fn row<T: BesselFloat>(f: AxisFn, z: Complex<T>, scaling: Scaling) -> Option<(Ro
     Some((row, x))
 }
 
+/// TwoSum: (s, e) with s = fl(a + b) and s + e = a + b exactly.
+#[inline]
+fn two_sum<T: BesselFloat>(a: T, b: T) -> (T, T) {
+    let s = a + b;
+    let bb = s - a;
+    (s, (a - (s - bb)) + (b - bb))
+}
+
+/// An order m = |ν| as the float `m` plus its rounding error `e`.
+///
+/// A sequence element has the exact order ν + j (Amos's recurrence runs on
+/// the exact lattice), which a float need not represent. The coefficients
+/// cos(νπ), sin(νπ), … are small next to their zeros, where an ulp of m
+/// would be a relative error of ulp/|distance| (e.g. 2.8e-9 for Re Y at
+/// order 4.4999999 in `bessely_seq` from ν = 0.4999999 at z = −6). They
+/// are corrected to first order in e instead; e = 0 for single values.
+#[derive(Debug, Clone, Copy)]
+struct Order<T> {
+    m: T,
+    e: T,
+}
+
+impl<T: BesselFloat> Order<T> {
+    fn exact(m: T) -> Self {
+        Order { m, e: T::zero() }
+    }
+
+    /// The order base + shift, for an integer shift.
+    fn sum(base: T, shift: usize) -> Self {
+        let (m, e) = two_sum(base, T::from_f64(shift as f64));
+        Order { m, e }
+    }
+
+    /// sin and cos of q·π·(m + e) for q = q2/2 ∈ {1/2, 1, 3/2, 2}.
+    fn sincospi(self, q2: u8) -> (T, T) {
+        let m = self.m;
+        let two = T::from_f64(2.0);
+        let (s, c) = match q2 {
+            1 => (sinpi(m / two), cospi(m / two)),
+            2 => (sinpi(m), cospi(m)),
+            3 => sincospi_three_halves(m),
+            _ => (sinpi(two * m), cospi(two * m)),
+        };
+        if self.e == T::zero() {
+            return (s, c);
+        }
+        let pe = T::from_f64(core::f64::consts::PI * f64::from(q2) / 2.0) * self.e;
+        (s + pe * c, c - pe * s)
+    }
+}
+
 /// Index of the small component of `v` (0 = real, 1 = imaginary) if it is
 /// to be recomputed for order ν = ±m (`neg` for ν < 0).
 fn small_component<T: BesselFloat>(
     row: Row,
     neg: bool,
     x: T,
-    m: T,
+    ord: Order<T>,
     v: Complex<T>,
 ) -> Option<usize> {
+    let m = ord.m;
     let (a, b) = (v.re.abs(), v.im.abs());
     if !(a.is_finite() && b.is_finite()) {
         return None;
@@ -191,7 +243,7 @@ fn small_component<T: BesselFloat>(
         if !matches!(row, Row::YNeg | Row::H2Neg) {
             return None;
         }
-        let (ca, cb) = coefficients(row, neg, m, k);
+        let (ca, cb) = coefficients(row, neg, ord, k);
         let y_alone = m < T::from_f64(ORDER_NEG) && ca.abs() < T::from_f64(RATIO_J_NEG) * cb.abs();
         let small_coef =
             row == Row::YNeg && k == 0 && ca.abs() + cb.abs() < T::from_f64(COEF_Y_NEG);
@@ -206,11 +258,7 @@ fn small_component<T: BesselFloat>(
 fn sincospi_three_halves<T: BesselFloat>(m: T) -> (T, T) {
     // 1.5·4k = 6k is even, so m can be reduced mod 4 (exactly)
     let r = m % T::from_f64(4.0);
-    let h = r * T::from_f64(0.5);
-    // TwoSum: s + e = r + h exactly
-    let s = r + h;
-    let bb = s - r;
-    let e = (r - (s - bb)) + (h - bb);
+    let (s, e) = two_sum(r, r * T::from_f64(0.5));
     let pe = T::from_f64(core::f64::consts::PI) * e;
     let (sp, cp) = (sinpi(s), cospi(s));
     (sp + pe * cp, cp - pe * sp)
@@ -219,7 +267,7 @@ fn sincospi_three_halves<T: BesselFloat>(m: T) -> (T, T) {
 /// Coefficients of A and B for component k (0 = real, 1 = imaginary) of the
 /// value of order ν = ±m (`neg` for ν < 0). The table was derived with
 /// sympy from the DLMF formulas and checked against them at 300 digits.
-fn coefficients<T: BesselFloat>(row: Row, neg: bool, m: T, k: usize) -> (T, T) {
+fn coefficients<T: BesselFloat>(row: Row, neg: bool, ord: Order<T>, k: usize) -> (T, T) {
     let one = T::one();
     let two = T::from_f64(2.0);
     let pi = T::from_f64(core::f64::consts::PI);
@@ -230,7 +278,7 @@ fn coefficients<T: BesselFloat>(row: Row, neg: bool, m: T, k: usize) -> (T, T) {
         Row::H1Pos | Row::H2Pos => {
             let sign = if row == Row::H1Pos { one } else { -one };
             if neg {
-                let (c, s) = (cospi(m), sinpi(m));
+                let (s, c) = ord.sincospi(2);
                 (c, sign * s, -s, sign * c)
             } else {
                 (one, T::zero(), T::zero(), sign)
@@ -240,40 +288,40 @@ fn coefficients<T: BesselFloat>(row: Row, neg: bool, m: T, k: usize) -> (T, T) {
             if neg {
                 (-one, T::zero(), T::zero(), one)
             } else {
-                let (c, s) = (cospi(m), sinpi(m));
+                let (s, c) = ord.sincospi(2);
                 (-c, s, s, c)
             }
         }
         Row::H2Neg => {
             if neg {
-                let (c2, s2) = (cospi(two * m), sinpi(two * m));
+                let (s2, c2) = ord.sincospi(4);
                 (c2 + two, -s2, -s2, -c2)
             } else {
-                let (c, s) = (cospi(m), sinpi(m));
+                let (s, c) = ord.sincospi(2);
                 (T::from_f64(3.0) * c, s, -s, -c)
             }
         }
         Row::YNeg => {
-            let c = cospi(m);
+            let (s, c) = ord.sincospi(2);
             if neg {
-                let half_s2 = sinpi(two * m) / two;
+                let half_s2 = ord.sincospi(4).0 / two;
                 (half_s2, c * c + one, c * c, -half_s2)
             } else {
-                (T::zero(), two * c, c, -sinpi(m))
+                (T::zero(), two * c, c, -s)
             }
         }
         Row::KPosI | Row::KNegI => {
             // K_{−ν} = K_ν, so the sign of ν does not matter
-            let (ch, sh) = (cospi(m / two), sinpi(m / two));
+            let (sh, ch) = ord.sincospi(1);
             let conj = if row == Row::KPosI { one } else { -one };
             (-hpi * sh, -conj * hpi * ch, -hpi * ch, conj * hpi * sh)
         }
         Row::H2PosI | Row::H1NegI => {
             // H^(1)(−ix) = conj(H^(2)(ix)) for real ν
             let conj = if row == Row::H2PosI { one } else { -one };
-            let (ch, sh) = (cospi(m / two), sinpi(m / two));
+            let (sh, ch) = ord.sincospi(1);
             if neg {
-                let (s3, c3) = sincospi_three_halves(m);
+                let (s3, c3) = ord.sincospi(3);
                 (two * ch, -conj * two * sh, tpi * s3, conj * tpi * c3)
             } else {
                 (two * ch, conj * two * sh, tpi * sh, conj * tpi * ch)
@@ -317,8 +365,16 @@ fn scale_k<T: BesselFloat>(ks: T, x: T, scaling: Scaling) -> T {
 
 /// Set component k of `v` from the basis.
 #[inline]
-fn apply<T: BesselFloat>(row: Row, neg: bool, m: T, k: usize, a: T, b: T, v: &mut Complex<T>) {
-    let (ca, cb) = coefficients(row, neg, m, k);
+fn apply<T: BesselFloat>(
+    row: Row,
+    neg: bool,
+    ord: Order<T>,
+    k: usize,
+    a: T,
+    b: T,
+    v: &mut Complex<T>,
+) {
+    let (ca, cb) = coefficients(row, neg, ord, k);
     let s = ca * a + cb * b;
     if k == 0 {
         v.re = s;
@@ -338,9 +394,20 @@ pub(crate) fn fix_single<T: BesselFloat>(
     let Some((row, x)) = row(f, z, scaling) else {
         return v;
     };
-    let m = nu.abs();
-    let neg = nu < T::zero();
-    let Some(k) = small_component(row, neg, x, m, v) else {
+    fix_value(row, x, nu < T::zero(), Order::exact(nu.abs()), scaling, v)
+}
+
+/// [`fix_single`] for a value of the given row, argument x = |z| and order.
+fn fix_value<T: BesselFloat>(
+    row: Row,
+    x: T,
+    neg: bool,
+    ord: Order<T>,
+    scaling: Scaling,
+    v: Complex<T>,
+) -> Complex<T> {
+    let m = ord.m;
+    let Some(k) = small_component(row, neg, x, ord, v) else {
         return v;
     };
     // For H on the positive real axis with ν ≥ 0, the small component is
@@ -355,7 +422,7 @@ pub(crate) fn fix_single<T: BesselFloat>(
     };
     let mut out = v;
     if let Some((a, b)) = ab {
-        apply(row, neg, m, k, a, b, &mut out);
+        apply(row, neg, ord, k, a, b, &mut out);
     }
     out
 }
@@ -386,11 +453,14 @@ pub(crate) fn fix_seq<T: BesselFloat>(
         0
     };
     let abs_nu = nu.abs();
-    let order = |j: usize| -> T {
+    // The non-negative orders run from ν + nc as the sequence computes them
+    // (exactly ν for ν ≥ 0)
+    let pos_base = nu + T::from_f64(nc as f64);
+    let order = |j: usize| -> Order<T> {
         if j < nc {
-            abs_nu - T::from_f64(j as f64)
+            Order::exact(abs_nu - T::from_f64(j as f64))
         } else {
-            nu + T::from_f64(j as f64)
+            Order::sum(pos_base, j - nc)
         }
     };
     let needs = |j: usize, v: Complex<T>| small_component(row, j < nc, x, order(j), v);
@@ -403,13 +473,9 @@ pub(crate) fn fix_seq<T: BesselFloat>(
             .find(|&j| needs(j, out[j]).is_some())
             .unwrap_or(first);
         let len = last - first + 1;
-        // Lowest |order| of the range: ascending orders run with j for the
-        // non-negative part and against j for the negative one
-        let (m_lo, j_of) = if neg {
-            (order(last), last)
-        } else {
-            (order(first), first)
-        };
+        // Element of the lowest |order| of the range: ascending orders run
+        // with j for the non-negative part and against j for the negative one
+        let j_of = if neg { last } else { first };
         let j_at = |i: usize| if neg { j_of - i } else { j_of + i };
         // H on the positive real axis with ν ≥ 0: Re = J, Y is not needed
         let j_only = !neg && matches!(row, Row::H1Pos | Row::H2Pos);
@@ -420,8 +486,10 @@ pub(crate) fn fix_seq<T: BesselFloat>(
             while c0 < len {
                 let c1 = (c0 + chunk).min(len);
                 let cl = c1 - c0;
-                // Same ulp grid as the orders, so exact
-                let start = m_lo + T::from_f64(c0 as f64);
+                // The basis orders start + i are those of the elements up to
+                // the rounding of start (exact for the negative orders);
+                // that is a normwise-level error, unlike in the coefficients
+                let start = order(j_at(c0)).m;
                 let zx = Complex::new(x, zero);
                 let ok = if row.ik() {
                     besi::zbesi(zx, start, scaling, &mut abuf[..cl]).is_ok()
@@ -443,7 +511,7 @@ pub(crate) fn fix_seq<T: BesselFloat>(
                     let Some(k) = needs(j, out[j]) else {
                         continue;
                     };
-                    let m = order(j);
+                    let ord = order(j);
                     if ok {
                         let a = abuf[i].re;
                         let b = if row.ik() {
@@ -453,10 +521,9 @@ pub(crate) fn fix_seq<T: BesselFloat>(
                         } else {
                             bbuf[i].im
                         };
-                        apply(row, neg, m, k, a, b, &mut out[j]);
+                        apply(row, neg, ord, k, a, b, &mut out[j]);
                     } else {
-                        let nu_j = if neg { -m } else { m };
-                        out[j] = fix_single(f, nu_j, z, scaling, out[j]);
+                        out[j] = fix_value(row, x, neg, ord, scaling, out[j]);
                     }
                 }
                 c0 = c1;
