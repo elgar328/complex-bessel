@@ -1,6 +1,6 @@
 //! Core types for Bessel and Airy function computation.
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "std")]
 use alloc::vec::Vec;
 use core::fmt;
 
@@ -36,17 +36,29 @@ pub struct AiryResult<T: BesselFloat> {
     pub status: Accuracy,
 }
 
+/// Result of a sequence computation into a caller-provided slice, returned by
+/// `_seq_into` functions (e.g., [`besselk_seq_into`](crate::besselk_seq_into)).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct SeqInfo {
+    /// Number of components set to zero due to underflow.
+    pub underflow_count: usize,
+    /// Accuracy of the computation result.
+    ///
+    /// See [`Accuracy`] for possible values and their meaning.
+    pub status: Accuracy,
+}
+
 /// Result of a sequence computation, returned by `_seq` functions
 /// (e.g., [`besselk_seq`](crate::besselk_seq)).
 ///
 /// Single-value convenience functions (`besselj`, `besselk`, …) do not expose
 /// this type; they return only the computed value and discard the status.
-#[cfg(feature = "alloc")]
+#[cfg(feature = "std")]
 #[derive(Debug, Clone, PartialEq)]
 pub struct BesselResult<T: BesselFloat> {
     /// Computed function values for orders ν, ν+1, ..., ν+n-1.
     pub values: Vec<Complex<T>>,
-    /// Number of leading components set to zero due to underflow.
+    /// Number of components set to zero due to underflow.
     pub underflow_count: usize,
     /// Accuracy of the computation result.
     ///
@@ -124,8 +136,9 @@ pub(crate) enum AiryDerivative {
 /// that succeed but with reduced accuracy, see [`Accuracy`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Error {
-    /// Invalid input (e.g., non-finite z or ν, z=0 for K/Y/H, n < 1 in
-    /// sequence functions).
+    /// Invalid input (e.g., non-finite z or ν, z=0 for K, H, Y (except at
+    /// negative half-integer orders), and J, I of negative non-integer order,
+    /// n < 1 in sequence functions).
     InvalidInput,
     /// Overflow: |z| or |ν| too large, or |z| too small.
     Overflow,

@@ -99,6 +99,17 @@ fn airy_power_series<T: BesselFloat>(
     (s1, s2)
 }
 
+/// Replace an imaginary part of −0 by +0.
+///
+/// Amos's ZSQRT treats Im z = −0 like +0, but `Complex::sqrt` does not: for z
+/// on the negative real axis it would put √z on the other side of the branch
+/// cut, and Ai and Bi (entire functions) would come out wrong.
+#[inline]
+fn positive_zero_imag<T: BesselFloat>(z: Complex<T>) -> Complex<T> {
+    // −0 + 0 = +0; every other value is unchanged
+    Complex::new(z.re, z.im + T::zero())
+}
+
 // ─── ZAIRY ──────────────────────────────────────────────────────────────────
 
 /// Compute Airy function Ai(z) or its derivative Ai'(z).
@@ -114,6 +125,50 @@ pub(crate) fn zairy<T: BesselFloat>(
     id: AiryDerivative,
     kode: Scaling,
 ) -> Result<(Complex<T>, i32, Accuracy), Error> {
+    zairy_impl(z, id, kode, true)
+}
+
+/// [`zairy`] without its range limit |z| ≤ AA^(2/3) (Fortran IERR=4).
+///
+/// For the uniform asymptotic expansions (ZUNI2, ZUNK2). Their Airy argument
+/// is about (1.5|z|)^(2/3) and exceeds that limit for |z| above about 7.2e8
+/// (f64; 2.8e6 for f32), although the Bessel function itself is accepted up
+/// to |z| ≤ AA. ZUNI2 and ZUNK2 ignore IERR=4 and use the undefined output;
+/// here the Airy function is evaluated instead. The caller's limit on |z|
+/// keeps |ζ| = (2/3)|arg|^(3/2) within the Bessel argument range, so the K
+/// function paths used here stay in their normal domain.
+#[inline]
+fn zairy_unchecked<T: BesselFloat>(
+    z: Complex<T>,
+    id: AiryDerivative,
+    kode: Scaling,
+) -> Result<(Complex<T>, i32, Accuracy), Error> {
+    zairy_impl(z, id, kode, false)
+}
+
+/// Scaled Ai(arg) and Ai'(arg) for the uniform asymptotic expansions (ZUNI2,
+/// ZUNK2), without ZAIRY's range limit (see [`zairy_unchecked`]).
+///
+/// ZUNI2 and ZUNK2 ignore ZAIRY's error flag. An error gives 0 here; none
+/// occurs for the finite arguments these routines pass.
+#[inline]
+pub(crate) fn scaled_airy_pair<T: BesselFloat>(arg: Complex<T>) -> (Complex<T>, Complex<T>) {
+    let czero = Complex::new(T::zero(), T::zero());
+    let ai = zairy_unchecked(arg, AiryDerivative::Value, Scaling::Exponential)
+        .map_or(czero, |(v, _, _)| v);
+    let dai = zairy_unchecked(arg, AiryDerivative::Derivative, Scaling::Exponential)
+        .map_or(czero, |(v, _, _)| v);
+    (ai, dai)
+}
+
+#[inline]
+fn zairy_impl<T: BesselFloat>(
+    z: Complex<T>,
+    id: AiryDerivative,
+    kode: Scaling,
+    check_range: bool,
+) -> Result<(Complex<T>, i32, Accuracy), Error> {
+    let z = positive_zero_imag(z);
     let zero = T::zero();
     let one = T::one();
     let tth = T::from_f64(TTH);
@@ -138,7 +193,7 @@ pub(crate) fn zairy<T: BesselFloat>(
 
     if az > one {
         // |z| > 1: K function path (Fortran label 70)
-        return zairy_large_z(z, az, id, kode, fid, tol, tth, coef);
+        return zairy_large_z(z, az, id, kode, fid, tol, tth, coef, check_range);
     }
 
     // ── |z| <= 1: power series (Fortran lines 1614-1693) ──
@@ -237,6 +292,7 @@ fn zairy_large_z<T: BesselFloat>(
     tol: T,
     tth: T,
     coef: T,
+    check_range: bool,
 ) -> Result<(Complex<T>, i32, Accuracy), Error> {
     let zero = T::zero();
     let one = T::one();
@@ -258,7 +314,7 @@ fn zairy_large_z<T: BesselFloat>(
     // is 2^30 - 0.5 (Fortran ZAIRY lines 1724-1726 / ZBIRY lines 2116-2118)
     let mut aa = (half / tol).min(T::from_f64(1073741823.5));
     aa = aa.powf(tth);
-    if az > aa {
+    if check_range && az > aa {
         return Err(Error::TotalPrecisionLoss);
     }
     // IERR=3 precision warning (Fortran ZAIRY lines 1728-1729):
@@ -379,6 +435,7 @@ pub(crate) fn zbiry<T: BesselFloat>(
     id: AiryDerivative,
     kode: Scaling,
 ) -> Result<(Complex<T>, Accuracy), Error> {
+    let z = positive_zero_imag(z);
     let zero = T::zero();
     let one = T::one();
     let tth = T::from_f64(TTH);

@@ -10,13 +10,13 @@
 
 use num_complex::Complex;
 
-use crate::airy::zairy;
+use crate::airy::scaled_airy_pair;
 use crate::algo::constants::{AIC, HPI, PI};
 use crate::algo::s1s2::zs1s2;
 use crate::algo::uchk::zuchk;
 use crate::algo::unhj::zunhj;
 use crate::machine::BesselFloat;
-use crate::types::{Accuracy, AiryDerivative, Scaling, SumOption};
+use crate::types::{Scaling, SumOption};
 use crate::utils::{mul_add, mul_neg_i, reciprocal_z, zabs};
 
 /// CR1 = (1, sqrt(3)) (Fortran line 6196-6197)
@@ -197,13 +197,7 @@ pub(crate) fn zunk2<T: BesselFloat>(
         // ARG is multiplied by CR2 before ZAIRY call
         let c2_arg = arg_arr[jj] * cr2;
 
-        let (ai, _nai, _) = zairy(c2_arg, AiryDerivative::Value, Scaling::Exponential).unwrap_or((
-            czero,
-            0,
-            Accuracy::Normal,
-        ));
-        let (dai, _ndai, _) = zairy(c2_arg, AiryDerivative::Derivative, Scaling::Exponential)
-            .unwrap_or((czero, 0, Accuracy::Normal));
+        let (ai, dai) = scaled_airy_pair(c2_arg);
 
         let mut s2 = phi_arr[jj] * mul_add(ai, asum_arr[jj], cr2 * (dai * bsum_arr[jj])) * cs;
 
@@ -512,13 +506,7 @@ pub(crate) fn zunk2<T: BesselFloat>(
         }
 
         // ── Compute I function term: S2 = PHI*(Ai*ASUM + Ai'*BSUM)*CS (Fortran lines 6544-6560) ──
-        let (ai, _nai, _) = zairy(argd, AiryDerivative::Value, Scaling::Exponential).unwrap_or((
-            czero,
-            0,
-            Accuracy::Normal,
-        ));
-        let (dai, _ndai, _) = zairy(argd, AiryDerivative::Derivative, Scaling::Exponential)
-            .unwrap_or((czero, 0, Accuracy::Normal));
+        let (ai, dai) = scaled_airy_pair(argd);
 
         let mut s2 = phid * mul_add(ai, asumd, dai * bsumd) * cs_ac;
 

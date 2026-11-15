@@ -7,6 +7,108 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-15
+
+### Added
+
+- `besselj_seq_into`, `bessely_seq_into`, `besseli_seq_into`, `besselk_seq_into`,
+  `hankel1_seq_into`, and `hankel2_seq_into` write the same sequences as the
+  `_seq` functions into a caller-provided slice and return the new `SeqInfo`
+  (underflow count and accuracy). They never allocate, for any n and ν. Where Y
+  and the negative-order reflection formulas need workspace, they use a 1 KB
+  stack buffer (f64) in chunks, so long sequences are somewhat slower than with
+  `_seq`, can differ in the last digits, and close to the overflow limit can
+  differ in whether an error is returned.
+
+### Fixed
+
+- `besselj_seq`, `bessely_seq`, `besseli_seq`, `besselk_seq`, `hankel1_seq`,
+  and `hankel2_seq` with ν < 0 counted in `underflow_count` only the zeros at
+  the start of the sequence, so underflow at the high orders was missed: J from
+  ν = −0.5 at z = 6.5 with n = 230 reported 0, although its last 11 values are
+  zero. All underflowed values are now counted.
+- `airy`, `airyprime`, `biry`, and `biryprime` (and their `_scaled` and `_raw`
+  variants) returned wrong values on the negative real axis when Im z was −0.0,
+  e.g. −0.114 + 0.206i instead of 0.227 for Ai(−2 − 0i). As in Amos, −0 is now
+  treated like +0.
+- `bessely`, `bessely_scaled`, and `bessely_seq` with a negative half-integer
+  order returned `Error::Overflow` when Y of the positive order overflows,
+  although that term vanishes there (cos(νπ) = 0), e.g. `bessely(-200.5, 1.0)`
+  instead of 0. Such orders now use J alone, so at z = 0 they return 0 instead
+  of `Error::InvalidInput` (for `bessely_seq`, when all orders are negative
+  half-integers).
+- `besselj`, `bessely`, `besseli`, `besselk`, `hankel1`, and `hankel2` (and
+  their `_scaled`, `_seq`, and `_seq_into` variants) returned 0 or wrong values
+  for |z| between about 7.2e8 and 1.07e9 (2.8e6 and 4.2e6 for f32) within about
+  30° of the real axis (J, Y, H) or the imaginary axis (I, K): for K, H, and Y
+  when |ν| exceeds about 86 (34 for f32), and for J and I when ν exceeds about
+  √(2|z|). E.g. `hankel1(86.0, 1e9)` returned 0 instead of
+  −2.47e-5 + 5.21e-6i. There, Amos's uniform asymptotic expansions need an Airy
+  function beyond its range limit and use the undefined result; the crate now
+  evaluates it. The results have the accuracy Amos's algorithm has at smaller
+  |z| (status `Accuracy::Reduced`; for f32, few correct digits).
+- `besselk_scaled` (Re z < 0), `hankel1_scaled` (Im z < 0), `hankel2_scaled`
+  (Im z > 0 or on the negative real axis), and `besseli_scaled` with negative
+  non-integer ν and Re z < 0 (and their `_seq` and `_seq_into` variants) had a
+  relative error of up to about ε·|z| for |ν| below about 86 (34 for f32), where
+  the K term of the analytic continuation is not negligible (|Re z| up to about
+  10 for K and I, |Im z| for H). E.g. `hankel2_scaled(0.5, -1e8)` had a
+  relative error of 7.9e-9 (0.21 for f32 at −4e6); both are now about ε. Amos's
+  ZS1S2 rounds the phase of the factor exp(−2z) to an ulp of 2·Im z; the crate
+  applies exp(−2i·Im z) separately, deliberately differing from Amos. Other
+  results that pass through ZS1S2 (scaled Airy functions with Re z < 0, and the
+  uniform asymptotic expansions, which also serve some unscaled J, Y, I, K, and
+  H values) can change, but only within their existing error.
+- `bessely`, `bessely_scaled`, `bessely_seq`, and `bessely_seq_into` with a
+  negative non-integer order close to a half-integer lost accuracy, e.g.
+  relative errors of 4.2e-8 for `bessely(-1.500000001, 1e-5)` and 4.8e-5 for
+  `bessely(-20.499999999999, -3+0.5i)`. The reflection formula multiplies Y of
+  the positive order by cos(νπ), which had a relative error of about
+  ε/|cos(νπ)| there. J and the Hankel functions use the same factor, but their
+  results change only in the last digits.
+- On the real and imaginary axes, a value whose real and imaginary parts are
+  real functions of very different size could have a small part without a
+  single correct digit, although the value was accurate relative to its
+  modulus. This affected `hankel1` and `hankel2` on the real axis, `bessely`
+  (and `bessely_scaled`) on the negative real axis, `besselk` on the imaginary
+  axis, and `hankel2` (`hankel2_scaled`) at z = ix and `hankel1`
+  (`hankel1_scaled`) at z = −ix, x > 0, with their `_seq` and `_seq_into`
+  variants. E.g. the real part of `hankel1(10.0, 1.0)` was 8.4e-9 instead of
+  J₁₀(1) = 2.6e-10, and that of `hankel1(1.0, 2e-32)` 1.9e15 instead of 1e-32
+  (openspecfun#45). Such parts are now computed from the two real functions
+  (J and Y, or I and K, at |z|), deliberately differing from Amos, which returns
+  them only to normwise accuracy.
+  - For `bessely` and `hankel2` on the negative real axis, this also covers
+    parts for x > |ν|: the real part of `bessely` for orders close to a
+    half-integer (e.g. 3.263e-13 instead of 3.180e-13 for
+    `bessely(0.500000000001, -5.0)`), and, for |ν| < 18 next to their zeros,
+    parts that are Y_|ν| alone: the real part of `bessely` for ν ≥ 0, and parts
+    at or within about 1e-4 of an integer or half-integer order. E.g. the real
+    part of `bessely(0.5404395744314369, -14.199204647196062)` was 1.7790767e-7
+    instead of 1.7790766e-7, that of `bessely(-17.0, -56.32193676896589)`
+    1.0692e-12 instead of 1.0675e-12, and the imaginary part of
+    `hankel2(17.0, -56.32193676896589)` 1.0709e-12 instead of 1.0675e-12.
+  - Values with a recomputed part take up to about 4 times as long, and
+    sequences with such parts up to about 5 times for n ≤ 20 and 16 times
+    for n = 100 (e.g. `besselk_seq` from ν = 85 at z = 50i). Elsewhere results
+    and speed are unchanged.
+  - Still accurate only normwise: parts of the other functions that are a
+    nearly vanishing cos(νπ) or sin(νπ) times one real function, for orders
+    close to an integer or half-integer (e.g. Re J_ν(−x) = cos(νπ)·J_ν(x)),
+    and parts of values next to (not on) an axis, where the same cancellation
+    remains.
+- `besselj` and `bessely` (and their `_scaled`, `_seq`, and `_seq_into`
+  variants) on the positive real axis returned a rounding residue as the
+  imaginary part, e.g. −5.4e-16 for `besselj(0.3, 5.0)`; they are now exactly
+  real.
+
+### Removed
+
+- The `alloc` feature. Without `std`, everything except the `Vec`-returning
+  `_seq` functions is available and needs no allocator; use the `_seq_into`
+  functions instead (into a `Vec` if an allocator is available). The `_seq`
+  functions and `BesselResult` now require `std`.
+
 ## [0.4.1] - 2026-11-13
 
 ### Fixed
@@ -125,7 +227,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Provide sequence computation (`_seq` variants) for consecutive orders.
 - Support `no_std` with 3-tier feature flags (`no_std` / `alloc` / `std`).
 
-[Unreleased]: https://github.com/elgar328/complex-bessel/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/elgar328/complex-bessel/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/elgar328/complex-bessel/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/elgar328/complex-bessel/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/elgar328/complex-bessel/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/elgar328/complex-bessel/compare/v0.2.0...v0.3.0

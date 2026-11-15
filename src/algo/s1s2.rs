@@ -23,11 +23,14 @@ pub(crate) struct S1S2Output<T> {
 /// Test and adjust for underflow in the I+K analytic continuation formula.
 ///
 /// In the analytic continuation, s1 (the K function) is rescaled by
-/// `exp(-2·zr)` using logarithmic arithmetic to avoid overflow. If the
+/// `exp(-2·zr)`, its magnitude through logarithms to avoid overflow. If the
 /// rescaled result and s2 (the I function) are both below `ascle`,
 /// both are set to zero (underflow).
 ///
-/// Equivalent to Fortran ZS1S2 in TOMS 644.
+/// Equivalent to Fortran ZS1S2 in TOMS 644, except that the phase factor
+/// `exp(-2i·Im zr)` is applied separately, so the phase is not rounded to an
+/// ulp of 2·Im zr (xsf#516). This matters for the scaled K and H functions
+/// continued by ZACON, whose error was otherwise up to eps·|z|.
 ///
 /// Parameters:
 /// - `zr`: the complex argument z
@@ -57,14 +60,16 @@ pub(crate) fn zs1s2<T: BesselFloat>(
         // Quick magnitude check via real part:
         // ALN = -2*Re(zr) + ln(|s1|)
         let aln = -zr.re - zr.re + as1.ln();
-        let s1d = s1; // save original s1
+        let (s1d, as1d) = (s1, as1); // save original s1 and |s1|
         s1_out = czero;
         as1 = zero;
 
         if aln >= -alim {
-            // Compute s1 = exp(ln(s1d) - 2*zr) using complex logarithm
-            let c1 = s1d.ln() - (zr + zr);
-            s1_out = c1.exp();
+            // s1 = exp(ln(s1d) - 2*zr) as in Fortran, but with the factor
+            // exp(-2i*Im(zr)) applied on its own: 2*Im(zr) is exact, whereas
+            // Fortran's phase arg(s1d) - 2*Im(zr) is rounded to an ulp of
+            // 2*Im(zr), a relative error of up to eps*|z| in the result.
+            s1_out = (s1d / as1d) * Complex::from_polar(aln.exp(), -(zr.im + zr.im));
             as1 = zabs(s1_out);
             iuf_out += 1;
         }
@@ -133,6 +138,19 @@ mod tests {
         // s2 is large enough → no overall underflow
         assert_eq!(result.nz, 0);
         assert_eq!(result.iuf, 0); // iuf not incremented when s1 underflows
+    }
+
+    #[test]
+    fn s1s2_keeps_phase_exact() {
+        // Fortran's phase 0.3 - 2e8 is rounded to an ulp of 2e8 (3e-8), so its
+        // result is off by ~1.2e-8 here
+        let zr = Complex64::new(0.5, 1e8);
+        let s1 = Complex64::from_polar(1.0, 0.3);
+        let result = zs1s2(zr, s1, Complex64::new(1.0, 0.0), 1e-300, 700.0, 0);
+        let expected =
+            Complex64::from_polar((-1.0f64).exp(), 0.3) * Complex64::from_polar(1.0, -2e8);
+        let err = (result.s1 - expected).norm() / expected.norm();
+        assert!(err < 1e-15, "rel_err={err:e}");
     }
 
     #[test]

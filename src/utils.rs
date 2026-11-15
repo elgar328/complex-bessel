@@ -6,6 +6,54 @@ use num_complex::Complex;
 
 use crate::machine::BesselFloat;
 
+/// Length of the stack workspace of the `_seq_into` functions (1 KB for f64).
+///
+/// Y needs its K values next to the I values in the output, and the
+/// non-integer reflection formulas need a second function next to the first.
+/// `_seq_into` puts those in this buffer, in chunks of its length (Y, and I
+/// with non-integer ν < 0) or of half of it (J and Y with non-integer ν < 0,
+/// whose reflection formulas also need Y's own K values). For half-integer
+/// ν < 0, J and Y need only one function (Y's K values in whole chunks).
+pub(crate) const SEQ_WORKSPACE: usize = 64;
+
+/// Source of the workspace for a sequence computation.
+pub(crate) enum Workspace<'a, T: BesselFloat> {
+    /// A `SEQ_WORKSPACE` array on the stack; long sequences go in chunks.
+    Stack,
+    /// A heap buffer of the full length; every function is one Amos call.
+    #[cfg(feature = "std")]
+    Heap,
+    /// A given buffer (part of an outer workspace, or a length chosen by
+    /// tests); its length sets the chunk size.
+    Slice(&'a mut [Complex<T>]),
+}
+
+/// Run `f` with the workspace described by `ws`; `len` is the length a heap
+/// buffer needs to cover the whole sequence.
+#[inline]
+#[cfg_attr(not(feature = "std"), allow(unused_variables))]
+pub(crate) fn with_workspace<T: BesselFloat, R>(
+    ws: Workspace<'_, T>,
+    len: usize,
+    f: impl FnOnce(&mut [Complex<T>]) -> R,
+) -> R {
+    match ws {
+        Workspace::Stack => with_stack_workspace(f),
+        #[cfg(feature = "std")]
+        Workspace::Heap => f(&mut alloc::vec![Complex::new(T::zero(), T::zero()); len]),
+        Workspace::Slice(buf) => f(buf),
+    }
+}
+
+/// Run `f` with a `SEQ_WORKSPACE` array. Out of line, so that the array takes
+/// stack space only while `Workspace::Stack` is in use, not in every frame
+/// that inlines [`with_workspace`].
+#[inline(never)]
+fn with_stack_workspace<T: BesselFloat, R>(f: impl FnOnce(&mut [Complex<T>]) -> R) -> R {
+    let czero = Complex::new(T::zero(), T::zero());
+    f(&mut [czero; SEQ_WORKSPACE])
+}
+
 /// Fused multiply-add for Complex: `s * a + b`.
 ///
 /// Uses hardware FMA (std) or plain arithmetic (no_std) via
@@ -176,7 +224,9 @@ pub(crate) fn sinpi<T: BesselFloat>(x: T) -> T {
 /// catastrophic rounding errors of `(x * PI).cos()` when x is a
 /// half-integer (e.g. `cos(1.5 * PI)` = −1.837e-16 instead of 0).
 ///
-/// Algorithm follows scipy/xsf: reduce to [0, 0.5], use symmetry.
+/// Next to a half-integer it evaluates sin(π·d) of the exact distance d,
+/// so it keeps full relative accuracy there too (as scipy/xsf's cospi
+/// does, with sin(π(r − 0.5)) or sin(π(r − 1.5)) for r = |x| mod 2).
 #[inline]
 pub(crate) fn cospi<T: BesselFloat>(x: T) -> T {
     let zero = T::zero();
@@ -203,13 +253,28 @@ pub(crate) fn cospi<T: BesselFloat>(x: T) -> T {
         return -one;
     }
 
-    // Use symmetry to reduce to [0, 0.5]
-    if r < half {
+    // Reduce to an argument d in [0, 0.25] around the nearest multiple of
+    // 0.5 (the differences are exact by Sterbenz's lemma), and use sin(πd)
+    // next to the zeros at 0.5 and 1.5: cos(rπ) near rπ = π/2 would carry the
+    // rounding of rπ, a relative error of about ε/|cos(rπ)|.
+    let quarter = T::from_f64(0.25);
+    let three_quarters = T::from_f64(0.75);
+    let five_quarters = T::from_f64(1.25);
+    let seven_quarters = T::from_f64(1.75);
+    if r < quarter {
         (r * pi).cos()
+    } else if r < half {
+        ((half - r) * pi).sin()
+    } else if r < three_quarters {
+        -((r - half) * pi).sin()
     } else if r < one {
         -((one - r) * pi).cos()
-    } else if r < one_half {
+    } else if r < five_quarters {
         -((r - one) * pi).cos()
+    } else if r < one_half {
+        -((one_half - r) * pi).sin()
+    } else if r < seven_quarters {
+        ((r - one_half) * pi).sin()
     } else {
         ((two - r) * pi).cos()
     }
@@ -515,5 +580,35 @@ mod tests {
         assert_eq!(cospi(0.5_f32), 0.0);
         assert_eq!(cospi(1.0_f32), -1.0);
         assert_eq!(cospi(1.5_f32), 0.0);
+    }
+
+    /// Next to its zeros cospi keeps full relative accuracy, and sinpi next
+    /// to its zeros: cospi(k + 0.5 ± d) = ∓(−1)^k sin(πd) and
+    /// sinpi(k ± d) = ±(−1)^k sin(πd), for d an exact distance.
+    #[test]
+    fn cospi_sinpi_relative_accuracy_near_zeros() {
+        let rel = |got: f64, expected: f64| ((got - expected) / expected).abs();
+        for d in [1e-12, 1e-8, 1e-4, 0.1] {
+            for k in [0.0f64, 1.0, 2.0, 7.0, -1.0, -4.0] {
+                let sign = if (k as i64).rem_euclid(2) == 0 {
+                    1.0
+                } else {
+                    -1.0
+                };
+                for s in [1.0, -1.0] {
+                    // Distances actually represented, so the references are exact
+                    let x = k + 0.5 + s * d;
+                    let dx = (x - (k + 0.5)).abs();
+                    let expected = -s * sign * (core::f64::consts::PI * dx).sin();
+                    let err = rel(cospi(x), expected);
+                    assert!(err <= 2.0 * f64::EPSILON, "cospi({x:e}): rel {err:e}");
+                    let y = k + s * d;
+                    let dy = (y - k).abs();
+                    let expected = s * sign * (core::f64::consts::PI * dy).sin();
+                    let err = rel(sinpi(y), expected);
+                    assert!(err <= 2.0 * f64::EPSILON, "sinpi({y:e}): rel {err:e}");
+                }
+            }
+        }
     }
 }
