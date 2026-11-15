@@ -3,12 +3,11 @@
 //! # Features
 //!
 //! - **f32 & f64** — all functions accept `Complex<f64>` or `Complex<f32>`
-//! - **Complete function set** — J, Y, I, K, H<sup>(1)</sup>, H<sup>(2)</sup>, Ai, Bi
-//! - **Consecutive orders** — `_seq` variants return ν, ν+1, …, ν+n−1 in one call;
-//!   `_seq_into` variants write them into a caller-provided slice
+//! - **Complete function set** — J, Y, I, K, H<sup>(1)</sup>, H<sup>(2)</sup>, Ai, Ai′, Bi, Bi′
+//! - **Consecutive orders** — `_seq` and `_seq_into` variants evaluate at orders ν, ν+1, …, ν+n−1 in one call
 //! - **Exponential scaling** — `_scaled` variants prevent overflow/underflow
 //! - **Negative orders** — supports ν < 0 via DLMF reflection formulas (not in Amos)
-//! - **`no_std` support** — everything but the `Vec`-returning `_seq` variants (which need `std`) works without an allocator
+//! - **`no_std`** — no allocator needed; only the `Vec`-returning `_seq` variants require `std`
 //!
 //! # Quick start
 //!
@@ -135,7 +134,7 @@
 //! [`Reduced`](Accuracy::Reduced) is extremely rare in practice. SciPy's Bessel wrappers also silently
 //! discard the equivalent Amos IERR=3 flag by default.
 //!
-//! To check accuracy status, use a `_seq`/`_seq_into` function (Bessel) or a
+//! To check the accuracy status, use a `_seq`/`_seq_into` function (Bessel) or a
 //! `_raw` function (Airy):
 //!
 //! ```
@@ -157,25 +156,22 @@
 //!
 //! | Variant | Cause |
 //! |---------|-------|
-//! | [`InvalidInput`](Error::InvalidInput) | non-finite z or ν, z = 0 for K, H, Y (except at negative half-integer orders), and J, I of negative non-integer order, n < 1 (empty `out`) |
-//! | [`Overflow`](Error::Overflow) | \|z\| or \|ν\| too large (or \|z\| too small) for finite result |
+//! | [`InvalidInput`](Error::InvalidInput) | non-finite z or ν; z = 0 for K, H, Y (except at negative half-integer orders) and for J, I of negative non-integer order; n < 1 (empty `out`) |
+//! | [`Overflow`](Error::Overflow) | \|z\| or \|ν\| too large (or \|z\| too small) for a finite result |
 //! | [`TotalPrecisionLoss`](Error::TotalPrecisionLoss) | \|z\| or \|ν\| too large for meaningful computation |
-//! | [`ConvergenceFailure`](Error::ConvergenceFailure) | Internal algorithm did not converge |
+//! | [`ConvergenceFailure`](Error::ConvergenceFailure) | internal algorithm did not converge |
 //!
-//! # `no_std` support
+//! # Using without `std`
 //!
-//! | Cargo features | Available API |
-//! |---------------|---------------|
-//! | `default-features = false` | 24 single-value functions + 6 `_seq_into` variants |
-//! | `features = ["std"]` (default) | full API (+ 6 `_seq` variants), with platform-native math |
-//!
-//! The 24 single-value functions include 12 Bessel (J/Y/I/K/H<sup>(1)</sup>/H<sup>(2)</sup> × unscaled/scaled)
-//! and 12 Airy (Ai/Ai'/Bi/Bi' × unscaled/scaled/raw). No allocator is needed;
-//! without `std`, math functions come from `libm`.
+//! Turn off the default `std` feature:
 //!
 //! ```toml
 //! complex-bessel = { version = "0.4", default-features = false }
 //! ```
+//!
+//! All functions except the six `_seq` variants (which return a `Vec`) remain
+//! available, and none of them allocate. Math functions then come from `libm`
+//! instead of the platform library.
 
 #![warn(missing_docs)]
 // Without `std`, the docs still link to the `std`-only `_seq` functions.

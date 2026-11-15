@@ -10,12 +10,23 @@ Pure Rust implementation of complex Bessel functions based on **Amos Algorithm 6
 ## Features
 
 - **f32 & f64** — all functions accept `Complex<f64>` or `Complex<f32>`
-- **Complete function set** — J, Y, I, K, H<sup>(1)</sup>, H<sup>(2)</sup>, Ai, Bi
-- **Consecutive orders** — `_seq` variants return ν, ν+1, …, ν+n−1 in one call;
-  `_seq_into` variants write them into a caller-provided slice
+- **Complete function set** — J, Y, I, K, H<sup>(1)</sup>, H<sup>(2)</sup>, Ai, Ai′, Bi, Bi′
+- **Consecutive orders** — `_seq` and `_seq_into` variants evaluate at orders ν, ν+1, …, ν+n−1 in one call
 - **Exponential scaling** — `_scaled` variants prevent overflow/underflow
 - **Negative orders** — supports ν < 0 via DLMF reflection formulas (not in Amos)
-- **`no_std` support** — everything but the `Vec`-returning `_seq` variants (which need `std`) works without an allocator
+- **`no_std`** — no allocator needed; only the `Vec`-returning `_seq` variants require `std`
+
+## Accuracy & performance
+
+Relative error against mpmath for complex-bessel (Rust), Amos TOMS 644 (Fortran), SciPy (Python), and SpecialFunctions.jl (Julia).
+
+[![Accuracy — relative error vs mpmath](https://raw.githubusercontent.com/elgar328/complex-bessel-test/main/images/accuracy.svg)](https://github.com/elgar328/complex-bessel-test/blob/main/images/accuracy.pdf)
+
+Evaluation time per call.
+
+[![Performance — median time per call](https://raw.githubusercontent.com/elgar328/complex-bessel-test/main/images/eval_time.svg)](https://github.com/elgar328/complex-bessel-test/blob/main/images/eval_time.pdf)
+
+The charts are for f64. The [test repository](https://github.com/elgar328/complex-bessel-test) has the methodology, full results, and f32 accuracy.
 
 ## Quick start
 
@@ -75,7 +86,7 @@ All other functions return only the computed value without `Accuracy`.
 
 `Reduced` is extremely rare in practice. SciPy's Bessel wrappers also silently discard the equivalent Amos IERR=3 flag by default.
 
-To check accuracy status, use a `_seq`/`_seq_into` function (Bessel) or a `_raw` function (Airy):
+To check the accuracy status, use a `_seq`/`_seq_into` function (Bessel) or a `_raw` function (Airy):
 
 ```rust
 use complex_bessel::*;
@@ -96,44 +107,35 @@ All functions return `Result<_, Error>`. The four error variants are:
 
 | Variant | Cause |
 |---------|-------|
-| `InvalidInput` | non-finite z or ν, z = 0 for K, H, Y (except at negative half-integer orders), and J, I of negative non-integer order, n < 1 (empty `out`) |
-| `Overflow` | \|z\| or \|ν\| too large (or \|z\| too small) for finite result |
+| `InvalidInput` | non-finite z or ν; z = 0 for K, H, Y (except at negative half-integer orders) and for J, I of negative non-integer order; n < 1 (empty `out`) |
+| `Overflow` | \|z\| or \|ν\| too large (or \|z\| too small) for a finite result |
 | `TotalPrecisionLoss` | \|z\| or \|ν\| too large for meaningful computation |
-| `ConvergenceFailure` | Internal algorithm did not converge |
+| `ConvergenceFailure` | internal algorithm did not converge |
 
-## `no_std` support
+## Using without `std`
 
-| Cargo features | Available API |
-|---------------|---------------|
-| `default-features = false` | 24 single-value functions + 6 `_seq_into` variants |
-| `features = ["std"]` (default) | full API (+ 6 `_seq` variants), with platform-native math |
-
-The 24 single-value functions include 12 Bessel (J/Y/I/K/H<sup>(1)</sup>/H<sup>(2)</sup> × unscaled/scaled) and 12 Airy (Ai/Ai'/Bi/Bi' × unscaled/scaled/raw). No allocator is needed; without `std`, math functions come from `libm`.
+Turn off the default `std` feature:
 
 ```toml
 complex-bessel = { version = "0.4", default-features = false }
 ```
 
-## Differences from TOMS 644
+All functions except the six `_seq` variants (which return a `Vec`) remain
+available, and none of them allocate. Math functions then come from `libm`
+instead of the platform library.
 
-- **Scaled Y** — keeps a term that ZBESY wrongly drops as an underflow (large ν, |Im z| > ~350).
-- **K/H overflow test** — follows single-precision CUOIK; double ZUOIK reports spurious `Overflow` near 1e300.
+## Improvements over Amos
+
+- **Scaled Y at large |Im z|** — Amos's ZBESY drops a dominant term as an underflow (large ν, |Im z| > ~350); complex-bessel keeps it.
+- **No spurious overflow in K and H** — double-precision ZUOIK reports `Overflow` for representable values near 1e300; complex-bessel follows the single-precision CUOIK test.
 - **Complex division** — Smith's algorithm instead of ZDIV, for better f32 accuracy.
-- **Uniform expansions at |z| ≈ 7e8–1e9** — evaluate the Airy function beyond its range limit, where ZUNI2/ZUNK2 use an undefined result (ν > ~86).
-- **Scaled K/H by analytic continuation** — applies exp(−2i Im z) separately, keeping the phase exact; Amos's ZS1S2 loses up to ε·|z|.
-- **Components on the axes** — where a value combines two real functions of very different size (e.g. H = J + iY for real x), the small component is computed separately; Amos returns it only to normwise accuracy.
+- **Airy limit in uniform expansions** — at |z| ≈ 7e8–1e9 and large ν, ZUNI2/ZUNK2 use an undefined result when the Airy argument exceeds its range limit; complex-bessel evaluates the Airy function there anyway.
+- **Small components on the axes** — where a value combines two real functions of very different size (e.g. H = J + iY on the real axis), Amos's small component can lose all its digits; complex-bessel recomputes it from the real functions.
+- **Phase of scaled K and H** — in the analytic continuation, Amos's ZS1S2 rounds the phase of exp(−2i Im z), a relative error up to ε·|z|; complex-bessel applies this factor separately, keeping the phase exact.
 
-## Accuracy & performance
+The last two show up in the componentwise relative error (of the real and imaginary parts separately):
 
-Precision of complex-bessel (Rust), AMOS/TOMS 644 (Fortran), SciPy (Python), and SpecialFunctions.jl (Julia) across all functions.
-
-[![Accuracy — relative error vs mpmath](https://raw.githubusercontent.com/elgar328/complex-bessel-test/main/images/accuracy.svg)](https://github.com/elgar328/complex-bessel-test/blob/main/images/accuracy.pdf)
-
-Median evaluation time per function call.
-
-[![Performance — median time per call](https://raw.githubusercontent.com/elgar328/complex-bessel-test/main/images/eval_time.svg)](https://github.com/elgar328/complex-bessel-test/blob/main/images/eval_time.pdf)
-
-The charts are for f64. For methodology, datasets, full benchmark results, and f32 accuracy, see the [test repository](https://github.com/elgar328/complex-bessel-test).
+[![Componentwise accuracy — on the axes, and of scaled functions near them](https://raw.githubusercontent.com/elgar328/complex-bessel-test/main/images/differences.svg)](https://github.com/elgar328/complex-bessel-test/blob/main/images/differences.pdf)
 
 ## License
 

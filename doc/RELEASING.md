@@ -18,8 +18,8 @@
    - Update the version strings in the install snippets (they use `"X.Y"`, so
      this is only needed when the minor version changes):
      - `README.md` — Quick start (`complex-bessel = "X.Y"`) and the
-       `default-features = false` line in the no_std section
-     - `src/lib.rs` — the same no_std snippet line in the crate-level docs
+       `default-features = false` line in "Using without `std`"
+     - `src/lib.rs` — the same snippet line in the crate-level docs
 
 3. **Run checks**
    ```bash
