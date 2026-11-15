@@ -72,23 +72,37 @@ impl Row {
 //   1e-3 it is 2.8e-11 with 174 above 1e-12. Above m, next to the zeros of
 //   J_m and Y_m (which all lie beyond m), J and Y computed separately are
 //   in general no more accurate than Amos's components.
-// - Y(−x) for x ≥ m is the exception, for its real part in two cases:
-//   - Next to a half-integer order it has small coefficients (e.g.
-//     Re Y_ν(−x) = cos(νπ)·Y_ν(x)), and Amos's has a relative error of
-//     ε/|cos(νπ)| or more. Recomputed when |α| + |β| < COEF_Y_NEG. In 1.2e5
-//     values beyond m (half of the orders next to half-integers, the others
-//     next to integers or generic) this fixes errors up to 54 (f32 150);
-//     the worst increase is 8.2e-14 → 1.9e-13 (f32 1.4e-3 → 8.4e-3), and
-//     nothing gets worse normwise.
-//   - Next to a zero of Y_m, for ν ≥ 0 and m < ORDER_Y_NEG, where it is the
-//     single term cos(νπ)·Y_m. Measured in units of ε·|cos(νπ)|·|H_m| (the
-//     relative error is meaningless next to a zero) on 1.5e4 values next to
-//     zeros, Amos's errors reach 617 (p99) and 1937 units, the recomputed
-//     ones 5 and 20; 5 of 3620 recomputed components get worse, by at most
-//     15 units (f32 alike). Above m ≈ 18, Y_m computed separately is no more
-//     accurate (its error grows with m). The two-term components (the
-//     imaginary part, and the real part c·(s·J_m + c·Y_m) for ν < 0) get
-//     worse more often than better when recomputed next to their zeros.
+// - On the negative real axis, Y(−x) and H^(2)(−x) are the exceptions for
+//   x ≥ m, in two cases:
+//   - Next to a half-integer order the real part of Y(−x) has small
+//     coefficients (e.g. Re Y_ν(−x) = cos(νπ)·Y_ν(x)), and Amos's has a
+//     relative error of ε/|cos(νπ)| or more. Recomputed when |α| + |β| <
+//     COEF_Y_NEG. In 1.2e5 values beyond m (half of the orders next to
+//     half-integers, the others next to integers or generic) this fixes
+//     errors up to 54 (f32 150); the worst increase is 8.2e-14 → 1.9e-13
+//     (f32 1.4e-3 → 8.4e-3), and nothing gets worse normwise.
+//   - A component that is Y_m alone, |α| < RATIO_J_NEG·|β|, for
+//     m < ORDER_NEG: Re Y_ν(−x) = cos(νπ)·Y_ν(x) for ν ≥ 0, and at or
+//     within ~1e-4 of an integer or a half-integer order the others whose
+//     J coefficient vanishes there (e.g. Im H^(2)_n(−x) = −(−1)^n·Y_n(x)).
+//     Measured in units of ε·(|α| + |β|)·|H_m| (the relative error is
+//     meaningless next to a zero). For Re Y(−x), ν ≥ 0, on 1.5e4 values
+//     next to zeros, Amos's errors reach 617 (p99) and 1937 units, the
+//     recomputed ones 5 and 20, and 5 of 3620 get worse, by at most 15. For
+//     the others, on 5.0e4 components next to zeros with x up to 2010 and
+//     dense where Amos's separate J errs most (f32 x ≈ 33–46, f64
+//     x ≈ 84–102), Amos's reach 126 (p99) and 269 units (f32 1.4e4), the
+//     recomputed ones 7 and 21, and 61 get worse by more than 5 units, by
+//     at most 13. Above m ≈ 18, Y_m computed separately is less accurate
+//     (its error grows with m): ~9% get worse, by up to 80 units. A larger
+//     ratio lets J's error in (up to 5.8e4 units for f32 at x ≈ 35–45, as
+//     in Fortran's CBESJ; +184 units with ratios up to 0.1). Of the
+//     components whose J coefficient is not small, Im Y(−x) gets worse more
+//     often than better, and Re Y(−x) for ν < 0 away from integers, though
+//     mostly better, gets worse by up to 132 units (f32 1.3e4). H^(1)(−x)
+//     is left alone: Amos's components are already at that level, and so
+//     are all those on the positive real axis, where J computed separately
+//     is in general less accurate than Amos's component.
 // - (I, K): re-measured including f32 and a separate sample of orders next
 //   to integers (where these small components occur). Raising the ratio
 //   from 1e-3 to 1e-2 lowers the largest error left unfixed from 1.6e-4 to
@@ -101,7 +115,8 @@ impl Row {
 const RATIO_JY: f64 = 0.1;
 const RATIO_IK: f64 = 1e-2;
 const COEF_Y_NEG: f64 = 0.1;
-const ORDER_Y_NEG: f64 = 18.0;
+const RATIO_J_NEG: f64 = 1e-3;
+const ORDER_NEG: f64 = 18.0;
 
 /// The row of `(f, z, scaling)` and x = |z|, if z is on a half-axis and the
 /// value has a small component to recompute. Signed zeros are treated like
@@ -169,18 +184,18 @@ fn small_component<T: BesselFloat>(
     if small >= T::from_f64(ratio) * large {
         return None;
     }
-    // (J, Y) beyond m only for the real part of Y(−x), where it is the single
-    // term cos(νπ)·Y_m (ν ≥ 0, below order ORDER_Y_NEG) or has small
-    // coefficients; see RATIO_JY. The imaginary part's coefficients are 2c
-    // and −s, or c² + 1 and −s₂/2.
+    // (J, Y) beyond m only for Y(−x) and H^(2)(−x): components that are Y_m
+    // alone below order ORDER_NEG, or the real part of Y(−x) with small
+    // coefficients; see RATIO_JY.
     if !row.ik() && x >= m {
-        let recompute = row == Row::YNeg
-            && k == 0
-            && ((!neg && m < T::from_f64(ORDER_Y_NEG)) || {
-                let (ca, cb) = coefficients(row, neg, m, k);
-                ca.abs() + cb.abs() < T::from_f64(COEF_Y_NEG)
-            });
-        if !recompute {
+        if !matches!(row, Row::YNeg | Row::H2Neg) {
+            return None;
+        }
+        let (ca, cb) = coefficients(row, neg, m, k);
+        let y_alone = m < T::from_f64(ORDER_NEG) && ca.abs() < T::from_f64(RATIO_J_NEG) * cb.abs();
+        let small_coef =
+            row == Row::YNeg && k == 0 && ca.abs() + cb.abs() < T::from_f64(COEF_Y_NEG);
+        if !(y_alone || small_coef) {
             return None;
         }
     }

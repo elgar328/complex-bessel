@@ -89,10 +89,13 @@
 //! - K on the imaginary axis
 //! - H<sup>(2)</sup> on the positive and H<sup>(1)</sup> on the negative imaginary axis (also scaled)
 //!
-//! For Y on the negative real axis this includes Re Y<sub>ν</sub>(−x) = cos(νπ) Y<sub>ν</sub>(x)
-//! for |ν| < x where it is small: for orders close to a half-integer, and for
-//! 0 ≤ ν < 18 next to a zero of Y<sub>ν</sub>. J and Y are exactly real on the
-//! positive real axis.
+//! For Y and H<sup>(2)</sup> on the negative real axis this includes parts for
+//! |ν| < x: Re Y<sub>ν</sub>(−x) = cos(νπ) Y<sub>ν</sub>(x) for orders close to a
+//! half-integer, and, for |ν| < 18 next to their zeros, parts that are
+//! Y<sub>|ν|</sub> alone: Re Y<sub>ν</sub>(−x) for ν ≥ 0, and parts at or close to
+//! integer and half-integer orders, e.g. Im H<sup>(2)</sup><sub>n</sub>(−x) =
+//! (−1)<sup>n+1</sup> Y<sub>n</sub>(x). J and Y are exactly real on the positive
+//! real axis.
 //!
 //! A remaining limitation: in the other functions, a small component that is
 //! a nearly vanishing cos(νπ) or sin(νπ) times one real function, for orders
@@ -3291,125 +3294,415 @@ mod axis_tests {
         assert!(n > 40, "only {n} values checked");
     }
 
-    /// Re Y_ν(−x) = cos(νπ)·Y_ν(x) for ν ≥ 0 beyond the order, next to a
-    /// zero of Y_ν (any order below 18). Errors in units of ε·|cos(νπ)|·|H_ν(x)|,
-    /// the error to expect of any normwise accurate Y_ν(x): Amos's are 267 to
-    /// 1746 here, the recomputed ones at most 7.1 (mpmath references).
+    /// Whether the J·Y rule recomputes component k (0 = real, 1 = imaginary)
+    /// of `kind` ('Y', or '2' for unscaled H^(2)) at −x for x ≥ |ν|: Y_m
+    /// alone (J's coefficient below 1e-3 of Y's) for m < 18, or Re Y(−x)
+    /// with coefficients summing below 0.1. The coefficients are those of
+    /// J_m and Y_m (DLMF 10.4.6, 10.11.2/5).
+    fn neg_axis_selected(kind: char, nu: f64, k: usize) -> bool {
+        let m = nu.abs();
+        let (c, s) = (cospi(m), sinpi(m));
+        let (c2, s2) = (cospi(2.0 * m), sinpi(2.0 * m));
+        let (a, b) = match (kind, nu < 0.0, k) {
+            ('Y', false, 0) => (0.0, c),
+            ('Y', false, _) => (2.0 * c, -s),
+            ('Y', true, 0) => (s2 / 2.0, c * c),
+            ('Y', true, _) => (c * c + 1.0, -s2 / 2.0),
+            ('2', false, 0) => (3.0 * c, -s),
+            ('2', false, _) => (s, -c),
+            ('2', true, 0) => (c2 + 2.0, -s2),
+            ('2', true, _) => (-s2, -c2),
+            _ => return false,
+        };
+        (m < 18.0 && a.abs() < 1e-3 * b.abs()) || (kind == 'Y' && k == 0 && a.abs() + b.abs() < 0.1)
+    }
+
+    /// Components of Y(−x) and H^(2)(−x) beyond the order that are Y_m alone
+    /// (at or next to integer and half-integer orders, and Re Y(−x) for
+    /// ν ≥ 0), next to their zeros: single values and the same element of a
+    /// sequence of 45, crossing ν = 0 where the orders allow it exactly. Errors in units of ε·(|α| + |β|)·|H_m(x)|,
+    /// the error to expect of a normwise accurate value: Amos's are 31 to
+    /// 1746 here (f32 up to 13809), except at the two points of
+    /// ν = −1 − 5e-8 and −9 (11.6 and 3.5), the recomputed ones, single and
+    /// in sequences, at most 7.1 (mpmath references).
     #[test]
-    fn axis_y_neg_next_to_zeros() {
-        fn check<T: BesselFloat + core::fmt::Display>(cases: &[(f64, f64, f64, f64)]) {
-            for &(nu, x, re, scale) in cases {
-                let (nu, z) = (T::from_f64(nu), Complex::new(T::from_f64(-x), T::zero()));
-                for v in [bessely(nu, z).unwrap(), bessely_scaled(nu, z).unwrap()] {
-                    let units = (v.re.to_f64().unwrap() - re).abs()
+    fn axis_neg_next_to_zeros() {
+        type Case = (char, f64, f64, usize, f64, f64);
+        fn check<T: BesselFloat + core::fmt::Display>(cases: &[Case]) {
+            let czero = Complex::new(T::zero(), T::zero());
+            let mut buf = [czero; 45];
+            for &(kind, nu, x, k, want, scale) in cases {
+                let z = Complex::new(T::from_f64(-x), T::zero());
+                let tnu = T::from_f64(nu);
+                // Element j of a sequence from ν − j crossing ν = 0, with the
+                // largest j ≤ 20 whose order is exactly ν (ν < 0 crosses with
+                // j = 0; the order of a negative element is |ν0| − j)
+                let exact = |j: usize| {
+                    let (jt, nu0) = (T::from_f64(j as f64), tnu - T::from_f64(j as f64));
+                    if nu < 0.0 {
+                        nu0.abs() - jt == tnu.abs()
+                    } else {
+                        nu0 + jt == tnu
+                    }
+                };
+                let j = (0..=20).rev().find(|&j| exact(j)).unwrap();
+                let nu0 = tnu - T::from_f64(j as f64);
+                let (singles, seq) = if kind == 'Y' {
+                    let seq = bessely_seq_into(nu0, z, Scaling::Unscaled, &mut buf);
+                    let s = [bessely(tnu, z).unwrap(), bessely_scaled(tnu, z).unwrap()];
+                    (s, seq)
+                } else {
+                    let seq = hankel2_seq_into(nu0, z, Scaling::Unscaled, &mut buf);
+                    let v = hankel2(tnu, z).unwrap();
+                    ([v, v], seq)
+                };
+                seq.unwrap();
+                for v in singles.into_iter().chain([buf[j]]) {
+                    let got = if k == 0 { v.re } else { v.im };
+                    let units = (got.to_f64().unwrap() - want).abs()
                         / (T::epsilon().to_f64().unwrap() * scale);
                     assert!(
                         units < 16.0,
-                        "nu={nu}, x={x}: Re Y(-x) = {}, {units} units",
-                        v.re
+                        "{kind} nu={nu}, x={x}, k={k}: {v}, {units} units"
                     );
                 }
             }
         }
-        // (ν, x, Re Y_ν(−x), |cos(νπ)|·|H_ν(x)|)
+        // (function, ν, x, component, value, (|α| + |β|)·|H_m(x)|)
         check::<f64>(&[
             (
+                'Y',
                 0.5404395744314369,
                 14.199204647196062,
+                0,
                 1.7790766124893162e-07,
                 0.02683,
             ),
             (
+                'Y',
                 5.4579621742598405,
                 17.955980580074737,
+                0,
                 6.434329040379513e-07,
                 0.02539,
             ),
             (
+                'Y',
                 8.553187617888364,
                 14.839639619602085,
+                0,
                 6.376630874085129e-06,
                 0.03803,
             ),
             (
+                'Y',
                 10.466204201871951,
                 20.809512383347556,
+                0,
                 -0.0003560905884186947,
                 0.01992,
             ),
             (
+                'Y',
                 12.541375369126225,
                 19.383109940166836,
+                0,
                 -0.0010992113067365456,
                 0.02685,
             ),
             (
+                'Y',
                 15.457226611852212,
                 17.934577879174395,
+                0,
                 -0.0009456667810636375,
                 0.03461,
+            ),
+            (
+                'Y',
+                -1.0000000505613758,
+                18.058798586324336,
+                0,
+                -0.002889004423008248,
+                0.1879,
+            ),
+            (
+                'Y',
+                -9.0,
+                15.361301343580108,
+                0,
+                -7.680400842858634e-13,
+                0.2257,
+            ),
+            (
+                'Y',
+                -1e-08,
+                13.361097489864841,
+                0,
+                6.9195873309076905e-09,
+                0.2182,
+            ),
+            (
+                'Y',
+                -14.0,
+                84.44679697015918,
+                0,
+                -1.9655202108533837e-08,
+                0.08743,
+            ),
+            (
+                'Y',
+                -16.0002,
+                100.03440128478886,
+                0,
+                -5.04102359239503e-05,
+                0.08034,
+            ),
+            (
+                'Y',
+                16.5001,
+                100.74840631508634,
+                1,
+                -1.572667517633897e-11,
+                0.08008,
+            ),
+            (
+                'Y',
+                16.50001,
+                100.74885123627298,
+                1,
+                3.4050198315155154e-12,
+                0.08004,
+            ),
+            (
+                '2',
+                2.0,
+                13.209986713986947,
+                1,
+                8.25474504044067e-10,
+                0.2207,
+            ),
+            (
+                '2',
+                14.0,
+                84.44679697015918,
+                1,
+                1.9655202108533837e-08,
+                0.08743,
+            ),
+            (
+                '2',
+                17.0,
+                56.32193676896589,
+                1,
+                1.067480680320756e-12,
+                0.1089,
+            ),
+            (
+                '2',
+                5.5,
+                7.293692200815263,
+                0,
+                2.0120730332658653e-11,
+                0.3557,
+            ),
+            (
+                '2',
+                14.5,
+                85.15744139214142,
+                0,
+                3.7729005022425324e-05,
+                0.0871,
+            ),
+            (
+                '2',
+                -5.5,
+                21.283248938558053,
+                1,
+                1.5177917276336462e-11,
+                0.1759,
+            ),
+            (
+                '2',
+                -17.5,
+                60.27562453458215,
+                1,
+                -1.0842178117582853e-11,
+                0.1051,
+            ),
+            (
+                '2',
+                0.0001,
+                13.360940502860311,
+                1,
+                0.0001371041719352024,
+                0.2183,
+            ),
+            (
+                '2',
+                -16.5001,
+                100.74840631508634,
+                1,
+                2.0689729735150853e-11,
+                0.08008,
+            ),
+            (
+                '2',
+                16.5001,
+                100.74840631508634,
+                0,
+                -2.5143155227226787e-05,
+                0.08011,
             ),
         ]);
         check::<f32>(&[
             (
+                'Y',
                 0.42830756306648254,
                 7.750723838806152,
+                0,
                 0.0003261815181377399,
                 0.06399,
             ),
             (
+                'Y',
                 3.5858168601989746,
                 8.841499328613281,
+                0,
                 3.636876710628325e-05,
                 0.0746,
             ),
             (
+                'Y',
                 11.286245346069336,
                 38.86476516723633,
+                0,
                 0.0005308631669817854,
                 0.0814,
             ),
             (
+                'Y',
                 12.348158836364746,
                 40.268272399902344,
+                0,
                 8.929377383150825e-08,
                 0.05917,
             ),
             (
+                'Y',
                 17.424158096313477,
                 53.573184967041016,
+                0,
                 6.935261359731625e-07,
                 0.02646,
+            ),
+            (
+                'Y',
+                -13.999799728393555,
+                39.09739303588867,
+                0,
+                0.00014275489424510885,
+                0.1321,
+            ),
+            (
+                'Y',
+                -17.0,
+                49.711029052734375,
+                0,
+                0.0025988763574300126,
+                0.1167,
+            ),
+            (
+                'Y',
+                14.500100135803223,
+                39.73927688598633,
+                1,
+                -1.494391009619099e-06,
+                0.1312,
+            ),
+            (
+                '2',
+                17.0,
+                49.711029052734375,
+                1,
+                0.0025988763574300126,
+                0.1167,
+            ),
+            (
+                '2',
+                12.0,
+                39.807090759277344,
+                1,
+                -5.3511832603744025e-06,
+                0.1295,
+            ),
+            (
+                '2',
+                16.5,
+                45.684940338134766,
+                0,
+                -3.289102085362203e-06,
+                0.1222,
+            ),
+            (
+                '2',
+                -16.500099182128906,
+                38.856502532958984,
+                1,
+                4.2589171368920826e-05,
+                0.1346,
             ),
         ]);
     }
 
-    /// Y(−x) beyond the order with a small component that is not a single
-    /// term of an order below 18 nor small by its coefficients: Amos's value
-    /// is kept. Re Y_41(−x) = −Y_41(x) next to a zero of Y_41 (Amos's error
-    /// 5.5e-15; Y_41 computed separately would be off by 2.2e-13), and next to
-    /// zeros of two-term components, Re Y_ν(−x) = c·(s·J_m + c·Y_m) for ν < 0
-    /// and Im Y_ν(−x) = 2c·J_m − s·Y_m, which a recomputation leaves less
-    /// accurate more often than not.
+    /// Values on the negative real axis beyond the order with a small
+    /// component the rule leaves alone are Amos's, bit for bit (mpmath
+    /// errors in units as in `axis_neg_next_to_zeros`, Amos → recomputed):
+    /// - Re Y_41(−x) next to a zero of Y_41 (relative errors 5.5e-15 →
+    ///   2.2e-13).
+    /// - Components whose J coefficient is not small: Im Y(−x) and
+    ///   Re Y(−x) for ν < 0 next to their zeros (e.g. Re Y_{−7.9}, 0.1 →
+    ///   73 units), with J/Y ratios 3e-3 and 1.3e-3 just above the limit,
+    ///   and J alone (Im H^(2)_{16.5}(−x) = J_{16.5}(x)).
+    /// - Y alone above order 18 (Im H^(2)_20(−x)), and in H^(1)(−x), where
+    ///   Amos's value is as accurate.
     #[test]
-    fn axis_y_neg_keeps_function_zeros() {
-        for (nu, x) in [
-            (41.0f64, 50.623088092303156),
-            (-1.0000000505613758, 18.058798586324336),
-            (-9.0, 15.361301343580108),
-            (0.7876708575032857, 29.094981102136426),
-            (2.000000000007951, 24.27010247905739),
+    fn axis_neg_keeps_amos() {
+        for (kind, nu, x) in [
+            ('Y', 41.0f64, 50.623088092303156),
+            ('Y', 0.7876708575032857, 29.094981102136426),
+            ('Y', 2.000000000007951, 24.27010247905739),
+            ('Y', -7.9, 18.043947370535463),
+            ('Y', -16.999, 59.607268325147366),
+            ('2', -16.0002, 100.03440128478886),
+            ('2', 16.5, 99.21561951113041),
+            ('2', 20.0, 56.92777653004243),
+            ('1', -17.4999, 29.133873186247307),
         ] {
             let z = Complex::new(-x, 0.0);
-            for (f, s) in [
-                (bessely as F<f64>, Scaling::Unscaled),
-                (bessely_scaled, Scaling::Exponential),
-            ] {
-                let (v, r) = (f(nu, z).unwrap(), bessely_value(nu, z, s).unwrap());
+            let pairs = if kind == 'Y' {
+                [
+                    (bessely(nu, z), bessely_value(nu, z, Scaling::Unscaled)),
+                    (
+                        bessely_scaled(nu, z),
+                        bessely_value(nu, z, Scaling::Exponential),
+                    ),
+                ]
+            } else {
+                let (f, h): (F<f64>, _) = if kind == '1' {
+                    (hankel1, HankelKind::First)
+                } else {
+                    (hankel2, HankelKind::Second)
+                };
+                let p = (f(nu, z), hankel_value(h, nu, z, Scaling::Unscaled));
+                [p, p]
+            };
+            for (v, r) in pairs {
+                let (v, r) = (v.unwrap(), r.unwrap());
                 assert_eq!(
                     (v.re.to_bits(), v.im.to_bits()),
                     (r.re.to_bits(), r.im.to_bits()),
-                    "nu={nu}, x={x}"
+                    "{kind} nu={nu}, x={x}"
                 );
             }
         }
@@ -3470,18 +3763,18 @@ mod axis_tests {
     }
 
     /// Values the rule does not select are Amos's own, bit for bit: off the
-    /// axes, for the J·Y rows at x ≥ m (except Re Y(−x) next to half-integer
-    /// orders or for 0 ≤ ν < 18), and where the components are not far apart
-    /// in size (ratio ≥ 0.1 for J·Y, ≥ 1e-2 for I·K).
+    /// axes, for the J·Y rows at x ≥ m (except components of Y(−x) and
+    /// H^(2)(−x) that `neg_axis_selected`), and where the components are not
+    /// far apart in size (ratio ≥ 0.1 for J·Y, ≥ 1e-2 for I·K).
     #[test]
     fn axis_fix_leaves_other_values_alone() {
         type Raw = fn(f64, Complex<f64>, Scaling) -> Result<Complex<f64>, Error>;
         let raw_h1: Raw = |nu, z, s| hankel_value(HankelKind::First, nu, z, s);
         let raw_h2: Raw = |nu, z, s| hankel_value(HankelKind::Second, nu, z, s);
-        // (function, Amos's value, scaling, 'H' / 'K' / 'Y')
+        // (function, Amos's value, scaling, 'H' / '2' (unscaled H^(2)) / 'K' / 'Y')
         let fns: [(F<f64>, Raw, Scaling, char); 7] = [
             (hankel1, raw_h1, Scaling::Unscaled, 'H'),
-            (hankel2, raw_h2, Scaling::Unscaled, 'H'),
+            (hankel2, raw_h2, Scaling::Unscaled, '2'),
             (hankel1_scaled, raw_h1, Scaling::Exponential, 'H'),
             (hankel2_scaled, raw_h2, Scaling::Exponential, 'H'),
             (besselk, besselk_value, Scaling::Unscaled, 'K'),
@@ -3512,19 +3805,16 @@ mod axis_tests {
                         let ratio = sr.min(si) / sr.max(si);
                         let imag_axis = z.re == 0.0;
                         // H on the imaginary axis is an I·K row; the rest are J·Y
-                        let ik = imag_axis && kind == 'H';
+                        let ik = imag_axis && matches!(kind, 'H' | '2');
                         let selectable = iz < 4
                             && if ik {
                                 ratio < 1e-2
                             } else if x < f64::abs(nu) {
                                 ratio < 0.1
                             } else {
-                                // Re Y(−x) next to half-integer orders or
-                                // for 0 ≤ ν < 18
-                                kind == 'Y'
-                                    && iz == 1
+                                iz == 1
                                     && ratio < 0.1
-                                    && (cospi(nu).abs() < 0.1 || (0.0..18.0).contains(&nu))
+                                    && neg_axis_selected(kind, nu, usize::from(sr >= si))
                             };
                         // Y is made exactly real on the positive real axis
                         let r = if kind == 'Y' && iz == 0 {
@@ -3553,9 +3843,8 @@ mod axis_tests {
     /// (Amos's own seq and single values differ by up to ~2e-13 normwise).
     #[test]
     fn axis_seq_matches_single() {
-        // (.., ratio, whether real parts beyond x = m are recomputed too,
-        // next to half-integer orders and for 0 ≤ ν < 18)
-        type SeqCase = (SeqF, F<f64>, Scaling, fn(f64) -> Complex<f64>, f64, bool);
+        // (.., ratio, function for `neg_axis_selected` beyond x = m, or ' ')
+        type SeqCase = (SeqF, F<f64>, Scaling, fn(f64) -> Complex<f64>, f64, char);
         let cases: [SeqCase; 9] = [
             (
                 hankel1_seq_into,
@@ -3563,7 +3852,7 @@ mod axis_tests {
                 Scaling::Unscaled,
                 |x| Complex::new(x, 0.0),
                 0.1,
-                false,
+                ' ',
             ),
             (
                 hankel2_seq_into,
@@ -3571,7 +3860,7 @@ mod axis_tests {
                 Scaling::Unscaled,
                 |x| Complex::new(-x, 0.0),
                 0.1,
-                false,
+                '2',
             ),
             (
                 bessely_seq_into,
@@ -3579,7 +3868,7 @@ mod axis_tests {
                 Scaling::Unscaled,
                 |x| Complex::new(-x, 0.0),
                 0.1,
-                true,
+                'Y',
             ),
             (
                 bessely_seq_into,
@@ -3587,7 +3876,7 @@ mod axis_tests {
                 Scaling::Exponential,
                 |x| Complex::new(-x, 0.0),
                 0.1,
-                true,
+                'Y',
             ),
             (
                 besselk_seq_into,
@@ -3595,7 +3884,7 @@ mod axis_tests {
                 Scaling::Unscaled,
                 |x| Complex::new(0.0, x),
                 0.1,
-                false,
+                ' ',
             ),
             (
                 besselk_seq_into,
@@ -3603,7 +3892,7 @@ mod axis_tests {
                 Scaling::Unscaled,
                 |x| Complex::new(0.0, -x),
                 0.1,
-                false,
+                ' ',
             ),
             (
                 hankel2_seq_into,
@@ -3611,7 +3900,7 @@ mod axis_tests {
                 Scaling::Unscaled,
                 |x| Complex::new(0.0, x),
                 1e-2,
-                false,
+                ' ',
             ),
             (
                 hankel2_seq_into,
@@ -3619,7 +3908,7 @@ mod axis_tests {
                 Scaling::Exponential,
                 |x| Complex::new(0.0, x),
                 1e-2,
-                false,
+                ' ',
             ),
             (
                 hankel1_seq_into,
@@ -3627,11 +3916,11 @@ mod axis_tests {
                 Scaling::Exponential,
                 |x| Complex::new(0.0, -x),
                 1e-2,
-                false,
+                ' ',
             ),
         ];
         let mut buf = [Complex::new(0.0, 0.0); 70];
-        for (seq, single, scaling, zf, ratio, beyond) in cases {
+        for (seq, single, scaling, zf, ratio, neg) in cases {
             for nu0 in [-7.3, -6.0, -40.5, 0.5, 2.0, 30.5] {
                 for n in [1usize, 5, 40, 64, 70] {
                     // Not x = 1: H2_{±1.5}(i) = 0 exactly (K_{3/2}(1) = π·I_{3/2}(1))
@@ -3650,9 +3939,7 @@ mod axis_tests {
                             let (small, large) = (sr.min(si), sr.max(si));
                             let jy_ok = ratio == 1e-2
                                 || x < nu.abs()
-                                || (beyond
-                                    && sr < si
-                                    && (cospi(nu).abs() < 0.1 || (0.0..18.0).contains(&nu)));
+                                || neg_axis_selected(neg, nu, usize::from(sr >= si));
                             if jy_ok && small < 1e-3 * ratio * large && small > 0.0 {
                                 let (gs, ss) = if sr < si { (v.re, s.re) } else { (v.im, s.im) };
                                 let err = ((gs - ss) / ss).abs();
