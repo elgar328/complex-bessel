@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-15
+
 ### Added
 
 - `besselj_seq_into`, `bessely_seq_into`, `besseli_seq_into`, `besselk_seq_into`,
@@ -225,7 +227,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Provide sequence computation (`_seq` variants) for consecutive orders.
 - Support `no_std` with 3-tier feature flags (`no_std` / `alloc` / `std`).
 
-[Unreleased]: https://github.com/elgar328/complex-bessel/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/elgar328/complex-bessel/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/elgar328/complex-bessel/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/elgar328/complex-bessel/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/elgar328/complex-bessel/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/elgar328/complex-bessel/compare/v0.2.0...v0.3.0

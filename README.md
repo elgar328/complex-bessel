@@ -32,7 +32,7 @@ The charts are for f64. The [test repository](https://github.com/elgar328/comple
 
 ```toml
 [dependencies]
-complex-bessel = "0.4"
+complex-bessel = "0.5"
 ```
 
 ```rust
@@ -117,7 +117,7 @@ All functions return `Result<_, Error>`. The four error variants are:
 Turn off the default `std` feature:
 
 ```toml
-complex-bessel = { version = "0.4", default-features = false }
+complex-bessel = { version = "0.5", default-features = false }
 ```
 
 All functions except the six `_seq` variants (which return a `Vec`) remain

@@ -166,7 +166,7 @@
 //! Turn off the default `std` feature:
 //!
 //! ```toml
-//! complex-bessel = { version = "0.4", default-features = false }
+//! complex-bessel = { version = "0.5", default-features = false }
 //! ```
 //!
 //! All functions except the six `_seq` variants (which return a `Vec`) remain
