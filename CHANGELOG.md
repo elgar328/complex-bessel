@@ -86,8 +86,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     instead of 1.7790766e-7, that of `bessely(-17.0, -56.32193676896589)`
     1.0692e-12 instead of 1.0675e-12, and the imaginary part of
     `hankel2(17.0, -56.32193676896589)` 1.0709e-12 instead of 1.0675e-12.
-  - Values with a recomputed part take up to about 2 times as long (sequences
-    up to about 4 times); all other values are unchanged.
+  - Values with a recomputed part take up to about 4 times as long, and
+    sequences with such parts up to about 5 times for n ≤ 20 and 16 times
+    for n = 100 (e.g. `besselk_seq` from ν = 85 at z = 50i). Elsewhere results
+    and speed are unchanged.
   - Still accurate only normwise: parts of the other functions that are a
     nearly vanishing cos(νπ) or sin(νπ) times one real function, for orders
     close to an integer or half-integer (e.g. Re J_ν(−x) = cos(νπ)·J_ν(x)),
