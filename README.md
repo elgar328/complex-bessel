@@ -125,13 +125,9 @@ complex-bessel = { version = "0.4", default-features = false }
 
 ## Accuracy & performance
 
-Precision of complex-bessel (Rust), AMOS/TOMS 644 (Fortran), and SciPy (Python) across all functions.
+Precision of complex-bessel (Rust), AMOS/TOMS 644 (Fortran), SciPy (Python), and SpecialFunctions.jl (Julia) across all functions.
 
 [![Accuracy — relative error vs mpmath](https://raw.githubusercontent.com/elgar328/complex-bessel-test/main/images/accuracy.svg)](https://github.com/elgar328/complex-bessel-test/blob/main/images/accuracy.pdf)
-
-Since this library is a Rust translation of AMOS/TOMS 644, the two should produce nearly identical results.
-
-[![Rust vs Fortran — relative error](https://raw.githubusercontent.com/elgar328/complex-bessel-test/main/images/fidelity.svg)](https://github.com/elgar328/complex-bessel-test/blob/main/images/fidelity.pdf)
 
 Median evaluation time per function call.
 
