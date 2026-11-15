@@ -90,7 +90,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   to about 4 times); elsewhere nothing changes. Still accurate only
   normwise are parts of the other functions that are a nearly vanishing
   cos(νπ) or sin(νπ) times one real function, for orders close to an
-  integer or a half-integer, e.g. Re J_ν(−x) = cos(νπ)·J_ν(x).
+  integer or a half-integer, e.g. Re J_ν(−x) = cos(νπ)·J_ν(x), and parts
+  of values next to (not on) an axis, where the same cancellation remains.
 - `besselj` and `bessely` (and their `_scaled`, `_seq`, and `_seq_into`
   variants) on the positive real axis returned a rounding residue as the
   imaginary part, e.g. −5.4e-16 for `besselj(0.3, 5.0)`; they are now

@@ -103,6 +103,11 @@
 //! |f(z)|; its relative error grows roughly like ε/|cos(νπ)| (or
 //! ε/|sin(νπ)|). An example is Re J<sub>ν</sub>(−x) = cos(νπ) J<sub>ν</sub>(x).
 //!
+//! Only values exactly on an axis are recomputed. Next to an axis (e.g.
+//! Im z = 10⁻¹⁰·|z|) the same cancellation remains, less deep the farther z
+//! is from the axis, and the parts are accurate only relative to |f(z)|, as
+//! in Amos.
+//!
 //! For f32, J<sub>ν</sub>(x) on the real axis with ν ≳ 10 and 35 ≲ x ≲ 45 errs
 //! by up to about 7e-3·|H<sub>ν</sub>(x)|, as in Amos's single-precision CBESJ.
 //!
