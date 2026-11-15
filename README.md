@@ -135,7 +135,7 @@ instead of the platform library.
 
 The last two show up in the componentwise relative error (of the real and imaginary parts separately):
 
-[![Componentwise accuracy — on the axes, and of scaled functions near them](https://raw.githubusercontent.com/elgar328/complex-bessel-test/main/images/differences.svg)](https://github.com/elgar328/complex-bessel-test/blob/main/images/differences.pdf)
+[![Componentwise accuracy — on the axes, and of scaled functions near them](https://raw.githubusercontent.com/elgar328/complex-bessel-test/main/images/componentwise_accuracy.svg)](https://github.com/elgar328/complex-bessel-test/blob/main/images/componentwise_accuracy.pdf)
 
 ## License
 
