@@ -103,6 +103,9 @@
 //! |f(z)|; its relative error grows roughly like ε/|cos(νπ)| (or
 //! ε/|sin(νπ)|). An example is Re J<sub>ν</sub>(−x) = cos(νπ) J<sub>ν</sub>(x).
 //!
+//! For f32, J<sub>ν</sub>(x) on the real axis with ν ≳ 10 and 35 ≲ x ≲ 45 errs
+//! by up to about 7e-3·|H<sub>ν</sub>(x)|, as in Amos's single-precision CBESJ.
+//!
 //! # Function variants
 //!
 //! ## Consecutive orders
